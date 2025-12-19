@@ -1,5 +1,7 @@
 "use client"
 
+export const dynamic = 'force-dynamic'
+
 import { useAppSelector } from "@/app/hooks"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
