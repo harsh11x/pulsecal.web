@@ -1,9 +1,6 @@
 import { apiService } from "./api"
 import type { User } from "@/types"
 
-import { apiService } from "./api"
-import type { User } from "@/types"
-
 export const userService = {
   getProfile: async (): Promise<User> => {
     return await apiService.get<User>("/users/profile")
