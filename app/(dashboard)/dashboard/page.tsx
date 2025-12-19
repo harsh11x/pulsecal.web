@@ -1,12 +1,5 @@
 "use client"
 
-// Explicitly prevent static generation
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
-export const runtime = 'nodejs'
-export const fetchCache = 'force-no-store'
-export const dynamicParams = true
-
 import { useRouter } from "next/navigation"
 import { useEffect, Suspense, useState } from "react"
 import nextDynamic from "next/dynamic"

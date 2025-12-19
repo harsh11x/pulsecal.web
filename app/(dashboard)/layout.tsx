@@ -1,11 +1,5 @@
 "use client"
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
-export const runtime = 'nodejs'
-export const fetchCache = 'force-no-store'
-export const dynamicParams = true
-
 import type React from "react"
 
 import { useEffect, useState } from "react"
