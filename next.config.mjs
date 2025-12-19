@@ -6,8 +6,10 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  // Disable static page generation during build
-  output: 'standalone',
+  // Skip static optimization - render all pages dynamically
+  experimental: {
+    dynamicIO: true,
+  },
 }
 
 export default nextConfig
