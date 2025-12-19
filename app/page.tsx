@@ -373,7 +373,7 @@ export default function Home() {
             {[
               {
                 name: "Starter",
-                price: "$29",
+                price: "Rs. 2000",
                 period: "per month",
                 description: "Perfect for small practices",
                 features: [
@@ -387,7 +387,7 @@ export default function Home() {
               },
               {
                 name: "Professional",
-                price: "$79",
+                price: "Rs. 3900",
                 period: "per month",
                 description: "For growing practices",
                 features: [
@@ -403,8 +403,8 @@ export default function Home() {
               },
               {
                 name: "Enterprise",
-                price: "Custom",
-                period: "pricing",
+                price: "Rs. 5500",
+                period: "per month",
                 description: "For large organizations",
                 features: [
                   "Everything in Professional",
