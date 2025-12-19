@@ -2,12 +2,6 @@
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
-export const dynamicParams = true
-
-// Prevent static generation by returning empty array
-export function generateStaticParams() {
-  return []
-}
 
 import { useAppSelector } from "@/app/hooks"
 import { useRouter } from "next/navigation"
