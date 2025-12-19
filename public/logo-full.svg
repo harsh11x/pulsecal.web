@@ -1,0 +1,9 @@
+<svg width="120" height="40" viewBox="0 0 120 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Heart shape -->
+  <path d="M20 35C20 35 8 25 8 15C8 10 12 7 16 7C18 7 20 8 20 10C20 8 22 7 24 7C28 7 32 10 32 15C32 25 20 35 20 35Z" fill="#3B82F6"/>
+  <!-- Heartbeat line -->
+  <path d="M8 20L12 18L16 22L20 16L24 20L28 18L32 22" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- PulseCal text -->
+  <text x="45" y="28" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="bold" fill="currentColor">PulseCal</text>
+</svg>
+

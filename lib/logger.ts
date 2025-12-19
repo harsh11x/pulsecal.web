@@ -1,0 +1,24 @@
+/**
+ * Simple logger utility
+ * In production, you might want to use a proper logging service
+ */
+
+export const logger = {
+  info: (message: string, ...args: unknown[]): void => {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[INFO] ${message}`, ...args);
+    }
+  },
+  error: (message: string, ...args: unknown[]): void => {
+    console.error(`[ERROR] ${message}`, ...args);
+  },
+  warn: (message: string, ...args: unknown[]): void => {
+    console.warn(`[WARN] ${message}`, ...args);
+  },
+  debug: (message: string, ...args: unknown[]): void => {
+    if (process.env.NODE_ENV !== 'production') {
+      console.debug(`[DEBUG] ${message}`, ...args);
+    }
+  },
+};
+
