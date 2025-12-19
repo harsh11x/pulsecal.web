@@ -1,9 +1,7 @@
 "use client"
 
-export const dynamic = 'force-dynamic'
-
 import { useSearchParams, useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useAppSelector, useAppDispatch } from "@/app/hooks"
 import { setUser } from "@/app/features/authSlice"
 import PatientOnboarding from "@/components/onboarding/PatientOnboarding"
@@ -13,7 +11,7 @@ import { Loader2 } from "lucide-react"
 import { getIdToken } from "@/lib/firebaseAuth"
 import { apiService } from "@/services/api"
 
-export default function OnboardingPage() {
+function OnboardingContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const dispatch = useAppDispatch()
@@ -165,5 +163,17 @@ export default function OnboardingPage() {
     default:
       return <PatientOnboarding />
   }
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    }>
+      <OnboardingContent />
+    </Suspense>
+  )
 }
 

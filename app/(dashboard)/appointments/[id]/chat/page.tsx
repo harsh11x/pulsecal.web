@@ -1,8 +1,5 @@
 "use client"
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
-
 import { AppLayout } from "@/components/layout/AppLayout"
 import { ProtectedRoute } from "@/routes/ProtectedRoute"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
