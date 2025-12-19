@@ -20,7 +20,7 @@ Set these environment variables on your AWS instance:
 NODE_ENV=production
 PORT=3001
 API_VERSION=v1
-CORS_ORIGIN=https://yourdomain.com
+CORS_ORIGIN=https://pulsecal.com
 
 # Database
 DATABASE_URL=postgresql://user:password@host:5432/database

@@ -6,13 +6,13 @@ export const revalidate = 0
 import { useAppSelector } from "@/app/hooks"
 import { useRouter } from "next/navigation"
 import { useEffect, Suspense } from "react"
-import dynamic from "next/dynamic"
+import nextDynamic from "next/dynamic"
 
 // Dynamically import dashboard pages to prevent static generation
-const PatientDashboardPage = dynamic(() => import("@/pages/dashboard/PatientDashboardPage"), { ssr: false })
-const DoctorDashboardPage = dynamic(() => import("@/pages/dashboard/DoctorDashboardPage"), { ssr: false })
-const ReceptionistDashboardPage = dynamic(() => import("@/pages/dashboard/ReceptionistDashboardPage"), { ssr: false })
-const AdminDashboardPage = dynamic(() => import("@/pages/dashboard/AdminDashboardPage"), { ssr: false })
+const PatientDashboardPage = nextDynamic(() => import("@/pages/dashboard/PatientDashboardPage"), { ssr: false })
+const DoctorDashboardPage = nextDynamic(() => import("@/pages/dashboard/DoctorDashboardPage"), { ssr: false })
+const ReceptionistDashboardPage = nextDynamic(() => import("@/pages/dashboard/ReceptionistDashboardPage"), { ssr: false })
+const AdminDashboardPage = nextDynamic(() => import("@/pages/dashboard/AdminDashboardPage"), { ssr: false })
 
 export default function DashboardPage() {
   const user = useAppSelector((state) => state.auth.user)
