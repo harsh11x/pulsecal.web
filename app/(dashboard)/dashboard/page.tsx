@@ -5,11 +5,14 @@ export const revalidate = 0
 
 import { useAppSelector } from "@/app/hooks"
 import { useRouter } from "next/navigation"
-import { useEffect } from "react"
-import PatientDashboardPage from "@/pages/dashboard/PatientDashboardPage"
-import DoctorDashboardPage from "@/pages/dashboard/DoctorDashboardPage"
-import ReceptionistDashboardPage from "@/pages/dashboard/ReceptionistDashboardPage"
-import AdminDashboardPage from "@/pages/dashboard/AdminDashboardPage"
+import { useEffect, Suspense } from "react"
+import dynamic from "next/dynamic"
+
+// Dynamically import dashboard pages to prevent static generation
+const PatientDashboardPage = dynamic(() => import("@/pages/dashboard/PatientDashboardPage"), { ssr: false })
+const DoctorDashboardPage = dynamic(() => import("@/pages/dashboard/DoctorDashboardPage"), { ssr: false })
+const ReceptionistDashboardPage = dynamic(() => import("@/pages/dashboard/ReceptionistDashboardPage"), { ssr: false })
+const AdminDashboardPage = dynamic(() => import("@/pages/dashboard/AdminDashboardPage"), { ssr: false })
 
 export default function DashboardPage() {
   const user = useAppSelector((state) => state.auth.user)
@@ -47,16 +50,28 @@ export default function DashboardPage() {
     )
   }
 
-  switch (user.role.toLowerCase()) {
-    case "patient":
-      return <PatientDashboardPage />
-    case "doctor":
-      return <DoctorDashboardPage />
-    case "receptionist":
-      return <ReceptionistDashboardPage />
-    case "admin":
-      return <AdminDashboardPage />
-    default:
-      return <PatientDashboardPage />
+  const renderDashboard = () => {
+    switch (user.role.toLowerCase()) {
+      case "patient":
+        return <PatientDashboardPage />
+      case "doctor":
+        return <DoctorDashboardPage />
+      case "receptionist":
+        return <ReceptionistDashboardPage />
+      case "admin":
+        return <AdminDashboardPage />
+      default:
+        return <PatientDashboardPage />
+    }
   }
+
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    }>
+      {renderDashboard()}
+    </Suspense>
+  )
 }
