@@ -1,6 +1,6 @@
 import { AppLayout } from "@/components/layout/AppLayout"
 import { ProtectedRoute } from "@/routes/ProtectedRoute"
-import { CreateAppointmentPage } from "@/pages/appointments/CreateAppointmentPage"
+import CreateAppointmentPage from "@/pages/appointments/CreateAppointmentPage"
 
 export default function CreateAppointment() {
   return (

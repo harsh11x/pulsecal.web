@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 
-export function CreateAppointmentPage() {
+export default function CreateAppointmentPage() {
   const router = useRouter()
 
   return (

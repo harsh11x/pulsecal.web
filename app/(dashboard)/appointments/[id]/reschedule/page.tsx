@@ -1,6 +1,6 @@
 import { AppLayout } from "@/components/layout/AppLayout"
 import { ProtectedRoute } from "@/routes/ProtectedRoute"
-import { RescheduleAppointmentPage } from "@/pages/appointments/RescheduleAppointmentPage"
+import RescheduleAppointmentPage from "@/pages/appointments/RescheduleAppointmentPage"
 
 export default function RescheduleAppointment({ params }: { params: { id: string } }) {
   return (

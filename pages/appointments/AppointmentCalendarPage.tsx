@@ -3,7 +3,7 @@
 import { Calendar } from "@/components/ui/calendar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
-export function AppointmentCalendarPage() {
+export default function AppointmentCalendarPage() {
   return (
     <div className="container mx-auto py-8">
       <Card>

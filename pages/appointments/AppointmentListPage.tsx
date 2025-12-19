@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import { useRouter } from "next/navigation"
 
-export function AppointmentListPage() {
+export default function AppointmentListPage() {
   const router = useRouter()
 
   return (

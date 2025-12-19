@@ -8,7 +8,7 @@ interface RescheduleAppointmentPageProps {
   appointmentId: string
 }
 
-export function RescheduleAppointmentPage({ appointmentId }: RescheduleAppointmentPageProps) {
+export default function RescheduleAppointmentPage({ appointmentId }: RescheduleAppointmentPageProps) {
   const router = useRouter()
 
   return (

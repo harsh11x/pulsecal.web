@@ -8,7 +8,7 @@ interface AppointmentDetailPageProps {
   appointmentId: string
 }
 
-export function AppointmentDetailPage({ appointmentId }: AppointmentDetailPageProps) {
+export default function AppointmentDetailPage({ appointmentId }: AppointmentDetailPageProps) {
   const router = useRouter()
 
   return (

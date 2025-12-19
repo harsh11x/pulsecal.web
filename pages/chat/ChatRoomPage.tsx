@@ -9,7 +9,7 @@ interface ChatRoomPageProps {
   roomId: string
 }
 
-export function ChatRoomPage({ roomId }: ChatRoomPageProps) {
+export default function ChatRoomPage({ roomId }: ChatRoomPageProps) {
   const router = useRouter()
 
   return (
