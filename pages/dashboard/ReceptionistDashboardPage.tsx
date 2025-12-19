@@ -1,6 +1,5 @@
 "use client"
 
-import { useAppSelector } from "@/app/hooks"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { StatsCard } from "@/components/dashboard/StatsCard"
 import { Button } from "@/components/ui/button"
@@ -12,6 +11,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { apiService } from "@/services/api"
 import { toast } from "sonner"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+
+interface ReceptionistDashboardPageProps {
+  user: any
+}
 
 interface QueueEntry {
   id: string
@@ -33,8 +36,7 @@ interface Appointment {
   email?: string
 }
 
-export default function ReceptionistDashboardPage() {
-  const user = useAppSelector((state) => state.auth.user)
+export default function ReceptionistDashboardPage({ user }: ReceptionistDashboardPageProps) {
   const [todayStats, setTodayStats] = useState({
     appointments: 0,
     completed: 0,

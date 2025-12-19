@@ -1,6 +1,5 @@
 "use client"
 
-import { useAppSelector } from "@/app/hooks"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { StatsCard } from "@/components/dashboard/StatsCard"
 import { UpcomingAppointmentsCard } from "@/components/dashboard/UpcomingAppointmentsCard"
@@ -10,8 +9,11 @@ import { Calendar, MapPin, Search, Stethoscope } from "lucide-react"
 import Link from "next/link"
 import { DoctorDiscoveryMap } from "@/components/doctors/DoctorDiscoveryMap"
 
-export default function PatientDashboardPage() {
-  const user = useAppSelector((state) => state.auth.user)
+interface PatientDashboardPageProps {
+  user: any
+}
+
+export default function PatientDashboardPage({ user }: PatientDashboardPageProps) {
 
   const stats = [
     {

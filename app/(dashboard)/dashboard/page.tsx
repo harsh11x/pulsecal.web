@@ -1,5 +1,6 @@
 "use client"
 
+// Explicitly prevent static generation
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 export const runtime = 'nodejs'
@@ -79,15 +80,15 @@ function DashboardContent() {
   const renderDashboard = () => {
     switch (user.role.toLowerCase()) {
       case "patient":
-        return <PatientDashboardPage />
+        return <PatientDashboardPage user={user} />
       case "doctor":
-        return <DoctorDashboardPage />
+        return <DoctorDashboardPage user={user} />
       case "receptionist":
-        return <ReceptionistDashboardPage />
+        return <ReceptionistDashboardPage user={user} />
       case "admin":
-        return <AdminDashboardPage />
+        return <AdminDashboardPage user={user} />
       default:
-        return <PatientDashboardPage />
+        return <PatientDashboardPage user={user} />
     }
   }
 

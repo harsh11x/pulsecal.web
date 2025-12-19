@@ -1,14 +1,16 @@
 "use client"
 
-import { useAppSelector } from "@/app/hooks"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { StatsCard } from "@/components/dashboard/StatsCard"
 import { Button } from "@/components/ui/button"
 import { Users, Calendar, DollarSign, Activity } from "lucide-react"
 import Link from "next/link"
 
-export default function AdminDashboardPage() {
-  const user = useAppSelector((state) => state.auth.user)
+interface AdminDashboardPageProps {
+  user: any
+}
+
+export default function AdminDashboardPage({ user }: AdminDashboardPageProps) {
 
   const stats = [
     {

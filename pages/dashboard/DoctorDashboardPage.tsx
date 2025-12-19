@@ -1,6 +1,5 @@
 "use client"
 
-import { useAppSelector } from "@/app/hooks"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { StatsCard } from "@/components/dashboard/StatsCard"
 import { DoctorAnalytics } from "@/components/dashboard/DoctorAnalytics"
@@ -13,6 +12,10 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { apiService } from "@/services/api"
+
+interface DoctorDashboardPageProps {
+  user: any
+}
 
 interface DashboardStats {
   today: {
@@ -44,8 +47,7 @@ interface DashboardStats {
   cancellationRate: number
 }
 
-export default function DoctorDashboardPage() {
-  const user = useAppSelector((state) => state.auth.user)
+export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [todayAppointments, setTodayAppointments] = useState<any[]>([])
