@@ -5,7 +5,7 @@ export const revalidate = 0
 
 import { useAppSelector } from "@/app/hooks"
 import { useRouter } from "next/navigation"
-import { useEffect, Suspense, useState } from "react"
+import { useEffect, Suspense } from "react"
 import nextDynamic from "next/dynamic"
 
 // Dynamically import dashboard pages to prevent static generation - client only
@@ -14,19 +14,12 @@ const DoctorDashboardPage = nextDynamic(() => import("@/pages/dashboard/DoctorDa
 const ReceptionistDashboardPage = nextDynamic(() => import("@/pages/dashboard/ReceptionistDashboardPage"), { ssr: false })
 const AdminDashboardPage = nextDynamic(() => import("@/pages/dashboard/AdminDashboardPage"), { ssr: false })
 
-export default function DashboardPage() {
-  const [isClient, setIsClient] = useState(false)
+// Client-only component that uses Redux
+function DashboardContent() {
   const user = useAppSelector((state) => state.auth.user)
   const router = useRouter()
 
-  // Ensure we're on the client before rendering Redux-dependent content
   useEffect(() => {
-    setIsClient(true)
-  }, [])
-
-  useEffect(() => {
-    if (!isClient) return
-    
     if (!user) {
       // Give a small delay to allow Redux state to update
       const timer = setTimeout(() => {
@@ -39,16 +32,7 @@ export default function DashboardPage() {
     if (user && !user.onboardingCompleted) {
       router.push(`/onboarding?role=${user.role}`)
     }
-  }, [isClient, user, router])
-
-  // Show loading during SSR or before client hydration
-  if (!isClient) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    )
-  }
+  }, [user, router])
 
   if (!user) {
     return (
@@ -89,6 +73,19 @@ export default function DashboardPage() {
       </div>
     }>
       {renderDashboard()}
+    </Suspense>
+  )
+}
+
+// Main page component - renders client-only content
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    }>
+      <DashboardContent />
     </Suspense>
   )
 }
