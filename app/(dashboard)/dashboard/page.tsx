@@ -1,6 +1,7 @@
 "use client"
 
 export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 import { useAppSelector } from "@/app/hooks"
 import { useRouter } from "next/navigation"
