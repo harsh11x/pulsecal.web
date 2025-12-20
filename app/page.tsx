@@ -378,6 +378,7 @@ export default function Home() {
                 description: "Perfect for small practices",
                 features: [
                   "Up to 100 appointments/month",
+                  "Add upto 3 Doctors per clinic",
                   "Basic scheduling",
                   "Patient records",
                   "Email support",
@@ -392,6 +393,7 @@ export default function Home() {
                 description: "For growing practices",
                 features: [
                   "Unlimited appointments",
+                  "Upto 10 Doctors per clinic",
                   "Advanced scheduling",
                   "Telemedicine integration",
                   "Analytics dashboard",
@@ -408,6 +410,7 @@ export default function Home() {
                 description: "For large organizations",
                 features: [
                   "Everything in Professional",
+                  "Add as many Doctors per clinic",                  
                   "Multi-location support",
                   "Dedicated account manager",
                   "Custom integrations",
