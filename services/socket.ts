@@ -18,7 +18,7 @@ class SocketService {
       return
     }
 
-    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001"
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || "http://13.205.127.21:3001"
 
     this.socket = io(socketUrl, {
       auth: { token },

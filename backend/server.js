@@ -29,8 +29,8 @@ const config = {
   databaseUrl: process.env.DATABASE_URL,
   corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:3000',
   firebaseProjectId: process.env.FIREBASE_PROJECT_ID,
-  firebaseServiceAccount: process.env.FIREBASE_SERVICE_ACCOUNT_KEY 
-    ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY) 
+  firebaseServiceAccount: process.env.FIREBASE_SERVICE_ACCOUNT_KEY
+    ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
     : null,
   redisHost: process.env.REDIS_HOST || 'localhost',
   redisPort: parseInt(process.env.REDIS_PORT || '6379', 10),
@@ -55,18 +55,26 @@ const logger = {
 // DATABASE INITIALIZATION
 // ============================================================================
 const prisma = new PrismaClient({
-  log: config.nodeEnv === 'development' 
+  log: config.nodeEnv === 'development'
     ? [{ level: 'query', emit: 'event' }, { level: 'error', emit: 'stdout' }]
     : [{ level: 'error', emit: 'stdout' }],
 });
 
-const connectDatabase = async () => {
-  try {
-    await prisma.$connect();
-    logger.info('Database connected successfully');
-  } catch (error) {
-    logger.error('Database connection error:', error);
-    process.exit(1);
+const connectDatabase = async (retries = 5) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      await prisma.$connect();
+      logger.info('Database connected successfully');
+      return;
+    } catch (error) {
+      logger.error(`Database connection attempt ${i + 1} failed:`, error.message);
+      if (i === retries - 1) {
+        logger.error('All database connection attempts failed. Exiting...');
+        process.exit(1);
+      }
+      // Wait for 5 seconds before retrying
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
   }
 };
 
@@ -521,7 +529,7 @@ const getDoctorAnalytics = async (doctorId, period = 'day') => {
     },
   });
 
-  const confirmedAppointments = appointments.filter(apt => 
+  const confirmedAppointments = appointments.filter(apt =>
     ['CONFIRMED', 'IN_PROGRESS', 'COMPLETED'].includes(apt.status)
   ).length;
 
@@ -546,8 +554,8 @@ const getDoctorAnalytics = async (doctorId, period = 'day') => {
   });
   const yesterdayRevenue = yesterdayPayments.reduce((sum, payment) => sum + Number(payment.amount), 0);
 
-  const cancellationRate = totalAppointments > 0 
-    ? (cancelledAppointments / totalAppointments) * 100 
+  const cancellationRate = totalAppointments > 0
+    ? (cancelledAppointments / totalAppointments) * 100
     : 0;
 
   // Revenue trends (simplified - returns daily breakdown)
@@ -584,7 +592,7 @@ const getDoctorAnalytics = async (doctorId, period = 'day') => {
       totalRevenue: Number(totalRevenue.toFixed(2)),
       todayRevenue: Number(todayRevenue.toFixed(2)),
       yesterdayRevenue: Number(yesterdayRevenue.toFixed(2)),
-      revenueChange: yesterdayRevenue > 0 
+      revenueChange: yesterdayRevenue > 0
         ? Number((((todayRevenue - yesterdayRevenue) / yesterdayRevenue) * 100).toFixed(2))
         : 0,
       cancellationRate: Number(cancellationRate.toFixed(2)),
@@ -754,7 +762,7 @@ const getReceptionistStats = async (receptionistId) => {
     stats: {
       totalBooked: todayAppointments.length,
       completed: todayAppointments.filter(apt => apt.status === 'COMPLETED').length,
-      waiting: todayAppointments.filter(apt => 
+      waiting: todayAppointments.filter(apt =>
         ['SCHEDULED', 'CONFIRMED'].includes(apt.status)
       ).length,
       inProgress: todayAppointments.filter(apt => apt.status === 'IN_PROGRESS').length,
@@ -1025,15 +1033,15 @@ if (redisClient) {
 // Socket authentication
 io.use(async (socket, next) => {
   try {
-    const token = socket.handshake.auth.token || 
-                 socket.handshake.headers.authorization?.replace('Bearer ', '');
-    
+    const token = socket.handshake.auth.token ||
+      socket.handshake.headers.authorization?.replace('Bearer ', '');
+
     if (!token) {
       return next(new Error('Authentication error: No token provided'));
     }
 
     const decodedToken = await admin.auth().verifyIdToken(token);
-    
+
     const user = await prisma.user.findFirst({
       where: { firebaseUid: decodedToken.uid },
       select: {
@@ -1097,7 +1105,7 @@ setSocketInstance(io);
 const startServer = async () => {
   try {
     await connectDatabase();
-    
+
     server.listen(config.port, () => {
       logger.info(`🚀 PulseCal Backend Server running on port ${config.port}`);
       logger.info(`📡 Environment: ${config.nodeEnv}`);
