@@ -22,6 +22,30 @@ const Redis = require('ioredis');
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
+// Helper to safely parse JSON
+const safeJsonParse = (str) => {
+  try {
+    return str ? JSON.parse(str) : null;
+  } catch (e) {
+    console.error('Failed to parse JSON configuration:', e.message);
+    return null;
+  }
+};
+
+// Global Error Handlers (Must be before other code)
+process.on('uncaughtException', (err) => {
+  console.error('UNCAUGHT EXCEPTION! 💥 Shutting down...');
+  console.error(err.name, err.message);
+  console.error(err.stack);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (err) => {
+  console.error('UNHANDLED REJECTION! 💥 Shutting down...');
+  console.error(err);
+  process.exit(1);
+});
+
 const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: parseInt(process.env.PORT || '3001', 10),
@@ -29,9 +53,7 @@ const config = {
   databaseUrl: process.env.DATABASE_URL,
   corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:3000',
   firebaseProjectId: process.env.FIREBASE_PROJECT_ID,
-  firebaseServiceAccount: process.env.FIREBASE_SERVICE_ACCOUNT_KEY
-    ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
-    : null,
+  firebaseServiceAccount: safeJsonParse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY),
   redisHost: process.env.REDIS_HOST || 'localhost',
   redisPort: parseInt(process.env.REDIS_PORT || '6379', 10),
   redisPassword: process.env.REDIS_PASSWORD,
