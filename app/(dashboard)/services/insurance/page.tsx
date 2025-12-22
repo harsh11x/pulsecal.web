@@ -1,6 +1,5 @@
 "use client"
 
-import { AppLayout } from "@/components/layout/AppLayout"
 import { ProtectedRoute } from "@/routes/ProtectedRoute"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
