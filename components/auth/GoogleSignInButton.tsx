@@ -7,30 +7,30 @@ import { Loader2 } from "lucide-react"
 
 interface GoogleSignInButtonProps {
   mode?: "signin" | "signup"
-  onSuccess?: () => void
+  onSuccess?: (user?: any) => void
   onError?: (error: Error) => void
 }
 
-export function GoogleSignInButton({ 
-  mode = "signin", 
+export function GoogleSignInButton({
+  mode = "signin",
   onSuccess,
-  onError 
+  onError
 }: GoogleSignInButtonProps) {
   const [loading, setLoading] = useState(false)
 
   const handleGoogleAuth = async () => {
     try {
       setLoading(true)
-      
+
       // Sign in/up with Google
-      const userCredential = mode === "signin" 
+      const userCredential = mode === "signin"
         ? await signInWithGoogle()
         : await signUpWithGoogle()
-      
+
       // Sync profile with backend (automatically extracts name from Google account)
-      await syncUserProfile()
-      
-      onSuccess?.()
+      const user = await syncUserProfile()
+
+      onSuccess?.(user)
     } catch (error: any) {
       console.error("Google authentication error:", error)
       onError?.(error)

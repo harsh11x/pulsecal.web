@@ -42,19 +42,19 @@ export function AuthForm({ mode }: AuthFormProps) {
           formData.password,
           `${formData.firstName} ${formData.lastName}`.trim()
         )
-        
+
         // Sync profile with backend
         await syncUserProfile(
           formData.firstName,
           formData.lastName
         )
-        
+
         toast.success("Account created successfully!")
         router.push("/onboarding")
       }
     } catch (error: any) {
       console.error("Authentication error:", error)
-      
+
       // Handle specific Firebase errors
       let errorMessage = "An error occurred"
       if (error.code === "auth/user-not-found") {
@@ -70,21 +70,44 @@ export function AuthForm({ mode }: AuthFormProps) {
       } else if (error.message) {
         errorMessage = error.message
       }
-      
+
       toast.error(errorMessage)
     } finally {
       setLoading(false)
     }
   }
 
-  const handleGoogleSuccess = () => {
+  const handleGoogleSuccess = (user?: any) => {
     toast.success(
-      mode === "signin" 
-        ? "Signed in with Google successfully!" 
+      mode === "signin"
+        ? "Signed in with Google successfully!"
         : "Account created with Google successfully!"
     )
-    // Redirect to onboarding for new signups, dashboard for logins
-    router.push(mode === "signup" ? "/onboarding" : "/dashboard")
+
+    // Determine redirect based on user state if available
+    if (user && user.onboardingCompleted) {
+      router.push("/dashboard")
+      return
+    }
+
+    // Fallback or specific logic for new users
+    if (user && user.role === 'DOCTOR' && !user.onboardingCompleted) {
+      router.push("/onboarding/doctor")
+      return
+    }
+
+    // Default behavior if status unknown or just following mode
+    // logic: if they were signing up and invalid/no user returned, go to onboarding.
+    // if signing in, go to dashboard.
+    // BUT if we have user object, trust that.
+
+    if (user) {
+      // User exists but onboarding not complete
+      router.push("/onboarding")
+    } else {
+      // Fallback to mode-based redirect
+      router.push(mode === "signup" ? "/onboarding" : "/dashboard")
+    }
   }
 
   const handleGoogleError = (error: Error) => {
