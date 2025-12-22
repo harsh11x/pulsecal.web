@@ -1263,6 +1263,9 @@ app.post(`${apiPrefix}/auth/sync-profile`, authenticate, async (req, res, next) 
       // For now, let's allow it to support the onboarding flow choices.
       updateData.role = role;
     }
+    if (req.body.onboardingCompleted !== undefined) {
+      updateData.onboardingCompleted = req.body.onboardingCompleted;
+    }
 
     const user = await prisma.user.update({
       where: { id: req.user.id },

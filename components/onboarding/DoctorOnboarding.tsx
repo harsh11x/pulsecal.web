@@ -392,6 +392,19 @@ export default function DoctorOnboarding() {
         }
       }
 
+      // Redundant safety save: Call sync-profile as well
+      if (!onboardingComplete) {
+        try {
+          await apiService.post("/api/v1/auth/sync-profile", {
+            onboardingCompleted: true
+          })
+          console.log("Saved onboarding status via sync-profile fallback")
+          onboardingComplete = true
+        } catch (e) {
+          console.error("Fallback save failed", e)
+        }
+      }
+
       // Update Redux state regardless of API success
       if (user) {
         dispatch(setUser({ ...user, onboardingCompleted: true }))
