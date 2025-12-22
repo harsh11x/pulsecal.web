@@ -16,6 +16,8 @@ module.exports = {
       // You can add other env vars here or keep them in .env
       // DATABASE_URL: "..." 
       CORS_ORIGIN: "https://pulsecal.com",
-    }
+    },
+    cwd: "/home/ubuntu/pulsecal.web/backend",
+    node_args: "--require dotenv/config"
   }]
 };
