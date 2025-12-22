@@ -123,6 +123,7 @@ model User {
   auditLogs         AuditLog[]
   refreshTokens     RefreshToken[]
   insurance         Insurance?
+  queueEntries      QueueEntry[]
 
   @@index([email])
   @@index([firebaseUid])
