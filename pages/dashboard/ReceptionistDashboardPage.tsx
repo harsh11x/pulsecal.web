@@ -51,13 +51,13 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
   const [queue, setQueue] = useState<QueueEntry[]>([])
   const [todayAppointments, setTodayAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
-  const [clinicInfo, setClinicInfo] = useState({
-    name: "Heart Care Clinic",
-    address: "123 Medical Center Dr",
-    city: "New York, NY",
-    phone: "+1 (555) 123-4567",
-    email: "info@heartcare.com",
-  })
+  const [clinicInfo, setClinicInfo] = useState<{
+    name: string
+    address: string
+    city: string
+    phone: string
+    email: string
+  } | null>(null)
 
 
   useEffect(() => {
@@ -102,6 +102,10 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
         setTodayStats(statsResponse.data.stats)
       } else {
         setTodayStats({ appointments: 0, completed: 0, waiting: 0, cancelled: 0, inProgress: 0 })
+      }
+
+      if (statsResponse?.data?.clinic) {
+        setClinicInfo(statsResponse.data.clinic)
       }
 
       // Fetch queue
@@ -473,28 +477,38 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
                 <CardDescription>Your clinic details</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-start gap-3">
-                    <Building2 className="h-5 w-5 text-muted-foreground mt-0.5" />
-                    <div>
-                      <p className="font-semibold">{clinicInfo.name}</p>
-                      <p className="text-sm text-muted-foreground">{clinicInfo.address}</p>
-                      <p className="text-sm text-muted-foreground">{clinicInfo.city}</p>
+                {clinicInfo ? (
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-3">
+                      <Building2 className="h-5 w-5 text-muted-foreground mt-0.5" />
+                      <div>
+                        <p className="font-semibold">{clinicInfo.name}</p>
+                        <p className="text-sm text-muted-foreground">{clinicInfo.address}</p>
+                        <p className="text-sm text-muted-foreground">{clinicInfo.city}</p>
+                      </div>
                     </div>
+                    {clinicInfo.phone && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Phone className="h-4 w-4 text-muted-foreground" />
+                        <span>{clinicInfo.phone}</span>
+                      </div>
+                    )}
+                    {clinicInfo.email && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Mail className="h-4 w-4 text-muted-foreground" />
+                        <span>{clinicInfo.email}</span>
+                      </div>
+                    )}
+                    <Button variant="outline" size="sm" className="w-full">
+                      <MapPin className="mr-2 h-4 w-4" />
+                      View on Map
+                    </Button>
                   </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
-                    <span>{clinicInfo.phone}</span>
+                ) : (
+                  <div className="flex items-center justify-center p-6 text-muted-foreground">
+                    <p>No clinic information available</p>
                   </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <span>{clinicInfo.email}</span>
-                  </div>
-                  <Button variant="outline" size="sm" className="w-full">
-                    <MapPin className="mr-2 h-4 w-4" />
-                    View on Map
-                  </Button>
-                </div>
+                )}
               </CardContent>
             </Card>
           </div>

@@ -18,7 +18,7 @@ function AuthStateListener({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     try {
       const auth = getAuthInstance()
-      
+
       // Wait a bit for Firebase to initialize
       const initTimeout = setTimeout(() => {
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -27,13 +27,13 @@ function AuthStateListener({ children }: { children: React.ReactNode }) {
             try {
               // Wait a moment for token to be available
               await new Promise(resolve => setTimeout(resolve, 300))
-              
+
               const token = await getIdToken()
               if (token) {
                 try {
                   const profileResponse: any = await apiService.get("/api/v1/auth/profile")
                   const userProfile = profileResponse?.data || profileResponse
-                  
+
                   if (userProfile && userProfile.id) {
                     const userData = {
                       id: userProfile.id,
@@ -47,6 +47,7 @@ function AuthStateListener({ children }: { children: React.ReactNode }) {
                       isEmailVerified: userProfile.isEmailVerified || false,
                       profileImage: userProfile.profileImage,
                       onboardingCompleted: userProfile.onboardingCompleted || false,
+                      clinicId: userProfile.clinicId,
                     }
                     dispatch(setUser(userData))
                   }

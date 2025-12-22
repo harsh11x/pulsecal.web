@@ -8,29 +8,56 @@ import { Button } from "@/components/ui/button"
 import { Calendar, MapPin, Search, Stethoscope } from "lucide-react"
 import Link from "next/link"
 import { DoctorDiscoveryMap } from "@/components/doctors/DoctorDiscoveryMap"
+import { useEffect, useState } from "react"
+import { apiService } from "@/services/api"
+import { toast } from "sonner"
 
 interface PatientDashboardPageProps {
   user: any
 }
 
 export default function PatientDashboardPage({ user }: PatientDashboardPageProps) {
+  const [statsData, setStatsData] = useState({
+    upcomingAppointments: 0,
+    activePrescriptions: 0,
+    medicalRecords: 0
+  })
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response: any = await apiService.get("/api/v1/patients/stats")
+        setStatsData(response.data || { upcomingAppointments: 0, activePrescriptions: 0, medicalRecords: 0 })
+      } catch (error) {
+        console.error("Failed to fetch patient stats:", error)
+        // toast.error("Failed to load dashboard data") // Optional: silent fail is sometimes better for dashboard widgets
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (user) {
+      fetchStats()
+    }
+  }, [user])
 
   const stats = [
     {
       title: "Upcoming Appointments",
-      value: 3,
-      trend: { label: "2 this week", isPositive: true },
+      value: statsData.upcomingAppointments,
+      trend: { value: 0, label: "Scheduled visits", isPositive: true },
       icon: Calendar,
       color: "blue" as const,
-      description: "Scheduled visits",
+      description: "Next appointment details",
     },
     {
       title: "Active Prescriptions",
-      value: 2,
-      trend: { label: "All current", isPositive: true },
+      value: statsData.activePrescriptions,
+      trend: { value: 0, label: "Current medications", isPositive: true },
       icon: Stethoscope,
       color: "green" as const,
-      description: "Active medications",
+      description: "Active treatments",
     },
   ]
 
@@ -43,8 +70,8 @@ export default function PatientDashboardPage({ user }: PatientDashboardPageProps
 
       <div className="grid gap-6 md:grid-cols-2">
         {stats.map((stat) => (
-          <StatsCard 
-            key={stat.title} 
+          <StatsCard
+            key={stat.title}
             title={stat.title}
             value={stat.value}
             icon={stat.icon}

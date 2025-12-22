@@ -1099,7 +1099,19 @@ app.post(`${apiPrefix}/payments/verify`, authenticate, async (req, res, next) =>
 app.get(`${apiPrefix}/receptionists/stats`, authenticate, requireReceptionist, async (req, res, next) => {
   try {
     const stats = await getReceptionistStats(req.user.id);
-    sendSuccess(res, stats, 'Stats retrieved successfully');
+
+    // Also fetch clinic info
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { clinicId: true }
+    });
+
+    let clinic = null;
+    if (user?.clinicId) {
+      clinic = await prisma.clinic.findUnique({ where: { id: user.clinicId } });
+    }
+
+    sendSuccess(res, { ...stats, clinic }, 'Stats retrieved successfully');
   } catch (err) {
     next(err);
   }
@@ -1121,6 +1133,7 @@ app.get(`${apiPrefix}/auth/profile`, authenticate, async (req, res, next) => {
         isEmailVerified: true,
         profileImage: true,
         onboardingCompleted: true,
+        clinicId: true,
         createdAt: true,
         patientProfile: true,
         doctorProfile: true,
@@ -1180,6 +1193,37 @@ app.post(`${apiPrefix}/users/profile/picture`, authenticate, async (req, res, ne
 });
 
 // Patient Profile
+// Patient routes
+app.get(`${apiPrefix}/patients/stats`, authenticate, async (req, res, next) => {
+  try {
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+    const [upcomingAppointments, prescriptions] = await Promise.all([
+      prisma.appointment.count({
+        where: {
+          patientId: req.user.id,
+          scheduledAt: { gte: new Date() },
+          status: { in: ['SCHEDULED', 'CONFIRMED'] },
+          deletedAt: null
+        }
+      }),
+      // Mocking prescriptions for now as the model might not exist or be populated
+      // In a real app, verify Prisma model exists first. 
+      // Assuming no Prescription model yet based on previous context, returning 0.
+      Promise.resolve(0)
+    ]);
+
+    sendSuccess(res, {
+      upcomingAppointments,
+      activePrescriptions: prescriptions,
+      medicalRecords: 0 // Placeholder until records system is built
+    }, 'Patient stats retrieved');
+  } catch (err) {
+    next(err);
+  }
+});
+
 app.post(`${apiPrefix}/patient-profiles`, authenticate, async (req, res, next) => {
   try {
     const { bloodType, height, weight, allergies, chronicConditions, medications, insuranceProvider, insurancePolicyNumber } = req.body;

@@ -12,6 +12,7 @@ export interface User {
   onboardingCompleted?: boolean
   createdAt?: string
   updatedAt?: string
+  clinicId?: string
 }
 
 export interface Appointment {
