@@ -17,7 +17,6 @@ module.exports = {
       // DATABASE_URL: "..." 
       CORS_ORIGIN: "https://pulsecal.com",
     },
-    cwd: "/home/ubuntu/pulsecal.web/backend",
-    node_args: "--require dotenv/config"
+    cwd: "/home/ubuntu/pulsecal.web/backend"
   }]
 };
