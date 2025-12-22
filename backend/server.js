@@ -262,6 +262,12 @@ const emitNewAppointment = (appointment) => {
     scheduledAt: appointment.scheduledAt,
     reason: appointment.reason,
   });
+
+  // Broadcast availability update to anyone viewing this doctor's slots
+  notificationNamespace.to(`doctor-slots-${appointment.doctorId}`).emit('slot:booked', {
+    time: appointment.scheduledAt,
+    doctorId: appointment.doctorId
+  });
 };
 
 const emitPaymentUpdate = (payment) => {
@@ -906,6 +912,93 @@ app.get(`${apiPrefix}/doctors/:id`, authenticate, async (req, res, next) => {
   }
 });
 
+app.get(`${apiPrefix}/doctors/:id/slots`, authenticate, async (req, res, next) => {
+  try {
+    const doctorId = req.params.id;
+    const { startDate, days = 10 } = req.query;
+
+    // Default to today if no startDate
+    const start = startDate ? new Date(startDate) : new Date();
+    // Reset time to start of day unless it's today (preserve current time? No, usually slots start 9am)
+    // If today, filter out past slots later.
+    const now = new Date();
+
+    const end = new Date(start);
+    end.setDate(end.getDate() + parseInt(days));
+
+    // 1. Fetch all appointments for this doctor in range
+    const existingAppointments = await prisma.appointment.findMany({
+      where: {
+        doctorId: doctorId,
+        scheduledAt: {
+          gte: start,
+          lt: end
+        },
+        status: { not: 'CANCELLED' }
+      },
+      select: { scheduledAt: true }
+    });
+
+    // 2. Generate slots
+    const startHour = 9;
+    const endHour = 17;
+    const slotDuration = 30; // minutes
+
+    const availableSlots = [];
+    const bookedStrings = new Set(existingAppointments.map(a => new Date(a.scheduledAt).toISOString()));
+
+    for (let d = 0; d < parseInt(days); d++) {
+      const currentDay = new Date(start);
+      currentDay.setDate(start.getDate() + d);
+      currentDay.setHours(0, 0, 0, 0);
+
+      const daySlots = [];
+      let isFullyBooked = true;
+      let hasSlots = false;
+
+      const slotsInDay = (endHour - startHour) * (60 / slotDuration);
+
+      for (let i = 0; i < slotsInDay; i++) {
+        const slotTime = new Date(currentDay);
+        const minutesToAdd = i * slotDuration + (startHour * 60);
+        slotTime.setMinutes(minutesToAdd);
+
+        // Filter past slots if today
+        if (slotTime < now) continue;
+
+        const timeString = slotTime.toISOString();
+        const isBooked = bookedStrings.has(timeString);
+
+        if (!isBooked) {
+          isFullyBooked = false;
+          hasSlots = true;
+        }
+
+        // Only add if we want to show booked ones too (to show "booked"), or just available?
+        // User said: "if the slots of whole day is booked then that whole day should appear as unavialable"
+        // So we send all, but mark them.
+        daySlots.push({
+          time: timeString,
+          available: !isBooked
+        });
+      }
+
+      if (daySlots.length > 0) {
+        availableSlots.push({
+          date: currentDay.toISOString().split('T')[0],
+          dayName: currentDay.toLocaleDateString('en-US', { weekday: 'short' }),
+          slots: daySlots,
+          isFullyBooked: !hasSlots || isFullyBooked
+        });
+      }
+    }
+
+    sendSuccess(res, availableSlots, 'Slots retrieved');
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Appointment routes
 app.post(`${apiPrefix}/appointments`, authenticate, async (req, res, next) => {
   try {
@@ -1008,9 +1101,9 @@ app.post(`${apiPrefix}/payments/create-order`, authenticate, async (req, res, ne
 
     const { plan } = req.body; // BASIC, PROFESSIONAL, ENTERPRISE
     const amounts = {
-      BASIC: 2900,
-      PROFESSIONAL: 7900,
-      ENTERPRISE: 19900
+      BASIC: 1499,
+      PROFESSIONAL: 2999,
+      ENTERPRISE: 4999
     };
 
     // Amount in paise (100 = 1 INR)
@@ -1567,6 +1660,20 @@ notificationNamespace.on('connection', (socket) => {
     if (userId) {
       socket.leave(`user-${userId}`);
       socket.emit('unsubscribed', { userId });
+    }
+  });
+
+  socket.on('join_doctor_slots', (doctorId) => {
+    // Allow anyone to listen to slot updates for a doctor
+    if (doctorId) {
+      socket.join(`doctor-slots-${doctorId}`);
+      logger.info(`Socket ${socket.id} joined doctor slots room for ${doctorId}`);
+    }
+  });
+
+  socket.on('leave_doctor_slots', (doctorId) => {
+    if (doctorId) {
+      socket.leave(`doctor-slots-${doctorId}`);
     }
   });
 
