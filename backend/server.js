@@ -1148,6 +1148,65 @@ app.get(`${apiPrefix}/auth/profile`, authenticate, async (req, res, next) => {
   }
 });
 
+app.post(`${apiPrefix}/auth/sync-profile`, authenticate, async (req, res, next) => {
+  try {
+    const { firstName, lastName, phone, dateOfBirth, profileImage, role } = req.body;
+
+    // User is already created/attached by authenticate middleware if they exist
+    // We just want to update with any specific details passed from frontend
+
+    const updateData = {};
+    if (firstName) updateData.firstName = firstName;
+    if (lastName) updateData.lastName = lastName;
+    if (phone) updateData.phone = phone;
+    if (dateOfBirth) updateData.dateOfBirth = new Date(dateOfBirth);
+    if (profileImage) updateData.profileImage = profileImage;
+    // We generally don't want to overwrite role if it's already set, unless specific logic applies
+    // But allowing it for new users is fine.
+    if (role && ['PATIENT', 'DOCTOR', 'RECEPTIONIST'].includes(role)) {
+      // Only allow role update if current role is PATIENT (default) or not set? 
+      // For now, let's allow it to support the onboarding flow choices.
+      updateData.role = role;
+    }
+
+    const user = await prisma.user.update({
+      where: { id: req.user.id },
+      data: updateData,
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        profileImage: true,
+        onboardingCompleted: true,
+        clinicId: true
+      }
+    });
+
+    // Ensure profile exists based on role
+    if (user.role === 'PATIENT') {
+      const profile = await prisma.patientProfile.findUnique({ where: { userId: user.id } });
+      if (!profile) await prisma.patientProfile.create({ data: { userId: user.id } });
+    } else if (user.role === 'DOCTOR') {
+      const profile = await prisma.doctorProfile.findUnique({ where: { userId: user.id } });
+      if (!profile) {
+        await prisma.doctorProfile.create({
+          data: {
+            userId: user.id,
+            licenseNumber: `LIC-${user.id.substring(0, 8)}`,
+            specialization: 'General'
+          }
+        });
+      }
+    }
+
+    sendSuccess(res, user, 'Profile synced successfully');
+  } catch (err) {
+    next(err);
+  }
+});
+
 app.put(`${apiPrefix}/users/profile`, authenticate, async (req, res, next) => {
   try {
     const {

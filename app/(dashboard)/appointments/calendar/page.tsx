@@ -7,9 +7,7 @@ import AppointmentCalendarPage from "@/pages/appointments/AppointmentCalendarPag
 export default function AppointmentCalendar() {
   return (
     <ProtectedRoute>
-      <AppLayout>
-        <AppointmentCalendarPage />
-      </AppLayout>
+      <AppointmentCalendarPage />
     </ProtectedRoute>
   )
 }

@@ -440,6 +440,61 @@ export default function DoctorOnboarding() {
           </div>
         </CardHeader>
         <CardContent className="p-6">
+          {/* Step 1: Mode Selection */}
+          {!clinicMode && (
+            <div className="grid gap-6 md:grid-cols-2">
+              <Card
+                className="cursor-pointer hover:border-primary hover:bg-accent/50 transition-all border-2 border-transparent hover:shadow-md"
+                onClick={() => {
+                  setClinicMode("join")
+                  setStep(2)
+                }}
+              >
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Building2 className="h-6 w-6 text-primary" />
+                    Join Existing Clinic
+                  </CardTitle>
+                  <CardDescription>
+                    For doctors joining a hospital or clinic that is already registered on PulseCal.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                    <li>Search for your clinic</li>
+                    <li>Send join request</li>
+                    <li>Wait for admin approval</li>
+                  </ul>
+                </CardContent>
+              </Card>
+
+              <Card
+                className="cursor-pointer hover:border-primary hover:bg-accent/50 transition-all border-2 border-transparent hover:shadow-md"
+                onClick={() => {
+                  setClinicMode("create")
+                  setStep(2)
+                }}
+              >
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CheckCircle className="h-6 w-6 text-primary" />
+                    Create New Clinic
+                  </CardTitle>
+                  <CardDescription>
+                    For doctors starting their own practice or clinic admins.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                    <li>Register a new facility</li>
+                    <li>Set up subscription</li>
+                    <li>Invite other doctors</li>
+                  </ul>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
           {/* Step 2: Personal & Professional Info (after clinic selection) */}
           {step === 2 && clinicMode && (
             <div className="space-y-6">
