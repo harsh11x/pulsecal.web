@@ -4,6 +4,24 @@
  * All backend functionality consolidated in a single file
  */
 
+
+const fs = require('fs');
+
+// Global Error Handlers (Must be before ANY other code to catch import errors)
+process.on('uncaughtException', (err) => {
+  const errorMsg = `[${new Date().toISOString()}] UNCAUGHT EXCEPTION! 💥 ${err.name}: ${err.message}\n${err.stack}\n`;
+  console.error(errorMsg);
+  try { fs.appendFileSync('crash.log', errorMsg); } catch (e) { }
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (err) => {
+  const errorMsg = `[${new Date().toISOString()}] UNHANDLED REJECTION! 💥 ${err}\n`;
+  console.error(errorMsg);
+  try { fs.appendFileSync('crash.log', errorMsg); } catch (e) { }
+  process.exit(1);
+});
+
 require('dotenv').config();
 
 // ============================================================================
@@ -32,19 +50,7 @@ const safeJsonParse = (str) => {
   }
 };
 
-// Global Error Handlers (Must be before other code)
-process.on('uncaughtException', (err) => {
-  console.error('UNCAUGHT EXCEPTION! 💥 Shutting down...');
-  console.error(err.name, err.message);
-  console.error(err.stack);
-  process.exit(1);
-});
 
-process.on('unhandledRejection', (err) => {
-  console.error('UNHANDLED REJECTION! 💥 Shutting down...');
-  console.error(err);
-  process.exit(1);
-});
 
 const config = {
   nodeEnv: process.env.NODE_ENV || 'development',

@@ -169,50 +169,11 @@ export function DoctorDiscoveryMap() {
       setDoctors(doctorsData)
     } catch (error: any) {
       console.error("Failed to fetch doctors:", error)
-      // Use mock data if backend is unavailable
-      setDoctors(getMockDoctors())
+      toast.error("Failed to load doctors")
+      setDoctors([])
     } finally {
       setLoading(false)
     }
-  }
-
-  const getMockDoctors = (): Doctor[] => {
-    return [
-      {
-        id: "1",
-        firstName: "John",
-        lastName: "Smith",
-        specialization: "Cardiology",
-        clinicName: "Heart Care Clinic",
-        clinicAddress: "123 Medical Center Dr",
-        clinicCity: "New York",
-        clinicLatitude: 40.7128,
-        clinicLongitude: -74.006,
-        consultationFee: 150,
-        rating: 4.8,
-        totalReviews: 124,
-        distance: 2.5,
-        isAvailable: true,
-        services: ["Consultation", "ECG", "Echocardiogram"],
-      },
-      {
-        id: "2",
-        firstName: "Sarah",
-        lastName: "Johnson",
-        specialization: "Dermatology",
-        clinicName: "Skin Health Center",
-        clinicAddress: "456 Health Ave",
-        clinicCity: "New York",
-        clinicLatitude: 40.7589,
-        clinicLongitude: -73.9851,
-        consultationFee: 120,
-        rating: 4.9,
-        totalReviews: 89,
-        distance: 5.2,
-        isAvailable: true,
-        services: ["Consultation", "Skin Analysis", "Treatment"],
-      },
-    ]
   }
 
   const filterDoctors = () => {
@@ -263,9 +224,9 @@ export function DoctorDiscoveryMap() {
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2)
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2)
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
     return R * c
   }

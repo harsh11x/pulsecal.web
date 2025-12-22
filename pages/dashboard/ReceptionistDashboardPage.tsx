@@ -36,6 +36,10 @@ interface Appointment {
   email?: string
 }
 
+import { socketService } from "@/services/socket"
+
+// ... imports
+
 export default function ReceptionistDashboardPage({ user }: ReceptionistDashboardPageProps) {
   const [todayStats, setTodayStats] = useState({
     appointments: 0,
@@ -55,11 +59,39 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
     email: "info@heartcare.com",
   })
 
+
   useEffect(() => {
     fetchDashboardData()
-    // Poll for queue updates every 30 seconds
-    const interval = setInterval(fetchDashboardData, 30000)
-    return () => clearInterval(interval)
+
+    // Socket connection
+    const connectSocket = async () => {
+      await socketService.connect()
+
+      socketService.on("appointment:new", (data: any) => {
+        toast.info("New appointment booked")
+        fetchDashboardData()
+      })
+
+      socketService.on("appointment:update", (data: any) => {
+        fetchDashboardData()
+      })
+
+      socketService.on("queue:update", (data: any) => {
+        fetchDashboardData()
+      })
+    }
+
+    connectSocket()
+
+    // Poll for queue updates every 60 seconds as fallback
+    const interval = setInterval(fetchDashboardData, 60000)
+
+    return () => {
+      clearInterval(interval)
+      socketService.off("appointment:new")
+      socketService.off("appointment:update")
+      socketService.off("queue:update")
+    }
   }, [])
 
   const fetchDashboardData = async () => {
@@ -68,52 +100,24 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
       const statsResponse: any = await apiService.get("/api/v1/receptionists/stats")
       if (statsResponse?.data?.stats) {
         setTodayStats(statsResponse.data.stats)
-      } else if (statsResponse?.data) {
-        setTodayStats({
-          appointments: statsResponse.data.totalBooked || 0,
-          completed: statsResponse.data.completed || 0,
-          waiting: statsResponse.data.waiting || 0,
-          cancelled: statsResponse.data.cancelled || 0,
-          inProgress: statsResponse.data.inProgress || 0,
-        })
       } else {
-        setTodayStats({ appointments: 24, completed: 8, waiting: 5, cancelled: 2, inProgress: 3 })
+        setTodayStats({ appointments: 0, completed: 0, waiting: 0, cancelled: 0, inProgress: 0 })
       }
 
       // Fetch queue
       const queueResponse: any = await apiService.get("/api/v1/receptionists/queue")
-      setQueue(queueResponse?.data || queueResponse || getMockQueue())
+      setQueue(queueResponse?.data || [])
 
       // Fetch today's appointments
       const appointmentsResponse: any = await apiService.get("/api/v1/appointments?date=today")
-      const appointments = appointmentsResponse?.data || appointmentsResponse || getMockAppointments()
+      const appointments = appointmentsResponse?.data || []
       setTodayAppointments(Array.isArray(appointments) ? appointments : appointments.appointments || [])
     } catch (error) {
       console.error("Failed to fetch dashboard data:", error)
-      setTodayStats({ appointments: 24, completed: 8, waiting: 5, cancelled: 2, inProgress: 3 })
-      setQueue(getMockQueue())
-      setTodayAppointments(getMockAppointments())
+      toast.error("Failed to update dashboard")
     } finally {
       setLoading(false)
     }
-  }
-
-  const getMockQueue = (): QueueEntry[] => {
-    return [
-      { id: "1", patientName: "John Doe", appointmentTime: "09:00", status: "checked_in", reason: "Follow-up", phone: "+1 (555) 111-1111" },
-      { id: "2", patientName: "Jane Smith", appointmentTime: "10:30", status: "waiting", reason: "Consultation", priority: "urgent", phone: "+1 (555) 222-2222" },
-      { id: "3", patientName: "Mike Johnson", status: "waiting", reason: "Walk-in", phone: "+1 (555) 333-3333" },
-      { id: "4", patientName: "Sarah Williams", appointmentTime: "11:00", status: "in_progress", reason: "Checkup", phone: "+1 (555) 444-4444" },
-    ]
-  }
-
-  const getMockAppointments = (): Appointment[] => {
-    return [
-      { id: "1", patientName: "John Doe", time: "09:00", status: "confirmed", reason: "Follow-up", phone: "+1 (555) 111-1111" },
-      { id: "2", patientName: "Jane Smith", time: "10:30", status: "confirmed", reason: "Consultation", phone: "+1 (555) 222-2222" },
-      { id: "3", patientName: "Robert Brown", time: "11:00", status: "confirmed", reason: "Checkup", phone: "+1 (555) 555-5555" },
-      { id: "4", patientName: "Emily Davis", time: "14:00", status: "scheduled", reason: "Consultation", phone: "+1 (555) 666-6666" },
-    ]
   }
 
   const handleCheckIn = async (appointmentId: string) => {
@@ -140,9 +144,10 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
     {
       title: "Total Patients",
       value: todayStats.appointments,
-      trend: { 
+      trend: {
+        value: 0,
         label: `${todayStats.completed} completed`,
-        isPositive: true 
+        isPositive: true
       },
       icon: Users,
       color: "green" as const,
@@ -151,9 +156,10 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
     {
       title: "Waiting",
       value: todayStats.waiting,
-      trend: { 
+      trend: {
+        value: 0,
         label: "In queue",
-        isPositive: false 
+        isPositive: false
       },
       icon: Clock,
       color: "orange" as const,
@@ -162,9 +168,10 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
     {
       title: "In Progress",
       value: todayStats.inProgress,
-      trend: { 
+      trend: {
+        value: 0,
         label: "Currently seeing doctor",
-        isPositive: true 
+        isPositive: true
       },
       icon: AlertCircle,
       color: "blue" as const,
@@ -173,9 +180,10 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
     {
       title: "Completed",
       value: todayStats.completed,
-      trend: { 
+      trend: {
+        value: 0,
         label: "Finished today",
-        isPositive: true 
+        isPositive: true
       },
       icon: CheckCircle,
       color: "purple" as const,
@@ -217,8 +225,8 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
       {/* Stats Cards */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
-          <StatsCard 
-            key={stat.title} 
+          <StatsCard
+            key={stat.title}
             title={stat.title}
             value={stat.value}
             icon={stat.icon}
@@ -262,19 +270,17 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
                   {queue.map((entry, index) => (
                     <Card
                       key={entry.id}
-                      className={`transition-all hover:shadow-md ${
-                        entry.priority === "urgent" ? "border-red-300 bg-red-50/50" : ""
-                      }`}
+                      className={`transition-all hover:shadow-md ${entry.priority === "urgent" ? "border-red-300 bg-red-50/50" : ""
+                        }`}
                     >
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4 flex-1">
-                            <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg ${
-                              entry.status === "completed" ? "bg-green-100 text-green-700" :
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg ${entry.status === "completed" ? "bg-green-100 text-green-700" :
                               entry.status === "in_progress" ? "bg-blue-100 text-blue-700" :
-                              entry.status === "checked_in" ? "bg-purple-100 text-purple-700" :
-                              "bg-orange-100 text-orange-700"
-                            }`}>
+                                entry.status === "checked_in" ? "bg-purple-100 text-purple-700" :
+                                  "bg-orange-100 text-orange-700"
+                              }`}>
                               {index + 1}
                             </div>
                             <div className="flex-1">
@@ -288,10 +294,10 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
                                     entry.status === "completed"
                                       ? "default"
                                       : entry.status === "in_progress"
-                                      ? "secondary"
-                                      : entry.status === "checked_in"
-                                      ? "outline"
-                                      : "outline"
+                                        ? "secondary"
+                                        : entry.status === "checked_in"
+                                          ? "outline"
+                                          : "outline"
                                   }
                                   className="text-xs"
                                 >

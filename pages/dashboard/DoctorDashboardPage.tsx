@@ -47,6 +47,11 @@ interface DashboardStats {
   cancellationRate: number
 }
 
+import { socketService } from "@/services/socket"
+import { toast } from "sonner"
+
+// ... imports
+
 export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
@@ -54,63 +59,54 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
 
   useEffect(() => {
     fetchDashboardData()
+
+    // Socket connection
+    const connectSocket = async () => {
+      await socketService.connect()
+
+      socketService.on("appointment:new", (newAppointment: any) => {
+        toast.info(`New Appointment: ${newAppointment.patientName}`)
+        // Refresh data to get full details and updated stats
+        fetchDashboardData()
+      })
+
+      socketService.on("appointment:update", (updatedAppointment: any) => {
+        // Refresh data
+        fetchDashboardData()
+      })
+    }
+
+    connectSocket()
+
+    return () => {
+      socketService.off("appointment:new")
+      socketService.off("appointment:update")
+    }
   }, [])
 
   const fetchDashboardData = async () => {
     try {
       // Fetch analytics data
       const analyticsResponse: any = await apiService.get("/api/v1/doctors/analytics")
-      if (analyticsResponse?.data) {
-        setStats(analyticsResponse.data)
-      } else {
-        // Use mock data if backend unavailable
-        setStats(getMockAnalytics())
-      }
+      setStats(analyticsResponse.data || {
+        today: { appointments: 0, revenue: 0, patients: 0, cancellations: 0 },
+        yesterday: { appointments: 0, revenue: 0, patients: 0, cancellations: 0 },
+        thisWeek: { appointments: 0, revenue: 0, patients: 0, cancellations: 0 },
+        thisMonth: { appointments: 0, revenue: 0, patients: 0, cancellations: 0 },
+        revenueData: [],
+        patientGrowth: [],
+        cancellationRate: 0,
+      })
 
       // Fetch today's appointments
       const appointmentsResponse: any = await apiService.get("/api/v1/appointments?date=today")
-      setTodayAppointments(appointmentsResponse?.data || appointmentsResponse || getMockAppointments())
+      setTodayAppointments(appointmentsResponse?.data || [])
     } catch (error) {
       console.error("Failed to fetch dashboard data:", error)
-      setStats(getMockAnalytics())
-      setTodayAppointments(getMockAppointments())
+      toast.error("Failed to update dashboard data")
     } finally {
       setLoading(false)
     }
-  }
-
-  const getMockAnalytics = (): DashboardStats => {
-    return {
-      today: { appointments: 12, revenue: 2400, patients: 8, cancellations: 1 },
-      yesterday: { appointments: 10, revenue: 2000, patients: 7, cancellations: 0 },
-      thisWeek: { appointments: 65, revenue: 13000, patients: 45, cancellations: 3 },
-      thisMonth: { appointments: 234, revenue: 45231, patients: 156, cancellations: 12 },
-      revenueData: [
-        { date: "Mon", revenue: 2000, appointments: 10 },
-        { date: "Tue", revenue: 2200, appointments: 11 },
-        { date: "Wed", revenue: 1800, appointments: 9 },
-        { date: "Thu", revenue: 2400, appointments: 12 },
-        { date: "Fri", revenue: 2600, appointments: 13 },
-        { date: "Sat", revenue: 2000, appointments: 10 },
-      ],
-      patientGrowth: [
-        { month: "Jan", patients: 45 },
-        { month: "Feb", patients: 52 },
-        { month: "Mar", patients: 48 },
-        { month: "Apr", patients: 61 },
-        { month: "May", patients: 58 },
-        { month: "Jun", patients: 67 },
-      ],
-      cancellationRate: 5.1,
-    }
-  }
-
-  const getMockAppointments = () => {
-    return [
-      { id: "1", patientName: "John Doe", time: "09:00", status: "confirmed", reason: "Follow-up" },
-      { id: "2", patientName: "Jane Smith", time: "10:30", status: "confirmed", reason: "Consultation" },
-      { id: "3", patientName: "Mike Johnson", time: "14:00", status: "pending", reason: "Checkup" },
-    ]
   }
 
   if (loading || !stats) {
@@ -125,7 +121,7 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
     {
       title: "Today's Appointments",
       value: stats.today.appointments,
-      trend: { 
+      trend: {
         value: stats.today.appointments - stats.yesterday.appointments,
         isPositive: stats.today.appointments >= stats.yesterday.appointments,
         label: "from yesterday"
@@ -137,7 +133,7 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
     {
       title: "Today's Revenue",
       value: `$${stats.today.revenue.toLocaleString()}`,
-      trend: { 
+      trend: {
         value: Math.round(((stats.today.revenue - stats.yesterday.revenue) / stats.yesterday.revenue) * 100),
         isPositive: stats.today.revenue >= stats.yesterday.revenue,
         label: "from yesterday"
@@ -149,7 +145,8 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
     {
       title: "Patients Seen",
       value: stats.today.patients,
-      trend: { 
+      trend: {
+        value: 0,
         label: `${stats.today.appointments - stats.today.patients} remaining`,
         isPositive: true
       },
@@ -160,7 +157,8 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
     {
       title: "Monthly Revenue",
       value: `$${stats.thisMonth.revenue.toLocaleString()}`,
-      trend: { 
+      trend: {
+        value: 0,
         label: "This month",
         isPositive: true
       },
@@ -195,8 +193,8 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
       {/* Quick Stats */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {dashboardStats.map((stat) => (
-          <StatsCard 
-            key={stat.title} 
+          <StatsCard
+            key={stat.title}
             title={stat.title}
             value={stat.value}
             icon={stat.icon}

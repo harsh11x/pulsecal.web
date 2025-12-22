@@ -37,81 +37,34 @@ export default function DoctorFinancialReports() {
       if (response?.data) {
         setReportData(response.data)
       } else {
-        // Mock data for demonstration
-        setReportData(getMockReportData())
+        setReportData(null)
       }
     } catch (error) {
       console.warn("Failed to fetch financial report:", error)
-      setReportData(getMockReportData())
+      setReportData(null)
     } finally {
       setLoading(false)
     }
   }
 
-  const getMockReportData = (): FinancialReport => {
-    if (reportType === "daily") {
-      return {
-        period: "Last 30 Days",
-        totalRevenue: 45000,
-        totalAppointments: 180,
-        confirmedAppointments: 171,
-        cancelledAppointments: 9,
-        averageRevenuePerVisit: 250,
-        dailyBreakdown: Array.from({ length: 30 }, (_, i) => ({
-          date: format(subDays(new Date(), 29 - i), "MMM dd"),
-          revenue: Math.floor(Math.random() * 2000) + 1000,
-          appointments: Math.floor(Math.random() * 8) + 4,
-        })),
-      }
-    } else if (reportType === "monthly") {
-      return {
-        period: "Last 12 Months",
-        totalRevenue: 540000,
-        totalAppointments: 2160,
-        confirmedAppointments: 2052,
-        cancelledAppointments: 108,
-        averageRevenuePerVisit: 250,
-        monthlyBreakdown: Array.from({ length: 12 }, (_, i) => ({
-          month: format(subMonths(new Date(), 11 - i), "MMM yyyy"),
-          revenue: Math.floor(Math.random() * 50000) + 40000,
-          appointments: Math.floor(Math.random() * 200) + 150,
-        })),
-      }
-    } else {
-      return {
-        period: "Last 5 Years",
-        totalRevenue: 2700000,
-        totalAppointments: 10800,
-        confirmedAppointments: 10260,
-        cancelledAppointments: 540,
-        averageRevenuePerVisit: 250,
-        monthlyBreakdown: Array.from({ length: 5 }, (_, i) => ({
-          month: format(subYears(new Date(), 4 - i), "yyyy"),
-          revenue: Math.floor(Math.random() * 200000) + 400000,
-          appointments: Math.floor(Math.random() * 1000) + 1500,
-        })),
-      }
-    }
-  }
-
-  const handleExport = async (format: "pdf" | "csv" | "excel") => {
+  const handleExport = async (exportFormat: "pdf" | "csv" | "excel") => {
     try {
       const response: any = await apiService.get(
-        `/api/v1/doctors/financial-reports/export?type=${reportType}&format=${format}`,
+        `/api/v1/doctors/financial-reports/export?type=${reportType}&format=${exportFormat}`,
         { responseType: "blob" }
       )
-      
-      const blob = new Blob([response], { type: `application/${format === "pdf" ? "pdf" : format === "csv" ? "csv" : "xlsx"}` })
+
+      const blob = new Blob([response], { type: `application/${exportFormat === "pdf" ? "pdf" : exportFormat === "csv" ? "csv" : "xlsx"}` })
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = url
-      a.download = `financial-report-${reportType}-${format(new Date(), "yyyy-MM-dd")}.${format === "pdf" ? "pdf" : format === "csv" ? "csv" : "xlsx"}`
+      a.download = `financial-report-${reportType}-${format(new Date(), "yyyy-MM-dd")}.${exportFormat === "pdf" ? "pdf" : exportFormat === "csv" ? "csv" : "xlsx"}`
       document.body.appendChild(a)
       a.click()
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
-      
-      toast.success(`Report exported as ${format.toUpperCase()}`)
+
+      toast.success(`Report exported as ${exportFormat.toUpperCase()}`)
     } catch (error: any) {
       toast.error(error.message || "Failed to export report")
     }
@@ -125,8 +78,8 @@ export default function DoctorFinancialReports() {
     )
   }
 
-  const chartData = reportType === "daily" 
-    ? reportData.dailyBreakdown 
+  const chartData = reportType === "daily"
+    ? reportData.dailyBreakdown
     : reportData.monthlyBreakdown
 
   return (
