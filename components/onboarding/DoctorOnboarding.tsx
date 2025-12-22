@@ -35,7 +35,7 @@ export default function DoctorOnboarding() {
     yearsOfExperience: "",
     bio: "",
     profileImage: null as File | null,
-    
+
     // Clinic Info
     clinicId: "", // For joining existing clinic
     clinicName: "",
@@ -49,7 +49,7 @@ export default function DoctorOnboarding() {
     clinicLatitude: "",
     clinicLongitude: "",
     clinicImages: [] as File[],
-    
+
     // Professional Details
     consultationFee: "",
     services: [] as string[],
@@ -62,13 +62,23 @@ export default function DoctorOnboarding() {
       saturday: { start: "09:00", end: "13:00", isOpen: false },
       sunday: { start: "", end: "", isOpen: false },
     },
-    
+
     // Verification
     licenseDocument: null as File | null,
     clinicVerificationDocument: null as File | null,
+
+    // Subscription
+    subscriptionPlan: "BASIC" as "BASIC" | "PROFESSIONAL" | "ENTERPRISE",
   })
 
-  const totalSteps = clinicMode === "join" ? 4 : clinicMode === "create" ? 6 : 1
+  useEffect(() => {
+    const script = document.createElement("script")
+    script.src = "https://checkout.razorpay.com/v1/checkout.js"
+    script.async = true
+    document.body.appendChild(script)
+  }, [])
+
+  const totalSteps = clinicMode === "join" ? 4 : clinicMode === "create" ? 7 : 1
   const progress = clinicMode ? (step / totalSteps) * 100 : 0
 
   // Fetch available clinics
@@ -80,33 +90,7 @@ export default function DoctorOnboarding() {
           setAvailableClinics(response?.data?.clinics || response?.data || [])
         } catch (error) {
           console.error("Failed to fetch clinics:", error)
-          // Mock data
-          setAvailableClinics([
-            {
-              id: "1",
-              name: "City General Hospital",
-              address: "123 Medical Center Dr",
-              city: "New York",
-              state: "NY",
-              phone: "+1 (555) 123-4567",
-            },
-            {
-              id: "2",
-              name: "Metro Health Clinic",
-              address: "456 Health Ave",
-              city: "New York",
-              state: "NY",
-              phone: "+1 (555) 234-5678",
-            },
-            {
-              id: "3",
-              name: "Community Medical Center",
-              address: "789 Wellness Blvd",
-              city: "Brooklyn",
-              state: "NY",
-              phone: "+1 (555) 345-6789",
-            },
-          ])
+          toast.error("Failed to load clinics. Please try again.")
         }
       }
       fetchClinics()
@@ -174,7 +158,7 @@ export default function DoctorOnboarding() {
     setVerifyingLocation(true)
     try {
       const fullAddress = `${formData.clinicAddress}, ${formData.clinicCity}, ${formData.clinicState} ${formData.clinicZipCode}, ${formData.clinicCountry}`
-      
+
       const response = await fetch(
         `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
           fullAddress
@@ -214,17 +198,93 @@ export default function DoctorOnboarding() {
     }
   }
 
+  const handlePayment = async () => {
+    if (!formData.subscriptionPlan || formData.subscriptionPlan === "BASIC") {
+      // If Basic is free or default, maybe just skip payment?
+      // User said "Basic package only 5 doctors". Assuming paid or free, but "payment plan".
+      // Let's assume even Basic goes through Razorpay for subscription setup, or if free, just skip.
+      // User prompt: "if the user chooses and exisitng clinic then no payemtn... if they make a new clinic... choose plan... payment page"
+      // Let's assume payment required for all new clinics for now.
+    }
+
+    setLoading(true)
+    try {
+      // 1. Create Order
+      const orderResponse: any = await apiService.post("/api/v1/payments/create-order", {
+        plan: formData.subscriptionPlan
+      })
+
+      const options = {
+        key: orderResponse.data.key,
+        amount: orderResponse.data.amount,
+        currency: orderResponse.data.currency,
+        name: "PulseCal Clinic",
+        description: `${formData.subscriptionPlan} Subscription`,
+        order_id: orderResponse.data.orderId,
+        handler: async function (response: any) {
+          // 2. Verify Payment & Create Clinic
+          try {
+            const verifyResponse: any = await apiService.post("/api/v1/payments/verify", {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              clinicDetails: {
+                name: formData.clinicName,
+                address: formData.clinicAddress,
+                city: formData.clinicCity,
+                state: formData.clinicState,
+                zipCode: formData.clinicZipCode,
+                country: formData.clinicCountry,
+                phone: formData.clinicPhone,
+                email: formData.clinicEmail,
+                latitude: formData.clinicLatitude ? parseFloat(formData.clinicLatitude) : null,
+                longitude: formData.clinicLongitude ? parseFloat(formData.clinicLongitude) : null,
+                subscriptionPlan: formData.subscriptionPlan
+              }
+            })
+
+            toast.success("Payment successful! Clinic created.")
+            if (verifyResponse.data?.clinic?.id) {
+              setFormData(prev => ({ ...prev, clinicId: verifyResponse.data.clinic.id }))
+            }
+            setStep(7) // Move to final step
+          } catch (err) {
+            console.error("Verification error", err)
+            toast.error("Payment verification failed")
+          }
+        },
+        prefill: {
+          name: user?.firstName || "",
+          email: user?.email || "",
+          contact: formData.phone || ""
+        },
+        theme: {
+          color: "#3B82F6"
+        }
+      };
+
+      const rzp1 = new (window as any).Razorpay(options);
+      rzp1.open();
+
+    } catch (error) {
+      console.error("Payment init error", error)
+      toast.error("Failed to initiate payment")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleSubmit = async () => {
     setLoading(true)
     const errors: string[] = []
-    
+
     try {
       // Step 1: Update user profile - with timeout and error handling
       try {
         const profilePromise = apiService.put("/api/v1/users/profile", {
           phone: formData.phone,
         })
-        const timeoutPromise = new Promise<never>((_, reject) => 
+        const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("Request timeout")), 10000)
         )
         await Promise.race([profilePromise, timeoutPromise])
@@ -259,7 +319,7 @@ export default function DoctorOnboarding() {
         }
 
         const doctorPromise = apiService.post("/api/v1/doctor-profiles", doctorProfileData)
-        const timeoutPromise = new Promise<never>((_, reject) => 
+        const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("Request timeout")), 10000)
         )
         await Promise.race([doctorPromise, timeoutPromise])
@@ -278,7 +338,7 @@ export default function DoctorOnboarding() {
           const imagePromise = apiService.post("/api/v1/users/profile/picture", profileFormData, {
             headers: { "Content-Type": "multipart/form-data" },
           })
-          const timeoutPromise = new Promise<never>((_, reject) => 
+          const timeoutPromise = new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error("Request timeout")), 15000)
           )
           await Promise.race([imagePromise, timeoutPromise])
@@ -297,7 +357,7 @@ export default function DoctorOnboarding() {
           const completePromise = apiService.put("/api/v1/users/profile", {
             onboardingCompleted: true,
           })
-          const timeoutPromise = new Promise<never>((_, reject) => 
+          const timeoutPromise = new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error("Request timeout")), 10000)
           )
           await Promise.race([completePromise, timeoutPromise])
@@ -321,7 +381,7 @@ export default function DoctorOnboarding() {
       } else {
         toast.warning("Registration completed locally. Some data may not be saved. You can update your profile later.")
       }
-      
+
       // Small delay before redirect
       await new Promise(resolve => setTimeout(resolve, 500))
       router.push("/dashboard")
@@ -366,7 +426,7 @@ export default function DoctorOnboarding() {
                 <User className="h-5 w-5" />
                 Personal & Professional Information
               </div>
-              
+
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone Number *</Label>
@@ -495,9 +555,8 @@ export default function DoctorOnboarding() {
                     {availableClinics.map((clinic) => (
                       <Card
                         key={clinic.id}
-                        className={`cursor-pointer transition-all hover:border-primary ${
-                          selectedClinicId === clinic.id ? "border-primary border-2" : ""
-                        }`}
+                        className={`cursor-pointer transition-all hover:border-primary ${selectedClinicId === clinic.id ? "border-primary border-2" : ""
+                          }`}
                         onClick={() => {
                           setSelectedClinicId(clinic.id)
                           setFormData({ ...formData, clinicId: clinic.id, clinicName: clinic.name })
@@ -860,14 +919,54 @@ export default function DoctorOnboarding() {
                   Back
                 </Button>
                 <Button onClick={() => setStep(6)} className="flex-1">
-                  Continue to Review
+                  Continue to Select Plan
                 </Button>
               </div>
             </div>
           )}
 
-          {/* Step 5: Verification & Complete */}
-          {step === 5 && (
+          {/* Step 6: Plan Selection (Only for creating new clinic) */}
+          {step === 6 && clinicMode === "create" && (
+            <div className="space-y-6">
+              <div className="flex items-center gap-2 text-lg font-semibold">
+                <DollarSign className="h-5 w-5" />
+                Select Subscription Plan
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[
+                  { id: 'BASIC', name: 'Basic', price: '₹29/mo', limit: 'Max 5 Doctors' },
+                  { id: 'PROFESSIONAL', name: 'Professional', price: '₹79/mo', limit: 'Max 10 Doctors' },
+                  { id: 'ENTERPRISE', name: 'Enterprise', price: '₹199/mo', limit: 'Unlimited Doctors' }
+                ].map((plan) => (
+                  <Card key={plan.id}
+                    className={`cursor-pointer transition-all hover:border-primary ${formData.subscriptionPlan === plan.id ? 'border-primary border-2 bg-primary/5' : ''}`}
+                    onClick={() => setFormData({ ...formData, subscriptionPlan: plan.id as any })}
+                  >
+                    <CardHeader>
+                      <CardTitle>{plan.name}</CardTitle>
+                      <CardDescription>{plan.price}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="font-semibold">{plan.limit}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setStep(5)} className="flex-1">
+                  Back
+                </Button>
+                <Button onClick={handlePayment} disabled={loading} className="flex-1">
+                  {loading ? "Processing..." : "Pay & Create Clinic"}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 7: Verification & Complete */}
+          {step === 7 && (
             <div className="space-y-6">
               <div className="flex items-center gap-2 text-lg font-semibold">
                 <FileText className="h-5 w-5" />

@@ -124,6 +124,8 @@ model User {
   refreshTokens     RefreshToken[]
   insurance         Insurance?
   queueEntries      QueueEntry[]
+  clinicId          String?
+  clinic            Clinic?   @relation(fields: [clinicId], references: [id])
 
   @@index([email])
   @@index([firebaseUid])
@@ -380,6 +382,12 @@ model Clinic {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   deletedAt         DateTime?
+  staff             User[]
+  subscriptionPlan  String   @default("BASIC") // BASIC, PROFESSIONAL, ENTERPRISE
+  subscriptionStatus String  @default("PENDING") // ACTIVE, PENDING, EXPIRED
+  maxDoctors        Int      @default(5)
+  razorpayOrderId   String?
+  razorpayPaymentId String?
 
   @@index([city, state])
   @@index([isActive])

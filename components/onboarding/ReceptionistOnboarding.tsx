@@ -49,23 +49,7 @@ export default function ReceptionistOnboarding() {
         setClinics(response?.data || response || [])
       } catch (error) {
         console.error("Failed to fetch clinics:", error)
-        // Use mock data if backend unavailable
-        setClinics([
-          {
-            id: "1",
-            name: "Heart Care Clinic",
-            address: "123 Medical Center Dr",
-            city: "New York",
-            doctorName: "Dr. John Smith",
-          },
-          {
-            id: "2",
-            name: "Skin Health Center",
-            address: "456 Health Ave",
-            city: "New York",
-            doctorName: "Dr. Sarah Johnson",
-          },
-        ])
+        toast.error("Failed to load clinics. Please try again.")
       }
     }
     fetchClinics()
@@ -99,14 +83,14 @@ export default function ReceptionistOnboarding() {
 
     setLoading(true)
     const errors: string[] = []
-    
+
     try {
       // Update user profile - with timeout and error handling
       try {
         const profilePromise = apiService.put("/api/v1/users/profile", {
           phone: formData.phone,
         })
-        const timeoutPromise = new Promise<never>((_, reject) => 
+        const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("Request timeout")), 10000)
         )
         await Promise.race([profilePromise, timeoutPromise])
@@ -122,13 +106,13 @@ export default function ReceptionistOnboarding() {
         const linkData: any = {
           clinicId: formData.clinicId,
         }
-        
+
         if (formData.verificationCode) {
           linkData.verificationCode = formData.verificationCode
         }
 
         const linkPromise = apiService.post("/api/v1/receptionists", linkData)
-        const timeoutPromise = new Promise<never>((_, reject) => 
+        const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("Request timeout")), 10000)
         )
         await Promise.race([linkPromise, timeoutPromise])
@@ -151,7 +135,7 @@ export default function ReceptionistOnboarding() {
           const completePromise = apiService.put("/api/v1/users/profile", {
             onboardingCompleted: true,
           })
-          const timeoutPromise = new Promise<never>((_, reject) => 
+          const timeoutPromise = new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error("Request timeout")), 10000)
           )
           await Promise.race([completePromise, timeoutPromise])
@@ -175,7 +159,7 @@ export default function ReceptionistOnboarding() {
       } else {
         toast.warning("Setup completed locally. Some data may not be saved. You can update your profile later.")
       }
-      
+
       // Small delay before redirect
       await new Promise(resolve => setTimeout(resolve, 500))
       router.push("/dashboard")
