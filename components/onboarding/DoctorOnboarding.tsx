@@ -264,6 +264,27 @@ export default function DoctorOnboarding() {
       };
 
       const rzp1 = new (window as any).Razorpay(options);
+
+      rzp1.on('payment.failed', function (response: any) {
+        console.error("Payment Failed", response.error);
+        toast.error(`Payment Failed: ${response.error.description}`);
+
+        // You could set a specific state here to show a "Retry/Cancel" modal
+        // For now, we'll rely on the user clicking "Continue" again to retry
+        // or we could auto-trigger a dialog.
+        // Let's use a Sonner toast with action for now as it's cleaner.
+        toast.error("Transaction not completed", {
+          action: {
+            label: "Retry",
+            onClick: () => handlePayment()
+          },
+          cancel: {
+            label: "Cancel",
+            onClick: () => console.log("Payment cancelled")
+          }
+        });
+      });
+
       rzp1.open();
 
     } catch (error) {

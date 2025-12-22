@@ -1517,6 +1517,8 @@ notificationNamespace.on('connection', (socket) => {
 });
 
 setSocketInstance(io);
+const { setupCronJobs } = require('./services/cronService');
+setupCronJobs(io);
 
 // ============================================================================
 // SERVER STARTUP

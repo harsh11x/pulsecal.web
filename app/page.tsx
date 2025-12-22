@@ -2,6 +2,7 @@
 
 import { Header } from "@/components/landing/Header"
 import { Footer } from "@/components/landing/Footer"
+import { GetStartedAction } from "@/components/landing/GetStartedAction"
 import { Button } from "@/components/ui/button"
 import {
   Calendar,
@@ -44,10 +45,7 @@ export default function Home() {
               </p>
 
               <div className="flex flex-col gap-4 sm:flex-row">
-                <Button size="lg" className="text-base shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105">
-                  Get started free
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
+                <GetStartedAction className="text-base shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105" />
                 <Button size="lg" variant="outline" className="text-base bg-transparent border-2 hover:border-primary hover:text-primary transition-all duration-200">
                   Watch demo
                 </Button>
@@ -410,7 +408,7 @@ export default function Home() {
                 description: "For large organizations",
                 features: [
                   "Everything in Professional",
-                  "Add as many Doctors per clinic",                  
+                  "Add as many Doctors per clinic",
                   "Multi-location support",
                   "Dedicated account manager",
                   "Custom integrations",
@@ -423,11 +421,10 @@ export default function Home() {
             ].map((plan, index) => (
               <div
                 key={index}
-                className={`relative rounded-2xl border-2 p-8 transition-all duration-300 ${
-                  plan.popular
+                className={`relative rounded-2xl border-2 p-8 transition-all duration-300 ${plan.popular
                     ? "border-primary bg-card shadow-xl scale-105"
                     : "border-border bg-card hover:border-primary/50 hover:shadow-lg"
-                }`}
+                  }`}
               >
                 {plan.popular && (
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2">
@@ -452,14 +449,10 @@ export default function Home() {
                     </li>
                   ))}
                 </ul>
-                <Button
-                  size="lg"
+                <GetStartedAction
                   className="w-full"
                   variant={plan.popular ? "default" : "outline"}
-                >
-                  Get started
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
+                />
               </div>
             ))}
           </div>
@@ -538,10 +531,7 @@ export default function Home() {
               Join us in transforming healthcare management. Start your free trial today.
             </p>
             <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
-              <Button size="lg" className="text-base">
-                Start free trial
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
+              <GetStartedAction className="text-base" />
               <Button size="lg" variant="outline" className="text-base bg-transparent">
                 Contact sales
               </Button>
@@ -561,10 +551,7 @@ export default function Home() {
             credit card required.
           </p>
           <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
-            <Button size="lg" className="text-base shadow-lg hover:shadow-xl transition-shadow">
-              Start free trial
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+            <GetStartedAction className="text-base shadow-lg hover:shadow-xl transition-shadow" />
             <Button size="lg" variant="outline" className="text-base bg-transparent border-2">
               Schedule a demo
             </Button>
