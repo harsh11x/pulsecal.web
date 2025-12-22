@@ -305,6 +305,7 @@ const authenticate = async (req, res, next) => {
         isActive: true,
         isEmailVerified: true,
         firebaseUid: true,
+        onboardingCompleted: true,
       },
     });
 
@@ -318,6 +319,7 @@ const authenticate = async (req, res, next) => {
           isActive: true,
           isEmailVerified: true,
           firebaseUid: true,
+          onboardingCompleted: true,
         },
       });
     }
@@ -1306,6 +1308,8 @@ app.put(`${apiPrefix}/users/profile`, authenticate, async (req, res, next) => {
       firstName, lastName, phone, dateOfBirth, gender, address, city, state, zipCode, country,
       onboardingCompleted
     } = req.body;
+
+    logger.info(`Updating user profile for ${req.user.id}. Body: ${JSON.stringify(req.body)}`);
 
     const data = {};
     if (firstName) data.firstName = firstName;
