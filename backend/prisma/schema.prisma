@@ -40,6 +40,8 @@ enum PaymentMethod {
   INSURANCE
   CASH
   BANK_TRANSFER
+  RAZORPAY_ONLINE
+  OFFLINE
 }
 
 enum PrescriptionStatus {
@@ -79,6 +81,17 @@ enum AuditAction {
   LOGOUT
   EXPORT
   IMPORT
+}
+
+enum NotificationType {
+  NEW_APPOINTMENT
+  UPCOMING_APPOINTMENT
+  COMPLETED_VISIT
+  CANCELLATION
+  PAYMENT_RECEIVED
+  APPOINTMENT_REMINDER
+  SUBSCRIPTION_EXPIRING
+  SUBSCRIPTION_EXPIRED
 }
 
 model User {
@@ -124,6 +137,7 @@ model User {
   refreshTokens     RefreshToken[]
   insurance         Insurance?
   queueEntries      QueueEntry[]
+  notifications     Notification[]
   clinicId          String?
   clinic            Clinic?   @relation(fields: [clinicId], references: [id])
 
@@ -131,6 +145,7 @@ model User {
   @@index([firebaseUid])
   @@index([role])
   @@index([isActive])
+  @@index([phone])
   @@map("users")
 }
 
@@ -165,6 +180,10 @@ model DoctorProfile {
   clinicLongitude    Float?
   services           String[] @default([])
   workingHours       Json?
+  subscriptionPlan   String   @default("BASIC") // BASIC, PROFESSIONAL, ENTERPRISE
+  subscriptionStatus String   @default("PENDING") // ACTIVE, PENDING, EXPIRED
+  subscriptionExpiresAt DateTime?
+  razorpaySubscriptionId String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
@@ -172,6 +191,7 @@ model DoctorProfile {
 
   @@index([clinicLatitude, clinicLongitude])
   @@index([specialization])
+  @@index([consultationFee])
   @@map("doctor_profiles")
 }
 
@@ -285,15 +305,23 @@ model Insurance {
 model Payment {
   id                String        @id @default(uuid())
   patientId         String
+  doctorId          String?
   appointmentId     String?
   amount            Decimal
-  currency          String        @default("USD")
+  currency          String        @default("INR")
   status            PaymentStatus @default(PENDING)
   method            PaymentMethod?
   transactionId     String?
+  razorpayOrderId   String?
+  razorpayPaymentId String?
+  razorpaySignature String?
   encryptedCardData String?       // AES-256 encrypted card data
   description       String?
   paidAt            DateTime?
+  refundId          String?
+  refundAmount      Decimal?
+  refundStatus      String?       // PENDING, PROCESSING, COMPLETED, FAILED
+  refundedAt        DateTime?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
   deletedAt         DateTime?
@@ -301,8 +329,11 @@ model Payment {
   patient           User          @relation(fields: [patientId], references: [id])
 
   @@index([patientId])
+  @@index([doctorId])
+  @@index([appointmentId])
   @@index([status])
   @@index([transactionId])
+  @@index([razorpayOrderId])
   @@map("payments")
 }
 
@@ -522,5 +553,25 @@ model DataExport {
   @@index([userId])
   @@index([status])
   @@map("data_exports")
+}
+
+model Notification {
+  id                String           @id @default(uuid())
+  userId            String
+  type              NotificationType
+  title             String
+  message           String
+  metadata          Json?            // Additional data (appointmentId, paymentId, etc.)
+  isRead            Boolean          @default(false)
+  readAt            DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("notifications")
 }
 

@@ -1190,6 +1190,933 @@ app.post(`${apiPrefix}/payments/verify`, authenticate, async (req, res, next) =>
   }
 });
 
+// ============================================================================
+// APPOINTMENT BOOKING WITH PAYMENT INTEGRATION
+// ============================================================================
+
+// Book appointment with payment
+app.post(`${apiPrefix}/appointments/book`, authenticate, async (req, res, next) => {
+  try {
+    const { doctorId, scheduledAt, duration, reason, paymentMethod } = req.body;
+
+    if (!doctorId || !scheduledAt) {
+      return sendError(res, 'Doctor ID and scheduled time are required', 400);
+    }
+
+    // Validate time slot availability
+    const existingAppointment = await prisma.appointment.findFirst({
+      where: {
+        doctorId,
+        scheduledAt: new Date(scheduledAt),
+        status: { not: 'CANCELLED' },
+        deletedAt: null
+      }
+    });
+
+    if (existingAppointment) {
+      return sendError(res, 'This time slot is already booked', 409);
+    }
+
+    // Get doctor's consultation fee
+    const doctorProfile = await prisma.doctorProfile.findUnique({
+      where: { userId: doctorId },
+      select: { consultationFee: true, userId: true }
+    });
+
+    if (!doctorProfile) {
+      return sendError(res, 'Doctor not found', 404);
+    }
+
+    const consultationFee = Number(doctorProfile.consultationFee);
+
+    // Create appointment
+    const appointment = await prisma.appointment.create({
+      data: {
+        patientId: req.user.id,
+        doctorId,
+        scheduledAt: new Date(scheduledAt),
+        duration: duration || 30,
+        reason,
+        status: 'SCHEDULED'
+      },
+      include: {
+        patient: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true
+          }
+        },
+        doctor: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true
+          }
+        }
+      }
+    });
+
+    // Create payment record
+    let payment = null;
+    let razorpayOrder = null;
+
+    if (paymentMethod === 'OFFLINE') {
+      // Create pending payment for offline
+      payment = await prisma.payment.create({
+        data: {
+          patientId: req.user.id,
+          doctorId,
+          appointmentId: appointment.id,
+          amount: consultationFee,
+          currency: 'INR',
+          status: 'PENDING',
+          method: 'OFFLINE',
+          description: `Consultation fee for appointment with Dr. ${appointment.doctor.firstName} ${appointment.doctor.lastName}`
+        }
+      });
+    } else if (paymentMethod === 'RAZORPAY_ONLINE') {
+      // Create Razorpay order for online payment
+      if (!razorpay) {
+        return sendError(res, 'Payment gateway not configured', 500);
+      }
+
+      const options = {
+        amount: Math.round(consultationFee * 100), // convert to paise
+        currency: 'INR',
+        receipt: `apt_${appointment.id}_${Date.now()}`,
+        payment_capture: 1
+      };
+
+      razorpayOrder = await razorpay.orders.create(options);
+
+      // Create pending payment with Razorpay order ID
+      payment = await prisma.payment.create({
+        data: {
+          patientId: req.user.id,
+          doctorId,
+          appointmentId: appointment.id,
+          amount: consultationFee,
+          currency: 'INR',
+          status: 'PENDING',
+          method: 'RAZORPAY_ONLINE',
+          razorpayOrderId: razorpayOrder.id,
+          description: `Consultation fee for appointment with Dr. ${appointment.doctor.firstName} ${appointment.doctor.lastName}`
+        }
+      });
+    }
+
+    // Emit real-time notification to doctor
+    emitNewAppointment({
+      id: appointment.id,
+      doctorId: appointment.doctorId,
+      patientId: appointment.patientId,
+      patientName: `${appointment.patient.firstName} ${appointment.patient.lastName}`,
+      scheduledAt: appointment.scheduledAt,
+      reason: appointment.reason
+    });
+
+    // Create notification record
+    await prisma.notification.create({
+      data: {
+        userId: doctorId,
+        type: 'NEW_APPOINTMENT',
+        title: 'New Appointment Booked',
+        message: `${appointment.patient.firstName} ${appointment.patient.lastName} has booked an appointment`,
+        metadata: {
+          appointmentId: appointment.id,
+          scheduledAt: appointment.scheduledAt,
+          patientName: `${appointment.patient.firstName} ${appointment.patient.lastName}`
+        }
+      }
+    });
+
+    sendSuccess(res, {
+      appointment,
+      payment,
+      razorpayOrder: razorpayOrder ? {
+        orderId: razorpayOrder.id,
+        amount: razorpayOrder.amount,
+        currency: razorpayOrder.currency,
+        key: process.env.RAZORPAY_KEY_ID
+      } : null
+    }, 'Appointment booked successfully', 201);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Verify Razorpay payment for appointment
+app.post(`${apiPrefix}/payments/razorpay/verify-appointment`, authenticate, async (req, res, next) => {
+  try {
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      paymentId
+    } = req.body;
+
+    // Verify signature
+    const crypto = require('crypto');
+    const hmac = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET);
+    hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
+    const generated_signature = hmac.digest('hex');
+
+    if (generated_signature !== razorpay_signature) {
+      return sendError(res, 'Invalid payment signature', 400);
+    }
+
+    // Update payment status
+    const payment = await prisma.payment.update({
+      where: { id: paymentId },
+      data: {
+        status: 'COMPLETED',
+        razorpayPaymentId: razorpay_payment_id,
+        razorpaySignature: razorpay_signature,
+        paidAt: new Date()
+      },
+      include: {
+        patient: {
+          select: { id: true, firstName: true, lastName: true }
+        }
+      }
+    });
+
+    // Update appointment status to CONFIRMED
+    if (payment.appointmentId) {
+      await prisma.appointment.update({
+        where: { id: payment.appointmentId },
+        data: { status: 'CONFIRMED' }
+      });
+
+      // Emit payment notification to doctor
+      if (payment.doctorId) {
+        emitPaymentUpdate({
+          id: payment.id,
+          appointmentId: payment.appointmentId,
+          doctorId: payment.doctorId,
+          amount: Number(payment.amount),
+          status: payment.status
+        });
+
+        // Create notification
+        await prisma.notification.create({
+          data: {
+            userId: payment.doctorId,
+            type: 'PAYMENT_RECEIVED',
+            title: 'Payment Received',
+            message: `Payment of ₹${payment.amount} received from ${payment.patient.firstName} ${payment.patient.lastName}`,
+            metadata: {
+              paymentId: payment.id,
+              appointmentId: payment.appointmentId,
+              amount: Number(payment.amount)
+            }
+          }
+        });
+      }
+    }
+
+    sendSuccess(res, { payment }, 'Payment verified successfully');
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Reschedule appointment
+app.post(`${apiPrefix}/appointments/:id/reschedule`, authenticate, async (req, res, next) => {
+  try {
+    const { scheduledAt } = req.body;
+
+    if (!scheduledAt) {
+      return sendError(res, 'New scheduled time is required', 400);
+    }
+
+    // Get existing appointment
+    const existingAppointment = await prisma.appointment.findUnique({
+      where: { id: req.params.id },
+      include: {
+        patient: { select: { id: true, firstName: true, lastName: true } },
+        doctor: { select: { id: true, firstName: true, lastName: true } }
+      }
+    });
+
+    if (!existingAppointment) {
+      return sendError(res, 'Appointment not found', 404);
+    }
+
+    // Check authorization
+    if (existingAppointment.patientId !== req.user.id && existingAppointment.doctorId !== req.user.id) {
+      return sendError(res, 'Unauthorized', 403);
+    }
+
+    // Check if new slot is available
+    const conflictingAppointment = await prisma.appointment.findFirst({
+      where: {
+        doctorId: existingAppointment.doctorId,
+        scheduledAt: new Date(scheduledAt),
+        status: { not: 'CANCELLED' },
+        deletedAt: null,
+        id: { not: req.params.id }
+      }
+    });
+
+    if (conflictingAppointment) {
+      return sendError(res, 'This time slot is already booked', 409);
+    }
+
+    // Update appointment
+    const appointment = await prisma.appointment.update({
+      where: { id: req.params.id },
+      data: {
+        scheduledAt: new Date(scheduledAt),
+        status: 'RESCHEDULED'
+      },
+      include: {
+        patient: { select: { id: true, firstName: true, lastName: true } },
+        doctor: { select: { id: true, firstName: true, lastName: true } }
+      }
+    });
+
+    // Emit notifications
+    emitAppointmentUpdate({
+      id: appointment.id,
+      doctorId: appointment.doctorId,
+      patientId: appointment.patientId,
+      status: appointment.status,
+      scheduledAt: appointment.scheduledAt
+    });
+
+    // Create notifications for both parties
+    await prisma.notification.createMany({
+      data: [
+        {
+          userId: appointment.doctorId,
+          type: 'APPOINTMENT_REMINDER',
+          title: 'Appointment Rescheduled',
+          message: `Appointment with ${appointment.patient.firstName} ${appointment.patient.lastName} has been rescheduled`,
+          metadata: { appointmentId: appointment.id, scheduledAt: appointment.scheduledAt }
+        },
+        {
+          userId: appointment.patientId,
+          type: 'APPOINTMENT_REMINDER',
+          title: 'Appointment Rescheduled',
+          message: `Your appointment with Dr. ${appointment.doctor.firstName} ${appointment.doctor.lastName} has been rescheduled`,
+          metadata: { appointmentId: appointment.id, scheduledAt: appointment.scheduledAt }
+        }
+      ]
+    });
+
+    sendSuccess(res, appointment, 'Appointment rescheduled successfully');
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Cancel appointment with refund
+app.post(`${apiPrefix}/appointments/:id/cancel`, authenticate, async (req, res, next) => {
+  try {
+    const { cancellationReason } = req.body;
+
+    const appointment = await prisma.appointment.findUnique({
+      where: { id: req.params.id },
+      include: {
+        patient: { select: { id: true, firstName: true, lastName: true } },
+        doctor: { select: { id: true, firstName: true, lastName: true } }
+      }
+    });
+
+    if (!appointment) {
+      return sendError(res, 'Appointment not found', 404);
+    }
+
+    // Check authorization
+    if (appointment.patientId !== req.user.id && appointment.doctorId !== req.user.id) {
+      return sendError(res, 'Unauthorized', 403);
+    }
+
+    // Update appointment
+    const updatedAppointment = await prisma.appointment.update({
+      where: { id: req.params.id },
+      data: {
+        status: 'CANCELLED',
+        cancelledAt: new Date(),
+        cancellationReason
+      }
+    });
+
+    // Process refund if payment was made online
+    const payment = await prisma.payment.findFirst({
+      where: {
+        appointmentId: appointment.id,
+        status: 'COMPLETED',
+        method: 'RAZORPAY_ONLINE'
+      }
+    });
+
+    let refund = null;
+    if (payment && razorpay) {
+      try {
+        // Initiate Razorpay refund
+        refund = await razorpay.payments.refund(payment.razorpayPaymentId, {
+          amount: Math.round(Number(payment.amount) * 100), // full refund in paise
+          speed: 'normal'
+        });
+
+        // Update payment with refund details
+        await prisma.payment.update({
+          where: { id: payment.id },
+          data: {
+            refundId: refund.id,
+            refundAmount: payment.amount,
+            refundStatus: 'PROCESSING',
+            refundedAt: new Date()
+          }
+        });
+      } catch (refundError) {
+        logger.error('Refund error:', refundError);
+        // Continue even if refund fails - can be processed manually
+      }
+    }
+
+    // Emit notifications
+    emitAppointmentUpdate({
+      id: appointment.id,
+      doctorId: appointment.doctorId,
+      patientId: appointment.patientId,
+      status: 'CANCELLED',
+      scheduledAt: appointment.scheduledAt
+    });
+
+    // Create notifications
+    await prisma.notification.createMany({
+      data: [
+        {
+          userId: appointment.doctorId,
+          type: 'CANCELLATION',
+          title: 'Appointment Cancelled',
+          message: `Appointment with ${appointment.patient.firstName} ${appointment.patient.lastName} has been cancelled`,
+          metadata: { appointmentId: appointment.id, reason: cancellationReason }
+        },
+        {
+          userId: appointment.patientId,
+          type: 'CANCELLATION',
+          title: 'Appointment Cancelled',
+          message: `Your appointment with Dr. ${appointment.doctor.firstName} ${appointment.doctor.lastName} has been cancelled`,
+          metadata: { appointmentId: appointment.id, refundStatus: refund ? 'PROCESSING' : 'N/A' }
+        }
+      ]
+    });
+
+    sendSuccess(res, {
+      appointment: updatedAppointment,
+      refund: refund ? { id: refund.id, status: 'PROCESSING', amount: payment.amount } : null
+    }, 'Appointment cancelled successfully');
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Get payment history
+app.get(`${apiPrefix}/payments/history`, authenticate, async (req, res, next) => {
+  try {
+    const { page, limit, skip } = getPaginationParams(req);
+
+    const where = {
+      patientId: req.user.id,
+      deletedAt: null
+    };
+
+    const [payments, total] = await Promise.all([
+      prisma.payment.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          patient: {
+            select: { id: true, firstName: true, lastName: true }
+          }
+        }
+      }),
+      prisma.payment.count({ where })
+    ]);
+
+    // Get appointment details for each payment
+    const paymentsWithAppointments = await Promise.all(
+      payments.map(async (payment) => {
+        if (payment.appointmentId) {
+          const appointment = await prisma.appointment.findUnique({
+            where: { id: payment.appointmentId },
+            include: {
+              doctor: {
+                select: { id: true, firstName: true, lastName: true }
+              }
+            }
+          });
+          return { ...payment, appointment };
+        }
+        return payment;
+      })
+    );
+
+    sendPaginated(res, paymentsWithAppointments, {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit)
+    }, 'Payment history retrieved successfully');
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Mark offline payment as completed (Receptionist only)
+app.post(`${apiPrefix}/payments/:id/mark-paid`, authenticate, requireReceptionist, async (req, res, next) => {
+  try {
+    const { transactionId } = req.body;
+
+    const payment = await prisma.payment.update({
+      where: { id: req.params.id },
+      data: {
+        status: 'COMPLETED',
+        transactionId: transactionId || `OFFLINE_${Date.now()}`,
+        paidAt: new Date()
+      },
+      include: {
+        patient: {
+          select: { id: true, firstName: true, lastName: true }
+        }
+      }
+    });
+
+    // Update appointment status
+    if (payment.appointmentId) {
+      await prisma.appointment.update({
+        where: { id: payment.appointmentId },
+        data: { status: 'CONFIRMED' }
+      });
+    }
+
+    // Emit notification
+    if (payment.doctorId) {
+      emitPaymentUpdate({
+        id: payment.id,
+        appointmentId: payment.appointmentId,
+        doctorId: payment.doctorId,
+        amount: Number(payment.amount),
+        status: payment.status
+      });
+
+      await prisma.notification.create({
+        data: {
+          userId: payment.doctorId,
+          type: 'PAYMENT_RECEIVED',
+          title: 'Offline Payment Received',
+          message: `Offline payment of ₹${payment.amount} received from ${payment.patient.firstName} ${payment.patient.lastName}`,
+          metadata: {
+            paymentId: payment.id,
+            appointmentId: payment.appointmentId,
+            amount: Number(payment.amount)
+          }
+        }
+      });
+    }
+
+    sendSuccess(res, payment, 'Payment marked as completed');
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ============================================================================
+// RECEPTIONIST DASHBOARD ENDPOINTS
+// ============================================================================
+
+// Get all clinic appointments
+app.get(`${apiPrefix}/receptionist/appointments`, authenticate, requireReceptionist, async (req, res, next) => {
+  try {
+    const { page, limit, skip } = getPaginationParams(req);
+    const { status, doctorId, startDate, endDate } = req.query;
+
+    // Get receptionist's clinic
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { clinicId: true }
+    });
+
+    if (!user?.clinicId) {
+      return sendError(res, 'Receptionist not assigned to a clinic', 400);
+    }
+
+    // Get all doctors in the clinic
+    const clinicDoctors = await prisma.user.findMany({
+      where: {
+        clinicId: user.clinicId,
+        role: 'DOCTOR'
+      },
+      select: { id: true }
+    });
+
+    const doctorIds = clinicDoctors.map(d => d.id);
+
+    const where = {
+      doctorId: { in: doctorIds },
+      deletedAt: null
+    };
+
+    if (status) where.status = status;
+    if (doctorId) where.doctorId = doctorId;
+    if (startDate || endDate) {
+      where.scheduledAt = {};
+      if (startDate) where.scheduledAt.gte = new Date(startDate);
+      if (endDate) where.scheduledAt.lte = new Date(endDate);
+    }
+
+    const [appointments, total] = await Promise.all([
+      prisma.appointment.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { scheduledAt: 'desc' },
+        include: {
+          patient: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true
+            }
+          },
+          doctor: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true
+            }
+          }
+        }
+      }),
+      prisma.appointment.count({ where })
+    ]);
+
+    // Get payment status for each appointment
+    const appointmentsWithPayments = await Promise.all(
+      appointments.map(async (apt) => {
+        const payment = await prisma.payment.findFirst({
+          where: { appointmentId: apt.id },
+          select: {
+            id: true,
+            amount: true,
+            status: true,
+            method: true,
+            paidAt: true
+          }
+        });
+        return { ...apt, payment };
+      })
+    );
+
+    sendPaginated(res, appointmentsWithPayments, {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit)
+    }, 'Clinic appointments retrieved successfully');
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Get clinic payment dashboard
+app.get(`${apiPrefix}/receptionist/payments`, authenticate, requireReceptionist, async (req, res, next) => {
+  try {
+    const { page, limit, skip } = getPaginationParams(req);
+    const { status, startDate, endDate } = req.query;
+
+    // Get receptionist's clinic
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { clinicId: true }
+    });
+
+    if (!user?.clinicId) {
+      return sendError(res, 'Receptionist not assigned to a clinic', 400);
+    }
+
+    // Get all doctors in the clinic
+    const clinicDoctors = await prisma.user.findMany({
+      where: {
+        clinicId: user.clinicId,
+        role: 'DOCTOR'
+      },
+      select: { id: true }
+    });
+
+    const doctorIds = clinicDoctors.map(d => d.id);
+
+    const where = {
+      doctorId: { in: doctorIds },
+      deletedAt: null
+    };
+
+    if (status) where.status = status;
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) where.createdAt.gte = new Date(startDate);
+      if (endDate) where.createdAt.lte = new Date(endDate);
+    }
+
+    const [payments, total] = await Promise.all([
+      prisma.payment.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          patient: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true
+            }
+          }
+        }
+      }),
+      prisma.payment.count({ where })
+    ]);
+
+    // Calculate summary statistics
+    const allPayments = await prisma.payment.findMany({
+      where: { doctorId: { in: doctorIds }, deletedAt: null },
+      select: { amount: true, status: true, method: true, refundAmount: true }
+    });
+
+    const summary = {
+      totalOnline: allPayments
+        .filter(p => p.method === 'RAZORPAY_ONLINE' && p.status === 'COMPLETED')
+        .reduce((sum, p) => sum + Number(p.amount), 0),
+      totalOffline: allPayments
+        .filter(p => p.method === 'OFFLINE' && p.status === 'COMPLETED')
+        .reduce((sum, p) => sum + Number(p.amount), 0),
+      pending: allPayments
+        .filter(p => p.status === 'PENDING')
+        .reduce((sum, p) => sum + Number(p.amount), 0),
+      refunded: allPayments
+        .filter(p => p.refundAmount)
+        .reduce((sum, p) => sum + Number(p.refundAmount), 0)
+    };
+
+    sendSuccess(res, {
+      payments,
+      summary,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    }, 'Payment dashboard data retrieved successfully');
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ============================================================================
+// NOTIFICATION ENDPOINTS
+// ============================================================================
+
+// Get user notifications
+app.get(`${apiPrefix}/notifications`, authenticate, async (req, res, next) => {
+  try {
+    const { page, limit, skip } = getPaginationParams(req);
+    const { isRead } = req.query;
+
+    const where = {
+      userId: req.user.id
+    };
+
+    if (isRead !== undefined) {
+      where.isRead = isRead === 'true';
+    }
+
+    const [notifications, total, unreadCount] = await Promise.all([
+      prisma.notification.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.notification.count({ where }),
+      prisma.notification.count({
+        where: { userId: req.user.id, isRead: false }
+      })
+    ]);
+
+    sendSuccess(res, {
+      notifications,
+      unreadCount,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    }, 'Notifications retrieved successfully');
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Mark notification as read
+app.put(`${apiPrefix}/notifications/:id/read`, authenticate, async (req, res, next) => {
+  try {
+    const notification = await prisma.notification.update({
+      where: { id: req.params.id },
+      data: {
+        isRead: true,
+        readAt: new Date()
+      }
+    });
+
+    sendSuccess(res, notification, 'Notification marked as read');
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Mark all notifications as read
+app.put(`${apiPrefix}/notifications/read-all`, authenticate, async (req, res, next) => {
+  try {
+    await prisma.notification.updateMany({
+      where: {
+        userId: req.user.id,
+        isRead: false
+      },
+      data: {
+        isRead: true,
+        readAt: new Date()
+      }
+    });
+
+    sendSuccess(res, {}, 'All notifications marked as read');
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ============================================================================
+// DOCTOR SUBSCRIPTION ENDPOINTS
+// ============================================================================
+
+// Create doctor subscription order
+app.post(`${apiPrefix}/doctors/subscription/create`, authenticate, requireDoctor, async (req, res, next) => {
+  try {
+    if (!razorpay) return sendError(res, 'Payment gateway not configured', 500);
+
+    const { plan } = req.body; // BASIC, PROFESSIONAL, ENTERPRISE
+    const amounts = {
+      BASIC: 1499,
+      PROFESSIONAL: 2999,
+      ENTERPRISE: 4999
+    };
+
+    const amount = amounts[plan];
+    if (!amount) {
+      return sendError(res, 'Invalid subscription plan', 400);
+    }
+
+    const options = {
+      amount: amount * 100, // convert to paise
+      currency: 'INR',
+      receipt: `sub_${Date.now()}_${req.user.id}`,
+      payment_capture: 1
+    };
+
+    const order = await razorpay.orders.create(options);
+
+    sendSuccess(res, {
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      plan,
+      key: process.env.RAZORPAY_KEY_ID
+    }, 'Subscription order created');
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Verify doctor subscription payment
+app.post(`${apiPrefix}/doctors/subscription/verify`, authenticate, requireDoctor, async (req, res, next) => {
+  try {
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      plan
+    } = req.body;
+
+    // Verify signature
+    const crypto = require('crypto');
+    const hmac = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET);
+    hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
+    const generated_signature = hmac.digest('hex');
+
+    if (generated_signature !== razorpay_signature) {
+      return sendError(res, 'Invalid payment signature', 400);
+    }
+
+    // Update doctor subscription
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30); // 30 days from now
+
+    const doctorProfile = await prisma.doctorProfile.update({
+      where: { userId: req.user.id },
+      data: {
+        subscriptionPlan: plan,
+        subscriptionStatus: 'ACTIVE',
+        subscriptionExpiresAt: expiresAt,
+        razorpaySubscriptionId: razorpay_payment_id
+      }
+    });
+
+    sendSuccess(res, doctorProfile, 'Subscription activated successfully');
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Get doctor subscription status
+app.get(`${apiPrefix}/doctors/subscription/status`, authenticate, requireDoctor, async (req, res, next) => {
+  try {
+    const doctorProfile = await prisma.doctorProfile.findUnique({
+      where: { userId: req.user.id },
+      select: {
+        subscriptionPlan: true,
+        subscriptionStatus: true,
+        subscriptionExpiresAt: true
+      }
+    });
+
+    if (!doctorProfile) {
+      return sendError(res, 'Doctor profile not found', 404);
+    }
+
+    sendSuccess(res, doctorProfile, 'Subscription status retrieved');
+  } catch (err) {
+    next(err);
+  }
+});
+
+
+
 // Receptionist routes
 app.get(`${apiPrefix}/receptionists/stats`, authenticate, requireReceptionist, async (req, res, next) => {
   try {
