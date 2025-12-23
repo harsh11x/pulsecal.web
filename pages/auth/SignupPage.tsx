@@ -1,11 +1,14 @@
 "use client"
 
+import { Suspense } from "react"
 import { AuthForm } from "@/components/auth/AuthForm"
 
 export default function SignupPage() {
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
-      <AuthForm mode="signup" />
+      <Suspense fallback={<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />}>
+        <AuthForm mode="signup" />
+      </Suspense>
     </div>
   )
 }
