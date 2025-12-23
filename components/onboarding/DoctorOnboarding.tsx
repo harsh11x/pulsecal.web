@@ -199,30 +199,46 @@ export default function DoctorOnboarding() {
   }
 
   const handlePayment = async () => {
-    if (!formData.subscriptionPlan || formData.subscriptionPlan === "BASIC") {
-      // If Basic is free or default, maybe just skip payment?
-      // User said "Basic package only 5 doctors". Assuming paid or free, but "payment plan".
-      // Let's assume even Basic goes through Razorpay for subscription setup, or if free, just skip.
-      // User prompt: "if the user chooses and exisitng clinic then no payemtn... if they make a new clinic... choose plan... payment page"
-      // Let's assume payment required for all new clinics for now.
-    }
-
     setLoading(true)
+
     try {
+      // Check if Razorpay is loaded
+      if (typeof (window as any).Razorpay === 'undefined') {
+        toast.error('Payment system not loaded. Please refresh the page and try again.')
+        setLoading(false)
+        return
+      }
+
+      // Validate required fields
+      if (!formData.subscriptionPlan) {
+        toast.error('Please select a subscription plan')
+        setLoading(false)
+        return
+      }
+
       // 1. Create Order
+      toast.loading('Creating payment order...')
       const orderResponse: any = await apiService.post("/api/v1/payments/create-order", {
         plan: formData.subscriptionPlan
       })
+
+      if (!orderResponse?.data?.orderId) {
+        throw new Error('Failed to create payment order')
+      }
+
+      toast.dismiss()
+      toast.success('Opening payment gateway...')
 
       const options = {
         key: orderResponse.data.key,
         amount: orderResponse.data.amount,
         currency: orderResponse.data.currency,
-        name: "PulseCal Clinic",
-        description: `${formData.subscriptionPlan} Subscription`,
+        name: "PulseCal",
+        description: `${formData.subscriptionPlan} Subscription Plan`,
         order_id: orderResponse.data.orderId,
         handler: async function (response: any) {
           // 2. Verify Payment & Create Clinic
+          toast.loading('Verifying payment...')
           try {
             const verifyResponse: any = await apiService.post("/api/v1/payments/verify", {
               razorpay_order_id: response.razorpay_order_id,
@@ -243,23 +259,35 @@ export default function DoctorOnboarding() {
               }
             })
 
+            toast.dismiss()
             toast.success("Payment successful! Clinic created.")
+
             if (verifyResponse.data?.clinic?.id) {
               setFormData(prev => ({ ...prev, clinicId: verifyResponse.data.clinic.id }))
             }
+
+            setLoading(false)
             setStep(7) // Move to final step
-          } catch (err) {
+          } catch (err: any) {
             console.error("Verification error", err)
-            toast.error("Payment verification failed")
+            toast.dismiss()
+            toast.error(err?.response?.data?.message || "Payment verification failed. Please contact support.")
+            setLoading(false)
           }
         },
         prefill: {
-          name: user?.firstName || "",
+          name: `${user?.firstName || ''} ${user?.lastName || ''}`.trim(),
           email: user?.email || "",
           contact: formData.phone || ""
         },
         theme: {
           color: "#3B82F6"
+        },
+        modal: {
+          ondismiss: function () {
+            toast.info('Payment cancelled')
+            setLoading(false)
+          }
         }
       };
 
@@ -267,30 +295,16 @@ export default function DoctorOnboarding() {
 
       rzp1.on('payment.failed', function (response: any) {
         console.error("Payment Failed", response.error);
-        toast.error(`Payment Failed: ${response.error.description}`);
-
-        // You could set a specific state here to show a "Retry/Cancel" modal
-        // For now, we'll rely on the user clicking "Continue" again to retry
-        // or we could auto-trigger a dialog.
-        // Let's use a Sonner toast with action for now as it's cleaner.
-        toast.error("Transaction not completed", {
-          action: {
-            label: "Retry",
-            onClick: () => handlePayment()
-          },
-          cancel: {
-            label: "Cancel",
-            onClick: () => console.log("Payment cancelled")
-          }
-        });
+        toast.error(`Payment Failed: ${response.error.description || 'Unknown error'}`);
+        setLoading(false)
       });
 
       rzp1.open();
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Payment init error", error)
-      toast.error("Failed to initiate payment")
-    } finally {
+      toast.dismiss()
+      toast.error(error?.response?.data?.message || error?.message || "Failed to initiate payment. Please try again.")
       setLoading(false)
     }
   }
