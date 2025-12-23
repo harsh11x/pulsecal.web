@@ -21,7 +21,7 @@ export function GetStartedAction({ variant = "default", className }: { variant?:
 
     const handleGetStarted = () => {
         if (!isAuthenticated) {
-            router.push("/auth/signup")
+            setOpen(true)
             return
         }
 
@@ -51,9 +51,9 @@ export function GetStartedAction({ variant = "default", className }: { variant?:
         // For this implementation, we simply redirect to the specific signup page for that role
         // if they aren't logged in (which is handled above), OR if they are logged in but somehow undefined.
 
-        if (role === 'patient') router.push('/dashboard');
-        if (role === 'doctor') router.push('/onboarding/doctor');
-        if (role === 'receptionist') router.push('/dashboard');
+        if (role === 'patient') router.push('/auth/signup?role=patient');
+        if (role === 'doctor') router.push('/auth/signup?role=doctor');
+        if (role === 'receptionist') router.push('/auth/signup?role=receptionist');
         setOpen(false);
     }
 

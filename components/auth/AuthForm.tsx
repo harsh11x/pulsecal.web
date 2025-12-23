@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -17,6 +17,7 @@ interface AuthFormProps {
 
 export function AuthForm({ mode }: AuthFormProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     email: "",
@@ -34,6 +35,9 @@ export function AuthForm({ mode }: AuthFormProps) {
         // Sign in with email and password
         await signIn(formData.email, formData.password)
         toast.success("Signed in successfully!")
+
+        // Let the dashboard wrapper handle role and onboarding redirects
+        // Or we can do smart redirect here if we want to be explicit
         router.push("/dashboard")
       } else {
         // Sign up with email and password
@@ -43,14 +47,24 @@ export function AuthForm({ mode }: AuthFormProps) {
           `${formData.firstName} ${formData.lastName}`.trim()
         )
 
+        const role = searchParams?.get("role")?.toUpperCase() as "PATIENT" | "DOCTOR" | "RECEPTIONIST" | undefined
+
         // Sync profile with backend
         await syncUserProfile(
           formData.firstName,
-          formData.lastName
+          formData.lastName,
+          undefined, // phone
+          undefined, // dob
+          undefined, // image
+          role || "PATIENT"
         )
 
         toast.success("Account created successfully!")
-        router.push("/onboarding")
+        if (role === "DOCTOR") {
+          router.push("/onboarding/doctor")
+        } else {
+          router.push("/onboarding")
+        }
       }
     } catch (error: any) {
       console.error("Authentication error:", error)
@@ -102,11 +116,26 @@ export function AuthForm({ mode }: AuthFormProps) {
     // BUT if we have user object, trust that.
 
     if (user) {
+      if (user.role === 'DOCTOR' && !user.onboardingCompleted) {
+        router.push("/onboarding/doctor")
+        return
+      }
+
       // User exists but onboarding not complete
-      router.push("/onboarding")
+      if (!user.onboardingCompleted) {
+        router.push("/onboarding")
+        return
+      }
+
+      router.push("/dashboard")
     } else {
       // Fallback to mode-based redirect
-      router.push(mode === "signup" ? "/onboarding" : "/dashboard")
+      const role = searchParams?.get("role")
+      if (mode === "signup" && role === "doctor") {
+        router.push("/onboarding/doctor")
+      } else {
+        router.push(mode === "signup" ? "/onboarding" : "/dashboard")
+      }
     }
   }
 
@@ -124,7 +153,7 @@ export function AuthForm({ mode }: AuthFormProps) {
         <p className="text-muted-foreground">
           {mode === "signin"
             ? "Enter your credentials to access your account"
-            : "Create a new account to get started"}
+            : `Create a new ${searchParams?.get("role") || ""} account to get started`}
         </p>
       </div>
 
