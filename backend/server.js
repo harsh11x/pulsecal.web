@@ -2109,11 +2109,68 @@ app.get(`${apiPrefix}/doctors/subscription/status`, authenticate, requireDoctor,
       return sendError(res, 'Doctor profile not found', 404);
     }
 
-    sendSuccess(res, doctorProfile, 'Subscription status retrieved');
+    sendSuccess(res, doctorProfile);
   } catch (err) {
     next(err);
   }
 });
+
+// ==================== PATIENT MEDICAL RECORDS ====================
+
+// Create medical record
+app.post(`${apiPrefix}/patients/medical-records`, authenticate, async (req, res, next) => {
+  try {
+    const {
+      visitDate,
+      doctorName,
+      diagnosis,
+      symptoms,
+      vitalSigns,
+      bloodGroup,
+      prescribedMedicines,
+      medicalTests,
+      notes
+    } = req.body;
+
+    logger.info(`Creating medical record for patient ${req.user.id}`);
+
+    // Create medical record
+    const medicalRecord = await prisma.medicalRecord.create({
+      data: {
+        patientId: req.user.id,
+        visitDate: visitDate ? new Date(visitDate) : new Date(),
+        diagnosis: diagnosis || '',
+        symptoms: symptoms || '',
+        treatment: notes || '',
+        notes: notes || '',
+        vitalSigns: vitalSigns || {},
+        prescribedMedicines: prescribedMedicines || [],
+        labResults: medicalTests || []
+      }
+    });
+
+    sendSuccess(res, medicalRecord, 'Medical record created successfully');
+  } catch (err) {
+    logger.error('Error creating medical record:', err);
+    next(err);
+  }
+});
+
+// Get patient medical records
+app.get(`${apiPrefix}/patients/medical-records`, authenticate, async (req, res, next) => {
+  try {
+    const medicalRecords = await prisma.medicalRecord.findMany({
+      where: { patientId: req.user.id },
+      orderBy: { visitDate: 'desc' },
+      take: 50
+    });
+
+    sendSuccess(res, medicalRecords);
+  } catch (err) {
+    next(err);
+  }
+});
+
 
 
 
