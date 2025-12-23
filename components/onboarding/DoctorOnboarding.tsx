@@ -426,6 +426,33 @@ export default function DoctorOnboarding() {
 
       if (onboardingComplete) {
         toast.success("Doctor registration completed! Your clinic is now discoverable.")
+
+        // Force refresh user profile from backend to ensure onboardingCompleted is persisted
+        try {
+          const profileResponse: any = await apiService.get("/api/v1/auth/profile")
+          const userProfile = profileResponse?.data || profileResponse
+
+          if (userProfile && userProfile.id) {
+            const userData = {
+              id: userProfile.id,
+              email: userProfile.email,
+              firstName: userProfile.firstName,
+              lastName: userProfile.lastName,
+              phone: userProfile.phone,
+              dateOfBirth: userProfile.dateOfBirth,
+              role: (userProfile.role || "PATIENT").toLowerCase() as "patient" | "doctor" | "receptionist" | "admin",
+              isActive: userProfile.isActive !== false,
+              isEmailVerified: userProfile.isEmailVerified || false,
+              profileImage: userProfile.profileImage,
+              onboardingCompleted: userProfile.onboardingCompleted || false,
+              clinicId: userProfile.clinicId,
+            }
+            dispatch(setUser(userData))
+            console.log("Profile refreshed after onboarding, onboardingCompleted:", userData.onboardingCompleted)
+          }
+        } catch (refreshError) {
+          console.error("Failed to refresh profile after onboarding:", refreshError)
+        }
       } else {
         toast.warning("Registration completed locally. Some data may not be saved. You can update your profile later.")
       }
