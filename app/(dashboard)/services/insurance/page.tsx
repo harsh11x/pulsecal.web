@@ -9,25 +9,32 @@ import { useEffect, useState } from "react"
 import { apiService } from "@/services/api"
 import { toast } from "sonner"
 import { format } from "date-fns"
+import { AddInsuranceDialog } from "@/components/insurance/AddInsuranceDialog"
 
 export default function Insurance() {
   const [insurance, setInsurance] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [dialogOpen, setDialogOpen] = useState(false)
+
+  const fetchInsurance = async () => {
+    try {
+      const response: any = await apiService.get("/api/v1/patients/insurance")
+      setInsurance(response.data)
+    } catch (error) {
+      console.error("Failed to fetch insurance:", error)
+      // Ensure we handle empty/404 correctly if not set
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    const fetchInsurance = async () => {
-      try {
-        const response: any = await apiService.get("/api/v1/patients/insurance")
-        setInsurance(response.data)
-      } catch (error) {
-        console.error("Failed to fetch insurance:", error)
-        // Ensure we handle empty/404 correctly if not set
-      } finally {
-        setLoading(false)
-      }
-    }
     fetchInsurance()
   }, [])
+
+  const handleSuccess = () => {
+    fetchInsurance()
+  }
 
   if (loading) {
     return (
@@ -47,7 +54,7 @@ export default function Insurance() {
             <h1 className="text-3xl font-bold text-balance">Insurance Information</h1>
             <p className="text-muted-foreground">Manage your health insurance details</p>
           </div>
-          <Button size="lg">
+          <Button size="lg" onClick={() => setDialogOpen(true)}>
             <Plus className="mr-2 h-5 w-5" />
             Add Insurance
           </Button>
@@ -61,7 +68,7 @@ export default function Insurance() {
               <p className="text-muted-foreground mb-4 max-w-sm">
                 Add your insurance details to streamline billing and coverage verification.
               </p>
-              <Button>Add Details Now</Button>
+              <Button onClick={() => setDialogOpen(true)}>Add Details Now</Button>
             </CardContent>
           </Card>
         ) : (
@@ -100,7 +107,7 @@ export default function Insurance() {
                   )}
                 </div>
                 <div className="flex gap-2 pt-2">
-                  <Button variant="outline" className="flex-1 bg-transparent">
+                  <Button variant="outline" className="flex-1 bg-transparent" onClick={() => setDialogOpen(true)}>
                     Edit
                   </Button>
                   <Button variant="outline" className="flex-1 bg-transparent">
@@ -113,6 +120,12 @@ export default function Insurance() {
             {/* Summary placeholder or secondary insurance if supported */}
           </div>
         )}
+
+        <AddInsuranceDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          onSuccess={handleSuccess}
+        />
       </div>
     </ProtectedRoute >
   )
