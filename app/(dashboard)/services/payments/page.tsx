@@ -5,61 +5,55 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { CreditCard, DollarSign, Calendar, Download, Plus } from "lucide-react"
+import { CreditCard, DollarSign, Calendar, Download, Plus, Loader2 } from "lucide-react"
 import { formatCurrency } from "@/utils/helpers"
+import { useEffect, useState } from "react"
+import { apiService } from "@/services/api"
+import { format } from "date-fns"
 
 export default function Payments() {
-  const bills = [
-    {
-      id: "1",
-      date: "2024-12-15",
-      description: "Annual Physical Exam",
-      amount: 250.0,
-      status: "paid",
-      dueDate: "2024-12-20",
-    },
-    {
-      id: "2",
-      date: "2024-11-28",
-      description: "Lab Tests - Blood Work",
-      amount: 185.0,
-      status: "pending",
-      dueDate: "2025-01-05",
-    },
-    {
-      id: "3",
-      date: "2024-11-10",
-      description: "Prescription Refills",
-      amount: 45.0,
-      status: "overdue",
-      dueDate: "2024-12-10",
-    },
-  ]
+  const [data, setData] = useState<any>({ transactions: [], summary: { totalPaid: 0, totalPending: 0 } })
+  const [loading, setLoading] = useState(true)
 
-  const paymentMethods = [
-    { id: "1", type: "Visa", last4: "4242", expiry: "12/25", isDefault: true },
-    { id: "2", type: "Mastercard", last4: "8888", expiry: "08/26", isDefault: false },
-  ]
-
-  const transactions = [
-    { id: "1", date: "2024-12-15", description: "Payment for Annual Physical", amount: -250.0 },
-    { id: "2", date: "2024-11-20", description: "Insurance Reimbursement", amount: 150.0 },
-    { id: "3", date: "2024-10-15", description: "Payment for Lab Tests", amount: -185.0 },
-  ]
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response: any = await apiService.get("/api/v1/patients/payments")
+        setData(response.data || { transactions: [], summary: { totalPaid: 0, totalPending: 0 } })
+      } catch (error) {
+        console.error("Failed to fetch payments:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { color: string; label: string }> = {
-      paid: { color: "bg-success/10 text-success", label: "Paid" },
-      pending: { color: "bg-warning/10 text-warning", label: "Pending" },
-      overdue: { color: "bg-destructive/10 text-destructive", label: "Overdue" },
+      COMPLETED: { color: "bg-green-100 text-green-700", label: "Paid" },
+      PENDING: { color: "bg-yellow-100 text-yellow-700", label: "Pending" },
+      FAILED: { color: "bg-red-100 text-red-700", label: "Failed" },
     }
-    const statusInfo = variants[status] || variants.pending
+    const statusInfo = variants[status] || variants.PENDING
     return (
       <Badge className={statusInfo.color} variant="secondary">
         {statusInfo.label}
       </Badge>
     )
   }
+
+  if (loading) {
+    return (
+      <ProtectedRoute>
+        <div className="flex h-96 items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </ProtectedRoute>
+    )
+  }
+
+  const { transactions, summary } = data
 
   return (
     <ProtectedRoute>
@@ -74,21 +68,20 @@ export default function Payments() {
         <div className="grid gap-6 md:grid-cols-3">
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Balance</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Paid (Lifetime)</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold">{formatCurrency(230.0)}</p>
-              <p className="text-sm text-muted-foreground mt-1">1 payment overdue</p>
+              <p className="text-3xl font-bold">{formatCurrency(summary.totalPaid)}</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm font-medium text-muted-foreground">Paid This Year</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Pending Amount</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold">{formatCurrency(1245.0)}</p>
-              <p className="text-sm text-success mt-1">+12% from last year</p>
+              <p className="text-3xl font-bold">{formatCurrency(summary.totalPending)}</p>
+              {summary.totalPending > 0 && <p className="text-sm text-yellow-600 mt-1">Action required</p>}
             </CardContent>
           </Card>
 
@@ -97,52 +90,67 @@ export default function Payments() {
               <CardTitle className="text-sm font-medium text-muted-foreground">Next Payment Due</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold">{formatCurrency(185.0)}</p>
-              <p className="text-sm text-muted-foreground mt-1">Due Jan 5, 2025</p>
+              <p className="text-3xl font-bold">{formatCurrency(0)}</p>
+              <p className="text-sm text-muted-foreground mt-1">No upcoming bills</p>
             </CardContent>
           </Card>
         </div>
 
-        <Tabs defaultValue="bills" className="space-y-6">
-          <TabsList className="grid w-full max-w-md grid-cols-3">
-            <TabsTrigger value="bills">Bills</TabsTrigger>
-            <TabsTrigger value="methods">Payment Methods</TabsTrigger>
+        <Tabs defaultValue="history" className="space-y-6">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
             <TabsTrigger value="history">History</TabsTrigger>
+            <TabsTrigger value="methods">Payment Methods</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="bills" className="space-y-4">
+          <TabsContent value="history" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Outstanding Bills</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Transaction History</CardTitle>
+                  <Button variant="outline" size="sm">
+                    <Download className="mr-2 h-4 w-4" />
+                    Export
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {bills.map((bill) => (
-                    <div
-                      key={bill.id}
-                      className="flex items-center justify-between border-b border-border pb-4 last:border-0 last:pb-0"
-                    >
-                      <div className="space-y-1">
-                        <p className="font-medium">{bill.description}</p>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Calendar className="h-3 w-3" />
-                          <span>Due: {bill.dueDate}</span>
+                {transactions.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No transactions found.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {transactions.map((transaction: any) => (
+                      <div
+                        key={transaction.id}
+                        className="flex items-center justify-between border-b border-border pb-3 last:border-0 last:pb-0"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`h-10 w-10 rounded-full flex items-center justify-center ${transaction.amount > 0 ? "bg-green-100" : "bg-muted"
+                              }`}
+                          >
+                            <DollarSign
+                              className={`h-5 w-5 ${transaction.amount > 0 ? "text-green-600" : "text-muted-foreground"}`}
+                            />
+                          </div>
+                          <div>
+                            <p className="font-medium">{transaction.description || "Payment"}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {format(new Date(transaction.createdAt), 'MMM dd, yyyy')}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold">
+                            {formatCurrency(transaction.amount)}
+                          </p>
+                          {getStatusBadge(transaction.status)}
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <div className="text-right">
-                          <p className="font-semibold">{formatCurrency(bill.amount)}</p>
-                          {getStatusBadge(bill.status)}
-                        </div>
-                        {bill.status !== "paid" && (
-                          <Button size="sm" className="ml-2">
-                            Pay Now
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -159,71 +167,9 @@ export default function Payments() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {paymentMethods.map((method) => (
-                    <div key={method.id} className="flex items-center justify-between border rounded-lg p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          <CreditCard className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                          <p className="font-medium">
-                            {method.type} •••• {method.last4}
-                          </p>
-                          <p className="text-sm text-muted-foreground">Expires {method.expiry}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {method.isDefault && <Badge>Default</Badge>}
-                        <Button variant="ghost" size="sm">
-                          Edit
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="history" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>Transaction History</CardTitle>
-                  <Button variant="outline" size="sm">
-                    <Download className="mr-2 h-4 w-4" />
-                    Export
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {transactions.map((transaction) => (
-                    <div
-                      key={transaction.id}
-                      className="flex items-center justify-between border-b border-border pb-3 last:border-0 last:pb-0"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`h-10 w-10 rounded-full flex items-center justify-center ${transaction.amount > 0 ? "bg-success/10" : "bg-muted"
-                            }`}
-                        >
-                          <DollarSign
-                            className={`h-5 w-5 ${transaction.amount > 0 ? "text-success" : "text-muted-foreground"}`}
-                          />
-                        </div>
-                        <div>
-                          <p className="font-medium">{transaction.description}</p>
-                          <p className="text-sm text-muted-foreground">{transaction.date}</p>
-                        </div>
-                      </div>
-                      <p className={`font-semibold ${transaction.amount > 0 ? "text-success" : "text-foreground"}`}>
-                        {transaction.amount > 0 ? "+" : ""}
-                        {formatCurrency(Math.abs(transaction.amount))}
-                      </p>
-                    </div>
-                  ))}
+                <div className="text-center py-8 text-muted-foreground">
+                  <CreditCard className="mx-auto h-8 w-8 mb-2 opacity-50" />
+                  No payment methods saved.
                 </div>
               </CardContent>
             </Card>

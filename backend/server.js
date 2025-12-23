@@ -1569,6 +1569,92 @@ app.post(`${apiPrefix}/receptionists`, authenticate, async (req, res, next) => {
   }
 });
 
+// --- Patient Insurance Routes ---
+app.get(`${apiPrefix}/patients/insurance`, authenticate, async (req, res, next) => {
+  try {
+    const insurance = await prisma.insurance.findUnique({
+      where: { patientId: req.user.id }
+    });
+    sendSuccess(res, insurance, 'Insurance details fetched successfully');
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post(`${apiPrefix}/patients/insurance`, authenticate, async (req, res, next) => {
+  try {
+    const { providerName, policyNumber, groupNumber, coverageStartDate, coverageEndDate } = req.body;
+
+    // Check if exists, update or create
+    const insurance = await prisma.insurance.upsert({
+      where: { patientId: req.user.id },
+      update: {
+        providerName,
+        policyNumber,
+        groupNumber,
+        coverageStartDate: coverageStartDate ? new Date(coverageStartDate) : undefined,
+        coverageEndDate: coverageEndDate ? new Date(coverageEndDate) : undefined,
+      },
+      create: {
+        patientId: req.user.id,
+        providerName,
+        policyNumber,
+        groupNumber,
+        coverageStartDate: coverageStartDate ? new Date(coverageStartDate) : undefined,
+        coverageEndDate: coverageEndDate ? new Date(coverageEndDate) : undefined,
+      }
+    });
+
+    sendSuccess(res, insurance, 'Insurance details saved successfully');
+  } catch (err) {
+    next(err);
+  }
+});
+
+// --- Patient Payment/Billing Routes ---
+app.get(`${apiPrefix}/patients/payments`, authenticate, async (req, res, next) => {
+  try {
+    // 1. Fetch bills (pending payments) - usually derived from unpaid appointments or specific billing records
+    // For now, let's assume 'payments' table tracks all transactions.
+    // If we need "bills" (unpaid), we search for status=PENDING.
+
+    // Fetch recent transactions
+    const transactions = await prisma.payment.findMany({
+      where: { patientId: req.user.id },
+      orderBy: { createdAt: 'desc' },
+      take: 20
+    });
+
+    // Calculate totals
+    const paidTotal = await prisma.payment.aggregate({
+      where: {
+        patientId: req.user.id,
+        status: 'COMPLETED'
+      },
+      _sum: { amount: true }
+    });
+
+    const pendingTotal = await prisma.payment.aggregate({
+      where: {
+        patientId: req.user.id,
+        status: 'PENDING'
+      },
+      _sum: { amount: true }
+    });
+
+    sendSuccess(res, {
+      transactions,
+      summary: {
+        totalPaid: paidTotal._sum.amount || 0,
+        totalPending: pendingTotal._sum.amount || 0,
+        currency: 'USD' // Default
+      }
+    }, 'Payments fetched successfully');
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Error handlers
 app.use((req, res) => {
   sendError(res, `Route ${req.originalUrl} not found`, 404);
