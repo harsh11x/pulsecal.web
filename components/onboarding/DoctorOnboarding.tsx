@@ -1024,9 +1024,9 @@ export default function DoctorOnboarding() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {[
-                  { id: 'BASIC', name: 'Basic', price: '₹29/mo', limit: 'Max 5 Doctors' },
-                  { id: 'PROFESSIONAL', name: 'Professional', price: '₹79/mo', limit: 'Max 10 Doctors' },
-                  { id: 'ENTERPRISE', name: 'Enterprise', price: '₹199/mo', limit: 'Unlimited Doctors' }
+                  { id: 'BASIC', name: 'Basic', price: '₹1499/mo', limit: 'Max 5 Doctors' },
+                  { id: 'PROFESSIONAL', name: 'Professional', price: '₹2999/mo', limit: 'Max 10 Doctors' },
+                  { id: 'ENTERPRISE', name: 'Enterprise', price: '₹4999/mo', limit: 'Unlimited Doctors' }
                 ].map((plan) => (
                   <Card key={plan.id}
                     className={`cursor-pointer transition-all hover:border-primary ${formData.subscriptionPlan === plan.id ? 'border-primary border-2 bg-primary/5' : ''}`}
