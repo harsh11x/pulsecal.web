@@ -77,7 +77,7 @@ export default function PatientOnboarding() {
   const handleSubmit = async () => {
     setLoading(true)
     const errors: string[] = []
-    
+
     try {
       // Update user profile - with timeout and error handling
       try {
@@ -92,7 +92,7 @@ export default function PatientOnboarding() {
           latitude: userLocation?.lat,
           longitude: userLocation?.lng,
         })
-        const timeoutPromise = new Promise<never>((_, reject) => 
+        const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("Request timeout")), 10000)
         )
         await Promise.race([profilePromise, timeoutPromise])
@@ -110,7 +110,7 @@ export default function PatientOnboarding() {
           allergies: formData.allergies,
           chronicConditions: formData.chronicConditions,
         })
-        const timeoutPromise = new Promise<never>((_, reject) => 
+        const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("Request timeout")), 10000)
         )
         await Promise.race([patientPromise, timeoutPromise])
@@ -129,7 +129,7 @@ export default function PatientOnboarding() {
             phone: formData.emergencyContactPhone,
             relation: formData.emergencyContactRelation,
           })
-          const timeoutPromise = new Promise<never>((_, reject) => 
+          const timeoutPromise = new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error("Request timeout")), 10000)
           )
           await Promise.race([contactPromise, timeoutPromise])
@@ -148,7 +148,7 @@ export default function PatientOnboarding() {
           const completePromise = apiService.put("/api/v1/users/profile", {
             onboardingCompleted: true,
           })
-          const timeoutPromise = new Promise<never>((_, reject) => 
+          const timeoutPromise = new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error("Request timeout")), 10000)
           )
           await Promise.race([completePromise, timeoutPromise])
@@ -169,10 +169,37 @@ export default function PatientOnboarding() {
 
       if (onboardingComplete) {
         toast.success("Profile setup completed! You can now find and book doctors.")
+
+        // Force refresh user profile from backend to ensure onboardingCompleted is persisted
+        try {
+          const profileResponse: any = await apiService.get("/api/v1/auth/profile")
+          const userProfile = profileResponse?.data || profileResponse
+
+          if (userProfile && userProfile.id) {
+            const userData = {
+              id: userProfile.id,
+              email: userProfile.email,
+              firstName: userProfile.firstName,
+              lastName: userProfile.lastName,
+              phone: userProfile.phone,
+              dateOfBirth: userProfile.dateOfBirth,
+              role: (userProfile.role || "PATIENT").toLowerCase() as "patient" | "doctor" | "receptionist" | "admin",
+              isActive: userProfile.isActive !== false,
+              isEmailVerified: userProfile.isEmailVerified || false,
+              profileImage: userProfile.profileImage,
+              onboardingCompleted: userProfile.onboardingCompleted || false,
+              clinicId: userProfile.clinicId,
+            }
+            dispatch(setUser(userData))
+            console.log("Profile refreshed after onboarding, onboardingCompleted:", userData.onboardingCompleted)
+          }
+        } catch (refreshError) {
+          console.error("Failed to refresh profile after onboarding:", refreshError)
+        }
       } else {
         toast.warning("Setup completed locally. Some data may not be saved. You can update your profile later.")
       }
-      
+
       // Small delay before redirect
       await new Promise(resolve => setTimeout(resolve, 500))
       router.push("/dashboard")
