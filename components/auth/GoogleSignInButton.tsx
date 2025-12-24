@@ -24,20 +24,35 @@ export function GoogleSignInButton({
     try {
       setLoading(true)
 
-      // Get role from URL parameter and store in sessionStorage before auth
-      const role = searchParams?.get("role")?.toUpperCase() as "PATIENT" | "DOCTOR" | "RECEPTIONIST" | undefined
+      // Get role from URL parameter OR sessionStorage (for modal flow)
+      let role = searchParams?.get("role")?.toUpperCase() as "PATIENT" | "DOCTOR" | "RECEPTIONIST" | undefined
+
+      // If no role in URL, check sessionStorage (set by GetStartedAction)
+      if (!role) {
+        const storedRole = sessionStorage.getItem('selectedRole')
+        if (storedRole) {
+          role = storedRole as "PATIENT" | "DOCTOR" | "RECEPTIONIST"
+        }
+      }
+
+      // Store role for after OAuth redirect
       if (role) {
         sessionStorage.setItem('pendingAuthRole', role)
       }
+
+      console.log("Starting Google auth with role:", role)
 
       // Sign in/up with Google
       const userCredential = mode === "signin"
         ? await signInWithGoogle()
         : await signUpWithGoogle()
 
+      console.log("Google auth successful, syncing profile...")
+
       // Retrieve role from sessionStorage after auth
       const storedRole = sessionStorage.getItem('pendingAuthRole') as "PATIENT" | "DOCTOR" | "RECEPTIONIST" | undefined
-      sessionStorage.removeItem('pendingAuthRole') // Clean up
+
+      console.log("Syncing with role:", storedRole || role || "PATIENT")
 
       // Sync profile with backend (automatically extracts name from Google account)
       const user = await syncUserProfile(
@@ -49,12 +64,26 @@ export function GoogleSignInButton({
         storedRole || role || "PATIENT" // Use stored role or default to PATIENT
       )
 
+      console.log("Profile synced successfully:", user)
+
+      // Clean up stored role
+      sessionStorage.removeItem('pendingAuthRole')
+      sessionStorage.removeItem('selectedRole')
+
       onSuccess?.(user)
     } catch (error: any) {
       console.error("Google authentication error:", error)
       // Clean up stored role on error
       sessionStorage.removeItem('pendingAuthRole')
-      onError?.(error)
+      sessionStorage.removeItem('selectedRole')
+
+      // Provide more specific error message
+      let errorMessage = "Google authentication failed. Please try again."
+      if (error.message) {
+        errorMessage = error.message
+      }
+
+      onError?.(new Error(errorMessage))
     } finally {
       setLoading(false)
     }
