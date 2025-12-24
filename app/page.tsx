@@ -1,5 +1,8 @@
 "use client"
 
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { store } from "@/app/store"
 import { Header } from "@/components/landing/Header"
 import { Footer } from "@/components/landing/Footer"
 import { GetStartedAction } from "@/components/landing/GetStartedAction"
@@ -432,8 +435,8 @@ export default function Home() {
               <div
                 key={index}
                 className={`relative rounded-2xl border-2 p-8 transition-all duration-300 ${plan.popular
-                    ? "border-primary bg-card shadow-xl scale-105"
-                    : "border-border bg-card hover:border-primary/50 hover:shadow-lg"
+                  ? "border-primary bg-card shadow-xl scale-105"
+                  : "border-border bg-card hover:border-primary/50 hover:shadow-lg"
                   }`}
               >
                 {plan.popular && (
