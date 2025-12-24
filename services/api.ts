@@ -1,7 +1,7 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from "axios"
 import { getIdToken } from "@/lib/firebaseAuth"
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://13.205.127.21:3001/api/v1"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://pulsecal.com/api/v1"
 
 class ApiService {
   private api: AxiosInstance

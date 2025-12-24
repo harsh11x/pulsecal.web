@@ -1,4 +1,4 @@
-import { 
+import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -23,14 +23,14 @@ export const signUp = async (
   try {
     const authInstance = getAuthInstance();
     const userCredential = await createUserWithEmailAndPassword(authInstance, email, password);
-    
+
     // Update display name if provided
     if (displayName && userCredential.user) {
       await updateProfile(userCredential.user, {
         displayName: displayName,
       });
     }
-    
+
     return userCredential;
   } catch (error) {
     console.error('Sign up error:', error);
@@ -88,17 +88,17 @@ export const signInWithGoogle = async (): Promise<UserCredential> => {
 
     // Get auth instance (will throw if not available)
     const authInstance = getAuthInstance();
-    
+
     const provider = new GoogleAuthProvider();
     // Request additional scopes if needed
     provider.addScope('profile');
     provider.addScope('email');
-    
+
     // Set custom parameters
     provider.setCustomParameters({
       prompt: 'select_account'
     });
-    
+
     // Use signInWithPopup with better error handling
     let result: UserCredential;
     try {
@@ -116,15 +116,15 @@ export const signInWithGoogle = async (): Promise<UserCredential> => {
       }
       throw popupError;
     }
-    
+
     // Wait a moment for Firebase to fully process the authentication
     await new Promise(resolve => setTimeout(resolve, 200));
-    
+
     // Ensure we have a user
     if (!result.user || !result.user.uid) {
       throw new Error('Google authentication completed but user data is missing');
     }
-    
+
     // Verify the user is actually authenticated in Firebase
     if (authInstance.currentUser?.uid !== result.user.uid) {
       // Wait a bit more and check again
@@ -133,7 +133,7 @@ export const signInWithGoogle = async (): Promise<UserCredential> => {
         throw new Error('Authentication state mismatch. Please try again.');
       }
     }
-    
+
     return result;
   } catch (error: any) {
     console.error('Google sign in error:', error);
@@ -213,7 +213,7 @@ const getIdTokenWithRetry = async (maxRetries = 3, delay = 500): Promise<string 
     } catch (error) {
       console.warn(`Token retrieval attempt ${i + 1} failed:`, error);
     }
-    
+
     if (i < maxRetries - 1) {
       // Wait before retrying
       await new Promise(resolve => setTimeout(resolve, delay));
@@ -237,7 +237,7 @@ export const syncUserProfile = async (
   try {
     // Wait a bit for Firebase to fully initialize the user
     await new Promise(resolve => setTimeout(resolve, 500));
-    
+
     // Verify user is authenticated
     const user = getCurrentUser();
     if (!user || !user.uid) {
@@ -248,13 +248,13 @@ export const syncUserProfile = async (
         throw new Error('User not found. Please try signing in again.');
       }
     }
-    
+
     // Get token with retry logic
     const token = await getIdTokenWithRetry(5, 500);
     if (!token) {
       throw new Error('No authentication token available. Please try signing in again.');
     }
-    
+
     // If name not provided, try to extract from Firebase user
     let finalFirstName = firstName;
     let finalLastName = lastName;
@@ -274,14 +274,14 @@ export const syncUserProfile = async (
           finalLastName = '';
         }
       }
-      
+
       if (!finalProfileImage && user.photoURL) {
         finalProfileImage = user.photoURL;
       }
     }
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-    
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://pulsecal.com';
+
     const response = await fetch(`${apiUrl}/api/v1/auth/sync-profile`, {
       method: 'POST',
       headers: {
