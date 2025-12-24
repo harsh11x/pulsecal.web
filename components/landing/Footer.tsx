@@ -16,32 +16,32 @@ export function Footer() {
               Transforming healthcare management with innovative appointment scheduling and patient care solutions.
             </p>
             <div className="flex gap-4">
-              <Link 
-                href="https://facebook.com" 
+              <Link
+                href="https://facebook.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-muted-foreground transition-all duration-200 hover:text-primary hover:scale-110"
               >
                 <Facebook className="h-5 w-5" />
               </Link>
-              <Link 
-                href="https://twitter.com" 
+              <Link
+                href="https://twitter.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-muted-foreground transition-all duration-200 hover:text-primary hover:scale-110"
               >
                 <Twitter className="h-5 w-5" />
               </Link>
-              <Link 
-                href="https://linkedin.com" 
+              <Link
+                href="https://www.linkedin.com/company/pulsecal/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-muted-foreground transition-all duration-200 hover:text-primary hover:scale-110"
               >
                 <Linkedin className="h-5 w-5" />
               </Link>
-              <Link 
-                href="https://instagram.com" 
+              <Link
+                href="https://www.instagram.com/pulsecalofficial"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-muted-foreground transition-all duration-200 hover:text-primary hover:scale-110"
