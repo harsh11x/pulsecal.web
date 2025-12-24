@@ -10,51 +10,44 @@ import {
     DialogDescription,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from "@/components/ui/dialog"
 import { ArrowRight, User, Stethoscope, Users } from "lucide-react"
+import { AuthForm } from "@/components/auth/AuthForm"
 
 export function GetStartedAction({ variant = "default", className }: { variant?: "default" | "outline", className?: string }) {
     const router = useRouter()
     const { isAuthenticated, user } = useAppSelector((state) => state.auth)
-    const [open, setOpen] = useState(false)
+    const [roleDialogOpen, setRoleDialogOpen] = useState(false)
+    const [authDialogOpen, setAuthDialogOpen] = useState(false)
+    const [selectedRole, setSelectedRole] = useState<"patient" | "doctor" | "receptionist" | null>(null)
 
     const handleGetStarted = () => {
-        if (!isAuthenticated) {
-            setOpen(true)
+        if (isAuthenticated && user) {
+            // User is already logged in, redirect to dashboard
+            router.push("/dashboard")
             return
         }
 
-        // If user is already logged in, check role
-        if (user?.role === "patient") {
-            router.push("/dashboard")
-        } else if (user?.role === "receptionist") {
-            router.push("/dashboard")
-        } else if (user?.role === "doctor") {
-            // Check if doctor has paid/setup, otherwise onboarding
-            // For now, assume onboarding landing
-            router.push("/onboarding/doctor")
-        } else {
-            // Fallback for new/undefined roles
-            setOpen(true)
-        }
+        // Show role selection dialog
+        setRoleDialogOpen(true)
     }
 
-    const handleRoleSelect = (role: string) => {
-        // This is primarily for the flow where we might want to guide a *newly* signed up user 
-        // who hasn't selected a role yet, but in this app's current auth flow, 
-        // role is usually selected at signup. 
-        // However, per user request, we show the modal if logic dictates.
-        // Since current Signup likely forces role, this modal might be redundant for *existing* users 
-        // but good for the "Guest -> Click -> Login -> Flow" if we had a generic "signup" without role first.
+    const handleRoleSelect = (role: "patient" | "doctor" | "receptionist") => {
+        setSelectedRole(role)
+        setRoleDialogOpen(false)
 
-        // For this implementation, we simply redirect to the specific signup page for that role
-        // if they aren't logged in (which is handled above), OR if they are logged in but somehow undefined.
+        // Store role in sessionStorage for auth flow
+        sessionStorage.setItem('selectedRole', role.toUpperCase())
 
-        if (role === 'patient') router.push('/auth/signup?role=patient');
-        if (role === 'doctor') router.push('/auth/signup?role=doctor');
-        if (role === 'receptionist') router.push('/auth/signup?role=receptionist');
-        setOpen(false);
+        // Show auth dialog
+        setAuthDialogOpen(true)
+    }
+
+    const handleAuthSuccess = () => {
+        setAuthDialogOpen(false)
+
+        // The AuthForm will handle routing based on role
+        // Just close the dialog
     }
 
     return (
@@ -69,37 +62,61 @@ export function GetStartedAction({ variant = "default", className }: { variant?:
                 <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
 
-            <Dialog open={open} onOpenChange={setOpen}>
-                <DialogContent className="sm:max-w-[425px]">
+            {/* Role Selection Dialog */}
+            <Dialog open={roleDialogOpen} onOpenChange={setRoleDialogOpen}>
+                <DialogContent className="sm:max-w-[500px]">
                     <DialogHeader>
-                        <DialogTitle>Welcome to PulseCal</DialogTitle>
-                        <DialogDescription>
-                            Choose your role to continue to your dashboard.
+                        <DialogTitle className="text-2xl">Welcome to PulseCal</DialogTitle>
+                        <DialogDescription className="text-base">
+                            Choose your role to get started with the right experience
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <Button variant="outline" className="justify-start h-auto py-4" onClick={() => handleRoleSelect('patient')}>
-                            <User className="mr-4 h-6 w-6 text-primary" />
+                    <div className="grid gap-4 py-6">
+                        <Button
+                            variant="outline"
+                            className="justify-start h-auto py-6 hover:border-primary hover:bg-primary/5 transition-all"
+                            onClick={() => handleRoleSelect('patient')}
+                        >
+                            <User className="mr-4 h-8 w-8 text-primary" />
                             <div className="text-left">
-                                <div className="font-semibold">I'm a Patient</div>
-                                <div className="text-xs text-muted-foreground">Book appointments & manage health</div>
+                                <div className="font-semibold text-lg">I'm a Patient</div>
+                                <div className="text-sm text-muted-foreground">Book appointments & manage your health</div>
                             </div>
                         </Button>
-                        <Button variant="outline" className="justify-start h-auto py-4" onClick={() => handleRoleSelect('doctor')}>
-                            <Stethoscope className="mr-4 h-6 w-6 text-primary" />
+                        <Button
+                            variant="outline"
+                            className="justify-start h-auto py-6 hover:border-primary hover:bg-primary/5 transition-all"
+                            onClick={() => handleRoleSelect('doctor')}
+                        >
+                            <Stethoscope className="mr-4 h-8 w-8 text-primary" />
                             <div className="text-left">
-                                <div className="font-semibold">I'm a Doctor</div>
-                                <div className="text-xs text-muted-foreground">Manage consultations & patients</div>
+                                <div className="font-semibold text-lg">I'm a Doctor</div>
+                                <div className="text-sm text-muted-foreground">Manage consultations & grow your practice</div>
                             </div>
                         </Button>
-                        <Button variant="outline" className="justify-start h-auto py-4" onClick={() => handleRoleSelect('receptionist')}>
-                            <Users className="mr-4 h-6 w-6 text-primary" />
+                        <Button
+                            variant="outline"
+                            className="justify-start h-auto py-6 hover:border-primary hover:bg-primary/5 transition-all"
+                            onClick={() => handleRoleSelect('receptionist')}
+                        >
+                            <Users className="mr-4 h-8 w-8 text-primary" />
                             <div className="text-left">
-                                <div className="font-semibold">I'm a Receptionist</div>
-                                <div className="text-xs text-muted-foreground">Manage clinic queue & records</div>
+                                <div className="font-semibold text-lg">I'm a Receptionist</div>
+                                <div className="text-sm text-muted-foreground">Manage clinic queue & patient records</div>
                             </div>
                         </Button>
                     </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Auth Dialog (Signup/Login) */}
+            <Dialog open={authDialogOpen} onOpenChange={setAuthDialogOpen}>
+                <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+                    <AuthForm
+                        mode="signup"
+                        selectedRole={selectedRole}
+                        onSuccess={handleAuthSuccess}
+                    />
                 </DialogContent>
             </Dialog>
         </>

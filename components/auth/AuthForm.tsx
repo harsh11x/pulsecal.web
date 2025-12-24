@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,9 +13,11 @@ import { Loader2 } from "lucide-react"
 
 interface AuthFormProps {
   mode: "signin" | "signup"
+  selectedRole?: "patient" | "doctor" | "receptionist" | null
+  onSuccess?: () => void
 }
 
-export function AuthForm({ mode }: AuthFormProps) {
+export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(false)
@@ -25,6 +27,9 @@ export function AuthForm({ mode }: AuthFormProps) {
     firstName: "",
     lastName: "",
   })
+
+  // Get role from props or URL parameter
+  const role = selectedRole || (searchParams?.get("role") as "patient" | "doctor" | "receptionist" | null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -47,7 +52,7 @@ export function AuthForm({ mode }: AuthFormProps) {
           `${formData.firstName} ${formData.lastName}`.trim()
         )
 
-        const role = searchParams?.get("role")?.toUpperCase() as "PATIENT" | "DOCTOR" | "RECEPTIONIST" | undefined
+        const userRole = role?.toUpperCase() as "PATIENT" | "DOCTOR" | "RECEPTIONIST" | undefined
 
         // Sync profile with backend
         await syncUserProfile(
@@ -56,12 +61,21 @@ export function AuthForm({ mode }: AuthFormProps) {
           undefined, // phone
           undefined, // dob
           undefined, // image
-          role || "PATIENT"
+          userRole || "PATIENT"
         )
 
         toast.success("Account created successfully!")
-        if (role === "DOCTOR") {
+
+        // Call onSuccess callback if provided
+        if (onSuccess) {
+          onSuccess()
+        }
+
+        // Route based on role
+        if (userRole === "DOCTOR") {
           router.push("/onboarding/doctor")
+        } else if (userRole === "RECEPTIONIST") {
+          router.push("/onboarding/receptionist")
         } else {
           router.push("/onboarding")
         }
