@@ -85,12 +85,28 @@ export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
 
       // Handle specific Firebase errors
       let errorMessage = "An error occurred"
-      if (error.code === "auth/user-not-found") {
+      
+      // Special handling for existing users trying to sign up
+      if (error.code === "auth/email-already-in-use" && mode === "signup") {
+        // User already exists - try to sign them in instead
+        try {
+          toast.info("Account already exists. Signing you in...")
+          await signIn(formData.email, formData.password)
+          toast.success("Signed in successfully!")
+          router.push("/dashboard")
+          return
+        } catch (signInError: any) {
+          // If sign-in fails, show helpful message
+          if (signInError.code === "auth/wrong-password") {
+            errorMessage = "Account already exists with this email. Please use the correct password or reset it."
+          } else {
+            errorMessage = "Account already exists. Please sign in instead."
+          }
+        }
+      } else if (error.code === "auth/user-not-found") {
         errorMessage = "No account found with this email"
       } else if (error.code === "auth/wrong-password") {
         errorMessage = "Incorrect password"
-      } else if (error.code === "auth/email-already-in-use") {
-        errorMessage = "An account with this email already exists"
       } else if (error.code === "auth/weak-password") {
         errorMessage = "Password should be at least 6 characters"
       } else if (error.code === "auth/invalid-email") {
