@@ -5,11 +5,15 @@ import type React from "react"
 import { useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useAppSelector } from "@/app/hooks"
+import { useAutoLogout } from "@/hooks/useAutoLogout"
 import { AppLayout } from "@/components/layout/AppLayout"
 import { getAuthInstance } from "@/lib/firebase"
 import { onAuthStateChanged } from "firebase/auth"
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  // Auto-logout after 15 minutes of inactivity
+  useAutoLogout()
+
   const router = useRouter()
   const pathname = usePathname()
   const { isAuthenticated, user } = useAppSelector((state) => state.auth)
@@ -20,16 +24,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     // Check Firebase auth state directly
     try {
       const auth = getAuthInstance()
-      
+
       const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
         setFirebaseAuthChecked(true)
-        
+
         if (!firebaseUser) {
           // No Firebase user, redirect to login
           router.push("/auth/login")
           return
         }
-        
+
         // Firebase user exists, check Redux state
         if (!isAuthenticated && !user) {
           // Give Redux a moment to update from AuthStateListener
@@ -40,7 +44,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           setIsLoading(false)
         }
       })
-      
+
       return () => unsubscribe()
     } catch (error) {
       console.warn("Failed to check Firebase auth:", error)
