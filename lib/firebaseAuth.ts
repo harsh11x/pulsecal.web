@@ -267,9 +267,10 @@ export const syncUserProfile = async (
   firstName?: string,
   lastName?: string,
   phone?: string,
-  dateOfBirth?: Date,
+  dateOfBirth?: Date | string,
   profileImage?: string,
-  role?: "PATIENT" | "DOCTOR" | "RECEPTIONIST"
+  role?: "PATIENT" | "DOCTOR" | "RECEPTIONIST",
+  gender?: "MALE" | "FEMALE" | "OTHER" | "PREFER_NOT_TO_SAY"
 ): Promise<void> => {
   try {
     // Wait a bit for Firebase to fully initialize the user
@@ -329,9 +330,10 @@ export const syncUserProfile = async (
         firstName: finalFirstName,
         lastName: finalLastName,
         phone,
-        dateOfBirth: dateOfBirth?.toISOString(),
+        dateOfBirth: typeof dateOfBirth === 'string' ? dateOfBirth : dateOfBirth?.toISOString(),
         profileImage: finalProfileImage,
         role: role, // Include role if provided
+        gender: gender, // Include gender if provided
       }),
     });
 
