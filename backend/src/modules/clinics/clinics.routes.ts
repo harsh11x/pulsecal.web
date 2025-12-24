@@ -13,7 +13,7 @@ const router = Router();
 
 router.get('/', getClinicsController);
 router.get('/:id', getClinicByIdController);
-router.post('/', authenticate, requireAdmin, createClinicController);
+router.post('/', authenticate, createClinicController);
 router.put('/:id', authenticate, requireAdmin, updateClinicController);
 router.delete('/:id', authenticate, requireAdmin, deleteClinicController);
 
