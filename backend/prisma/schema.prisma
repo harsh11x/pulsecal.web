@@ -121,6 +121,12 @@ model User {
   updatedAt         DateTime  @updatedAt
   deletedAt         DateTime?
 
+  // Google Calendar Integration
+  googleCalendarAccessToken  String?
+  googleCalendarRefreshToken String?
+  googleCalendarTokenExpiry  DateTime?
+  googleCalendarConnected    Boolean @default(false)
+
   // Relations
   patientProfile    PatientProfile?
   doctorProfile     DoctorProfile?
@@ -213,6 +219,7 @@ model Appointment {
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
   deletedAt         DateTime?
+  googleCalendarEventId String?  // Google Calendar event ID for synced appointments
 
   patient           User              @relation("PatientAppointments", fields: [patientId], references: [id])
   doctor            User              @relation("DoctorAppointments", fields: [doctorId], references: [id])

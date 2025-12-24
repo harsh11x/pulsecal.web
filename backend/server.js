@@ -2171,6 +2171,131 @@ app.get(`${apiPrefix}/patients/medical-records`, authenticate, async (req, res, 
   }
 });
 
+// ==================== GOOGLE CALENDAR INTEGRATION ====================
+
+const googleCalendarService = require('./services/googleCalendar');
+
+// Initiate Google Calendar OAuth flow
+app.get(`${apiPrefix}/calendar/connect`, authenticate, (req, res) => {
+  try {
+    const authUrl = googleCalendarService.getAuthUrl();
+    sendSuccess(res, { authUrl }, 'Authorization URL generated');
+  } catch (err) {
+    logger.error('Error generating auth URL:', err);
+    sendError(res, 'Failed to generate authorization URL', 500);
+  }
+});
+
+// Handle OAuth callback
+app.post(`${apiPrefix}/calendar/callback`, authenticate, async (req, res, next) => {
+  try {
+    const { code } = req.body;
+
+    if (!code) {
+      return sendError(res, 'Authorization code is required', 400);
+    }
+
+    const tokens = await googleCalendarService.getTokensFromCode(code);
+
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: {
+        googleCalendarAccessToken: tokens.access_token,
+        googleCalendarRefreshToken: tokens.refresh_token,
+        googleCalendarTokenExpiry: tokens.expiry_date ? new Date(tokens.expiry_date) : null,
+        googleCalendarConnected: true
+      }
+    });
+
+    sendSuccess(res, { connected: true }, 'Google Calendar connected successfully');
+  } catch (err) {
+    logger.error('Error in calendar callback:', err);
+    next(err);
+  }
+});
+
+// Get calendar connection status
+app.get(`${apiPrefix}/calendar/status`, authenticate, async (req, res, next) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        googleCalendarConnected: true,
+        googleCalendarTokenExpiry: true
+      }
+    });
+
+    sendSuccess(res, {
+      connected: user.googleCalendarConnected,
+      tokenExpiry: user.googleCalendarTokenExpiry
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Sync appointment to Google Calendar
+app.post(`${apiPrefix}/appointments/:id/sync-to-calendar`, authenticate, async (req, res, next) => {
+  try {
+    const appointmentId = req.params.id;
+
+    const appointment = await prisma.appointment.findUnique({
+      where: { id: appointmentId },
+      include: {
+        patient: true,
+        doctor: { include: { user: true } },
+        clinic: true
+      }
+    });
+
+    if (!appointment) {
+      return sendError(res, 'Appointment not found', 404);
+    }
+
+    if (appointment.patientId !== req.user.id && appointment.doctorId !== req.user.id) {
+      return sendError(res, 'Unauthorized', 403);
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        googleCalendarAccessToken: true,
+        googleCalendarRefreshToken: true,
+        googleCalendarConnected: true
+      }
+    });
+
+    if (!user.googleCalendarConnected || !user.googleCalendarAccessToken) {
+      return sendError(res, 'Google Calendar not connected', 400);
+    }
+
+    const startTime = new Date(appointment.appointmentDate);
+    const endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
+
+    const eventDetails = {
+      summary: `Appointment with Dr. ${appointment.doctor.user.firstName} ${appointment.doctor.user.lastName}`,
+      description: `Appointment at ${appointment.clinic?.name || 'Clinic'}\\nReason: ${appointment.reason || 'Consultation'}`,
+      startTime: startTime.toISOString(),
+      endTime: endTime.toISOString(),
+      attendees: [
+        { email: appointment.patient.email },
+        { email: appointment.doctor.user.email }
+      ]
+    };
+
+    const calendarEvent = await googleCalendarService.createEvent(
+      user.googleCalendarAccessToken,
+      user.googleCalendarRefreshToken,
+      eventDetails
+    );
+
+    sendSuccess(res, { eventId: calendarEvent.id, eventLink: calendarEvent.htmlLink }, 'Appointment synced to Google Calendar');
+  } catch (err) {
+    logger.error('Error syncing to calendar:', err);
+    next(err);
+  }
+});
+
 
 
 
