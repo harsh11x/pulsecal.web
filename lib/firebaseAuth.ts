@@ -21,19 +21,56 @@ export const signUp = async (
   displayName?: string
 ): Promise<UserCredential> => {
   try {
+    console.log('🔐 Starting signup process for:', email);
     const authInstance = getAuthInstance();
+    console.log('✅ Auth instance obtained');
+
+    console.log('📝 Creating user with email and password...');
     const userCredential = await createUserWithEmailAndPassword(authInstance, email, password);
+    console.log('✅ User created successfully:', userCredential.user.uid);
 
     // Update display name if provided
     if (displayName && userCredential.user) {
+      console.log('📝 Updating display name to:', displayName);
       await updateProfile(userCredential.user, {
         displayName: displayName,
       });
+      console.log('✅ Display name updated');
     }
 
     return userCredential;
-  } catch (error) {
-    console.error('Sign up error:', error);
+  } catch (error: any) {
+    console.error('❌ Sign up error:', error);
+    console.error('Error code:', error.code);
+    console.error('Error message:', error.message);
+
+    // Log additional diagnostic info for network errors
+    if (error.code === 'auth/network-request-failed') {
+      console.error('🌐 Network request failed. Possible causes:');
+      console.error('  1. Browser storage (localStorage/sessionStorage) is disabled');
+      console.error('  2. Network connectivity issues');
+      console.error('  3. Firewall or proxy blocking Firebase');
+      console.error('  4. Browser extensions blocking requests');
+      console.error('  5. CORS policy issues');
+
+      // Check storage again
+      try {
+        sessionStorage.setItem('__test__', '1');
+        sessionStorage.removeItem('__test__');
+        console.log('✅ sessionStorage is working');
+      } catch (e) {
+        console.error('❌ sessionStorage test failed:', e);
+      }
+
+      try {
+        localStorage.setItem('__test__', '1');
+        localStorage.removeItem('__test__');
+        console.log('✅ localStorage is working');
+      } catch (e) {
+        console.error('❌ localStorage test failed:', e);
+      }
+    }
+
     throw error;
   }
 };
