@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { signInWithGoogle, signUpWithGoogle, syncUserProfile } from "@/lib/firebaseAuth"
 import { useState } from "react"
 import { Loader2 } from "lucide-react"
+import { useSearchParams } from "next/navigation"
 
 interface GoogleSignInButtonProps {
   mode?: "signin" | "signup"
@@ -17,22 +18,42 @@ export function GoogleSignInButton({
   onError
 }: GoogleSignInButtonProps) {
   const [loading, setLoading] = useState(false)
+  const searchParams = useSearchParams()
 
   const handleGoogleAuth = async () => {
     try {
       setLoading(true)
+
+      // Get role from URL parameter and store in sessionStorage before auth
+      const role = searchParams?.get("role")?.toUpperCase() as "PATIENT" | "DOCTOR" | "RECEPTIONIST" | undefined
+      if (role) {
+        sessionStorage.setItem('pendingAuthRole', role)
+      }
 
       // Sign in/up with Google
       const userCredential = mode === "signin"
         ? await signInWithGoogle()
         : await signUpWithGoogle()
 
+      // Retrieve role from sessionStorage after auth
+      const storedRole = sessionStorage.getItem('pendingAuthRole') as "PATIENT" | "DOCTOR" | "RECEPTIONIST" | undefined
+      sessionStorage.removeItem('pendingAuthRole') // Clean up
+
       // Sync profile with backend (automatically extracts name from Google account)
-      const user = await syncUserProfile()
+      const user = await syncUserProfile(
+        undefined, // firstName - will be extracted from Google
+        undefined, // lastName - will be extracted from Google
+        undefined, // phone
+        undefined, // dateOfBirth
+        undefined, // profileImage - will be extracted from Google
+        storedRole || role || "PATIENT" // Use stored role or default to PATIENT
+      )
 
       onSuccess?.(user)
     } catch (error: any) {
       console.error("Google authentication error:", error)
+      // Clean up stored role on error
+      sessionStorage.removeItem('pendingAuthRole')
       onError?.(error)
     } finally {
       setLoading(false)

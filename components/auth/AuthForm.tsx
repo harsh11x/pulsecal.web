@@ -98,44 +98,39 @@ export function AuthForm({ mode }: AuthFormProps) {
         : "Account created with Google successfully!"
     )
 
-    // Determine redirect based on user state if available
-    if (user && user.onboardingCompleted) {
-      router.push("/dashboard")
-      return
-    }
-
-    // Fallback or specific logic for new users
-    if (user && user.role === 'DOCTOR' && !user.onboardingCompleted) {
-      router.push("/onboarding/doctor")
-      return
-    }
-
-    // Default behavior if status unknown or just following mode
-    // logic: if they were signing up and invalid/no user returned, go to onboarding.
-    // if signing in, go to dashboard.
-    // BUT if we have user object, trust that.
-
+    // If we have user data from the backend, use it for routing
     if (user) {
-      if (user.role === 'DOCTOR' && !user.onboardingCompleted) {
-        router.push("/onboarding/doctor")
+      console.log("Google auth user data:", user)
+
+      // If onboarding is complete, go to dashboard
+      if (user.onboardingCompleted) {
+        router.push("/dashboard")
         return
       }
 
-      // User exists but onboarding not complete
-      if (!user.onboardingCompleted) {
+      // Route based on role for onboarding
+      const userRole = user.role?.toUpperCase()
+      if (userRole === 'DOCTOR') {
+        router.push("/onboarding/doctor")
+        return
+      } else if (userRole === 'RECEPTIONIST') {
+        router.push("/onboarding/receptionist")
+        return
+      } else {
+        // Default to patient onboarding
         router.push("/onboarding")
         return
       }
+    }
 
-      router.push("/dashboard")
+    // Fallback: Check URL parameter for role
+    const role = searchParams?.get("role")?.toLowerCase()
+    if (role === "doctor") {
+      router.push("/onboarding/doctor")
+    } else if (role === "receptionist") {
+      router.push("/onboarding/receptionist")
     } else {
-      // Fallback to mode-based redirect
-      const role = searchParams?.get("role")
-      if (mode === "signup" && role === "doctor") {
-        router.push("/onboarding/doctor")
-      } else {
-        router.push(mode === "signup" ? "/onboarding" : "/dashboard")
-      }
+      router.push("/onboarding")
     }
   }
 
