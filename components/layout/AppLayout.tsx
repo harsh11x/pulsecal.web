@@ -3,6 +3,8 @@
 import type React from "react"
 
 import { useState } from "react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Navbar } from "./Navbar"
 import { Sidebar } from "./Sidebar"
 import { MobileNav } from "./MobileNav"
@@ -14,6 +16,7 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const router = useRouter()
 
   return (
     <div className="flex h-screen flex-col">
@@ -38,13 +41,22 @@ export function AppLayout({ children }: AppLayoutProps) {
               <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-4">
                 <h3 className="font-semibold mb-2">Quick Actions</h3>
                 <div className="grid gap-2">
-                  <button className="text-sm text-left p-2 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors">
+                  <button
+                    onClick={() => router.push('/appointments/create')}
+                    className="text-sm text-left p-2 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  >
                     + New Appointment
                   </button>
-                  <button className="text-sm text-left p-2 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors">
+                  <button
+                    onClick={() => router.push('/health/records')}
+                    className="text-sm text-left p-2 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  >
                     + Add Patient record
                   </button>
-                  <button className="text-sm text-left p-2 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors">
+                  <button
+                    onClick={() => router.push('/notifications')}
+                    className="text-sm text-left p-2 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  >
                     Check Notifications
                   </button>
                 </div>
