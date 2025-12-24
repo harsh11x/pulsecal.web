@@ -40,9 +40,8 @@ export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
         // Sign in with email and password
         await signIn(formData.email, formData.password)
         toast.success("Signed in successfully!")
-
-        // Let the dashboard wrapper handle role and onboarding redirects
-        // Or we can do smart redirect here if we want to be explicit
+        
+        // Existing users always go to dashboard
         router.push("/dashboard")
       } else {
         // Sign up with email and password
@@ -177,14 +176,14 @@ export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
     sessionStorage.removeItem('selectedRole')
     sessionStorage.removeItem('pendingAuthRole')
 
-    // If onboarding is complete, go to dashboard
-    if (user?.onboardingCompleted) {
-      console.log("✅ Onboarding completed, redirecting to dashboard")
+    // If user exists (has any data), go to dashboard - skip onboarding
+    if (user?.onboardingCompleted || user?.id) {
+      console.log("✅ Existing user, redirecting to dashboard")
       router.push("/dashboard")
       return
     }
 
-    // Route based on role for onboarding
+    // Only new users go to onboarding
     console.log(`🚀 Redirecting to onboarding for role: ${userRole}`)
     if (userRole === 'DOCTOR') {
       router.push("/onboarding?role=doctor")

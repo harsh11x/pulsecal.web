@@ -21,6 +21,16 @@ import {
 } from "lucide-react"
 
 export default function Home() {
+  const router = useRouter()
+
+  // Redirect logged-in users to dashboard
+  useEffect(() => {
+    const state = store.getState()
+    if (state.auth.user) {
+      router.push("/dashboard")
+    }
+  }, [router])
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
