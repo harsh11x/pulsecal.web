@@ -4,3 +4,5 @@ node_modules/
 .next/
 *.log
 
+add_google_calendar_env.sh
+add_calendly_env.sh
