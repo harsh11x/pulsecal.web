@@ -204,13 +204,6 @@ export default function DoctorOnboarding() {
     setLoading(true)
 
     try {
-      // Check if Razorpay is loaded
-      if (typeof (window as any).Razorpay === 'undefined') {
-        toast.error('Payment system not loaded. Please refresh the page and try again.')
-        setLoading(false)
-        return
-      }
-
       // Validate required fields
       if (!formData.subscriptionPlan) {
         toast.error('Please select a subscription plan')
@@ -218,95 +211,37 @@ export default function DoctorOnboarding() {
         return
       }
 
-      // 1. Create Order
-      toast.loading('Creating payment order...')
-      const orderResponse: any = await apiService.post("/api/v1/payments/create-order", {
-        plan: formData.subscriptionPlan
-      })
+      // Skip payment - just create clinic directly
+      toast.loading('Creating clinic...')
 
-      if (!orderResponse?.data?.orderId) {
-        throw new Error('Failed to create payment order')
+      const clinicData = {
+        name: formData.clinicName,
+        address: formData.clinicAddress,
+        city: formData.clinicCity,
+        state: formData.clinicState,
+        zipCode: formData.clinicZipCode,
+        country: formData.clinicCountry,
+        phone: formData.clinicPhone,
+        email: formData.clinicEmail,
+        latitude: formData.clinicLatitude ? parseFloat(formData.clinicLatitude) : null,
+        longitude: formData.clinicLongitude ? parseFloat(formData.clinicLongitude) : null,
       }
 
+      const response: any = await apiService.post("/api/v1/clinics", clinicData)
+
       toast.dismiss()
-      toast.success('Opening payment gateway...')
+      toast.success("Clinic created successfully!")
 
-      const options = {
-        key: orderResponse.data.key,
-        amount: orderResponse.data.amount,
-        currency: orderResponse.data.currency,
-        name: "PulseCal",
-        description: `${formData.subscriptionPlan} Subscription Plan`,
-        order_id: orderResponse.data.orderId,
-        handler: async function (response: any) {
-          // 2. Verify Payment & Create Clinic
-          toast.loading('Verifying payment...')
-          try {
-            const verifyResponse: any = await apiService.post("/api/v1/payments/verify", {
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              clinicDetails: {
-                name: formData.clinicName,
-                address: formData.clinicAddress,
-                city: formData.clinicCity,
-                state: formData.clinicState,
-                zipCode: formData.clinicZipCode,
-                country: formData.clinicCountry,
-                phone: formData.clinicPhone,
-                email: formData.clinicEmail,
-                latitude: formData.clinicLatitude ? parseFloat(formData.clinicLatitude) : null,
-                longitude: formData.clinicLongitude ? parseFloat(formData.clinicLongitude) : null,
-                subscriptionPlan: formData.subscriptionPlan
-              }
-            })
+      if (response.data?.id || response.id) {
+        setFormData(prev => ({ ...prev, clinicId: response.data?.id || response.id }))
+      }
 
-            toast.dismiss()
-            toast.success("Payment successful! Clinic created.")
-
-            if (verifyResponse.data?.clinic?.id) {
-              setFormData(prev => ({ ...prev, clinicId: verifyResponse.data.clinic.id }))
-            }
-
-            setLoading(false)
-            setStep(7) // Move to final step
-          } catch (err: any) {
-            console.error("Verification error", err)
-            toast.dismiss()
-            toast.error(err?.response?.data?.message || "Payment verification failed. Please contact support.")
-            setLoading(false)
-          }
-        },
-        prefill: {
-          name: `${user?.firstName || ''} ${user?.lastName || ''}`.trim(),
-          email: user?.email || "",
-          contact: formData.phone || ""
-        },
-        theme: {
-          color: "#3B82F6"
-        },
-        modal: {
-          ondismiss: function () {
-            toast.info('Payment cancelled')
-            setLoading(false)
-          }
-        }
-      };
-
-      const rzp1 = new (window as any).Razorpay(options);
-
-      rzp1.on('payment.failed', function (response: any) {
-        console.error("Payment Failed", response.error);
-        toast.error(`Payment Failed: ${response.error.description || 'Unknown error'}`);
-        setLoading(false)
-      });
-
-      rzp1.open();
-
+      setLoading(false)
+      setStep(7) // Move to final step
     } catch (error: any) {
-      console.error("Payment init error", error)
+      console.error("Clinic creation error", error)
       toast.dismiss()
-      toast.error(error?.response?.data?.message || error?.message || "Failed to initiate payment. Please try again.")
+      toast.error(error?.response?.data?.message || error?.message || "Failed to create clinic. Please try again.")
       setLoading(false)
     }
   }
