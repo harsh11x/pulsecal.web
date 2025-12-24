@@ -1,6 +1,6 @@
-import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
+import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
-import { getAnalytics, Analytics } from 'firebase/analytics';
+import { getAnalytics } from 'firebase/analytics';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -14,37 +14,28 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-let app: FirebaseApp | null = null;
-let auth: Auth | null = null;
-let analytics: Analytics | null = null;
+let app: FirebaseApp;
+let auth: Auth;
 
 if (typeof window !== 'undefined') {
   // Only initialize on client side
-  try {
-    if (getApps().length === 0) {
-      app = initializeApp(firebaseConfig);
-    } else {
-      app = getApps()[0];
+  app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+  auth = getAuth(app);
+
+  // Initialize Analytics only in browser
+  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
+    try {
+      getAnalytics(app);
+    } catch (error) {
+      console.warn('Analytics initialization failed:', error);
     }
-    
-    auth = getAuth(app);
-    
-    // Initialize Analytics only in browser
-    if (typeof window !== 'undefined') {
-      try {
-        analytics = getAnalytics(app);
-      } catch (analyticsError) {
-        console.warn('Analytics initialization failed:', analyticsError);
-      }
-    }
-  } catch (error) {
-    console.error('Firebase initialization error:', error);
-    throw error;
   }
+} else {
+  // Server-side placeholder
+  app = {} as FirebaseApp;
+  auth = {} as Auth;
 }
 
-// Export with proper types
-export { app, analytics };
 
 // Export auth with a getter that ensures it's available on client
 export const getAuthInstance = (): Auth => {
