@@ -29,6 +29,8 @@ export default function DoctorOnboarding() {
   const [formData, setFormData] = useState({
     // Personal Info
     phone: "",
+    dateOfBirth: "",
+    gender: "" as "MALE" | "FEMALE" | "OTHER" | "PREFER_NOT_TO_SAY" | "",
     licenseNumber: "",
     specialization: "",
     qualifications: "",
