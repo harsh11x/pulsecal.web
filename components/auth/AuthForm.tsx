@@ -26,8 +26,6 @@ export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
     password: "",
     firstName: "",
     lastName: "",
-    dateOfBirth: "",
-    gender: "" as "MALE" | "FEMALE" | "OTHER" | "PREFER_NOT_TO_SAY" | "",
   })
 
   // Get role from props or URL parameter
@@ -61,10 +59,9 @@ export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
           formData.firstName,
           formData.lastName,
           undefined, // phone
-          formData.dateOfBirth || undefined, // dob
+          undefined, // dob
           undefined, // image
-          userRole || "PATIENT",
-          formData.gender || undefined // gender
+          userRole || "PATIENT"
         )
 
         toast.success("Account created successfully!")
@@ -251,44 +248,6 @@ export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
               </div>
             </div>
           )}
-
-          {mode === "signup" && (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="dateOfBirth">Date of Birth</Label>
-                <Input
-                  id="dateOfBirth"
-                  type="date"
-                  value={formData.dateOfBirth}
-                  onChange={(e) =>
-                    setFormData({ ...formData, dateOfBirth: e.target.value })
-                  }
-                  required={mode === "signup"}
-                  disabled={loading}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="gender">Gender</Label>
-                <select
-                  id="gender"
-                  value={formData.gender}
-                  onChange={(e) =>
-                    setFormData({ ...formData, gender: e.target.value as typeof formData.gender })
-                  }
-                  required={mode === "signup"}
-                  disabled={loading}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <option value="">Select gender</option>
-                  <option value="MALE">Male</option>
-                  <option value="FEMALE">Female</option>
-                  <option value="OTHER">Other</option>
-                  <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
-                </select>
-              </div>
-            </div>
-          )}
-
 
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
