@@ -73,11 +73,11 @@ export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
 
         // Route based on role
         if (userRole === "DOCTOR") {
-          router.push("/onboarding/doctor")
+          router.push("/onboarding?role=doctor")
         } else if (userRole === "RECEPTIONIST") {
-          router.push("/onboarding/receptionist")
+          router.push("/onboarding?role=receptionist")
         } else {
-          router.push("/onboarding")
+          router.push("/onboarding?role=patient")
         }
       }
     } catch (error: any) {
@@ -112,39 +112,70 @@ export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
         : "Account created with Google successfully!"
     )
 
-    // If we have user data from the backend, use it for routing
-    if (user) {
-      console.log("Google auth user data:", user)
+    // Determine role priority:
+    // 1. User data from backend (if available)
+    // 2. sessionStorage (set by GetStartedAction)
+    // 3. URL parameter
+    // 4. selectedRole prop
+    // 5. Default to PATIENT
 
-      // If onboarding is complete, go to dashboard
-      if (user.onboardingCompleted) {
-        router.push("/dashboard")
-        return
-      }
+    let userRole: string | undefined
 
-      // Route based on role for onboarding
-      const userRole = user.role?.toUpperCase()
-      if (userRole === 'DOCTOR') {
-        router.push("/onboarding/doctor")
-        return
-      } else if (userRole === 'RECEPTIONIST') {
-        router.push("/onboarding/receptionist")
-        return
-      } else {
-        // Default to patient onboarding
-        router.push("/onboarding")
-        return
+    // Check backend user data first
+    if (user?.role) {
+      userRole = user.role.toUpperCase()
+      console.log("✅ Using role from backend:", userRole)
+    }
+
+    // Fallback to sessionStorage
+    if (!userRole) {
+      const storedRole = sessionStorage.getItem('selectedRole') || sessionStorage.getItem('pendingAuthRole')
+      if (storedRole) {
+        userRole = storedRole.toUpperCase()
+        console.log("✅ Using role from sessionStorage:", userRole)
       }
     }
 
-    // Fallback: Check URL parameter for role
-    const role = searchParams?.get("role")?.toLowerCase()
-    if (role === "doctor") {
-      router.push("/onboarding/doctor")
-    } else if (role === "receptionist") {
-      router.push("/onboarding/receptionist")
+    // Fallback to URL parameter
+    if (!userRole) {
+      const urlRole = searchParams?.get("role")?.toUpperCase()
+      if (urlRole) {
+        userRole = urlRole
+        console.log("✅ Using role from URL:", userRole)
+      }
+    }
+
+    // Fallback to selectedRole prop
+    if (!userRole && selectedRole) {
+      userRole = selectedRole.toUpperCase()
+      console.log("✅ Using role from prop:", userRole)
+    }
+
+    // Default to PATIENT
+    if (!userRole) {
+      userRole = "PATIENT"
+      console.log("⚠️ No role found, defaulting to PATIENT")
+    }
+
+    // Clean up sessionStorage
+    sessionStorage.removeItem('selectedRole')
+    sessionStorage.removeItem('pendingAuthRole')
+
+    // If onboarding is complete, go to dashboard
+    if (user?.onboardingCompleted) {
+      console.log("✅ Onboarding completed, redirecting to dashboard")
+      router.push("/dashboard")
+      return
+    }
+
+    // Route based on role for onboarding
+    console.log(`🚀 Redirecting to onboarding for role: ${userRole}`)
+    if (userRole === 'DOCTOR') {
+      router.push("/onboarding?role=doctor")
+    } else if (userRole === 'RECEPTIONIST') {
+      router.push("/onboarding?role=receptionist")
     } else {
-      router.push("/onboarding")
+      router.push("/onboarding?role=patient")
     }
   }
 

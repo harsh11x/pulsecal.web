@@ -55,16 +55,24 @@ export function GoogleSignInButton({
       console.log("Syncing with role:", storedRole || role || "PATIENT")
 
       // Sync profile with backend (automatically extracts name from Google account)
-      const user = await syncUserProfile(
-        undefined, // firstName - will be extracted from Google
-        undefined, // lastName - will be extracted from Google
-        undefined, // phone
-        undefined, // dateOfBirth
-        undefined, // profileImage - will be extracted from Google
-        storedRole || role || "PATIENT" // Use stored role or default to PATIENT
-      )
-
-      console.log("Profile synced successfully:", user)
+      // Make this non-blocking - if backend sync fails, still proceed with auth
+      let user
+      try {
+        user = await syncUserProfile(
+          undefined, // firstName - will be extracted from Google
+          undefined, // lastName - will be extracted from Google
+          undefined, // phone
+          undefined, // dateOfBirth
+          undefined, // profileImage - will be extracted from Google
+          storedRole || role || "PATIENT" // Use stored role or default to PATIENT
+        )
+        console.log("✅ Profile synced successfully:", user)
+      } catch (syncError: any) {
+        console.warn("⚠️ Profile sync failed (non-blocking):", syncError.message || syncError)
+        // Still proceed with auth even if backend sync fails
+        // Pass role info to onSuccess so routing still works
+        user = { role: storedRole || role || "PATIENT" }
+      }
 
       // Clean up stored role
       sessionStorage.removeItem('pendingAuthRole')
