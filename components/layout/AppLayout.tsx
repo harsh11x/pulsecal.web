@@ -48,7 +48,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                     + New Appointment
                   </button>
                   <button
-                    onClick={() => router.push('/health/records')}
+                    onClick={() => router.push('/health/medical-records')}
                     className="text-sm text-left p-2 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                   >
                     + Add Patient record
