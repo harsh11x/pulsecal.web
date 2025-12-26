@@ -14,22 +14,24 @@ export const initializeSocket = (httpServer: HTTPServer): SocketIOServer => {
     transports: ['websocket', 'polling'],
   });
 
+  /*
   const pubClient = redisClient;
   const subClient = redisClient.duplicate();
 
   io.adapter(createAdapter(pubClient, subClient));
+  */
 
   io.use(async (socket, next) => {
     try {
       const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.replace('Bearer ', '');
-      
+
       if (!token) {
         return next(new Error('Authentication error: No token provided'));
       }
 
       const admin = require('./firebase').default;
       const decodedToken = await admin.auth().verifyIdToken(token);
-      
+
       const prisma = require('./database').default;
       const user = await prisma.user.findFirst({
         where: { firebaseUid: decodedToken.uid },

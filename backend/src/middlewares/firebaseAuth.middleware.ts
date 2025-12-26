@@ -22,7 +22,7 @@ export const authenticate = async (
 ): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return sendError(res, 'No token provided', 401);
     }
@@ -31,7 +31,7 @@ export const authenticate = async (
 
     // Verify Firebase token
     const decodedToken = await admin.auth().verifyIdToken(token);
-    
+
     // Find or create user in database
     // First try to find by firebaseUid (most reliable)
     let user = await prisma.user.findUnique({
@@ -45,7 +45,7 @@ export const authenticate = async (
         firebaseUid: true,
       },
     });
-    
+
     // If not found by firebaseUid, try by email
     if (!user && decodedToken.email) {
       user = await prisma.user.findUnique({
@@ -65,7 +65,7 @@ export const authenticate = async (
     if (!user && decodedToken.email) {
       // Determine role from custom claims or default to PATIENT
       const role = (decodedToken.role as string) || 'PATIENT';
-      
+
       user = await prisma.user.create({
         data: {
           email: decodedToken.email,
@@ -106,23 +106,24 @@ export const authenticate = async (
     } else if (user) {
       // Update existing user with Firebase UID if missing
       if (!user.firebaseUid) {
-      // Update existing user with Firebase UID
-      user = await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          firebaseUid: decodedToken.uid,
-          isEmailVerified: decodedToken.email_verified || user.isEmailVerified,
-          emailVerifiedAt: decodedToken.email_verified ? new Date() : user.emailVerifiedAt,
-        },
-        select: {
-          id: true,
-          email: true,
-          role: true,
-          isActive: true,
-          isEmailVerified: true,
-          firebaseUid: true,
-        },
-      });
+        // Update existing user with Firebase UID
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            firebaseUid: decodedToken.uid,
+            isEmailVerified: decodedToken.email_verified || user.isEmailVerified,
+            emailVerifiedAt: decodedToken.email_verified ? new Date() : user.emailVerifiedAt,
+          },
+          select: {
+            id: true,
+            email: true,
+            role: true,
+            isActive: true,
+            isEmailVerified: true,
+            firebaseUid: true,
+          },
+        });
+      }
     }
 
     if (!user || !user.isActive) {

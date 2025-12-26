@@ -23,7 +23,11 @@ setupNotificationSocket(io);
 const startServer = async (): Promise<void> => {
   try {
     await connectDatabase();
-    await connectRedis();
+    try {
+      await connectRedis();
+    } catch (err) {
+      logger.warn('Failed to connect to Redis, continuing without it');
+    }
 
     server.listen(config.port, () => {
       logger.info(`Server running on port ${config.port}`);

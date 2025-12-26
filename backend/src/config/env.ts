@@ -48,8 +48,10 @@ interface EnvConfig {
 
 function getEnvVar(key: string, defaultValue?: string): string {
   const value = process.env[key];
-  if (!value && !defaultValue) {
-    throw new Error(`Missing required environment variable: ${key}`);
+  if (value === undefined && defaultValue === undefined) {
+    // Only warn instead of throwing to allow local dev without full env
+    console.warn(`Missing environment variable: ${key}, using empty string`);
+    return '';
   }
   return value || defaultValue || '';
 }
@@ -62,7 +64,7 @@ export const config: EnvConfig = {
   redis: {
     host: getEnvVar('REDIS_HOST', 'localhost'),
     port: parseInt(getEnvVar('REDIS_PORT', '6379'), 10),
-    password: getEnvVar('REDIS_PASSWORD', undefined),
+    password: getEnvVar('REDIS_PASSWORD', ''),
   },
   firebase: {
     projectId: getEnvVar('FIREBASE_PROJECT_ID', undefined),

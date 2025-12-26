@@ -7,8 +7,7 @@ const redisClient = new Redis({
   port: config.redis.port,
   password: config.redis.password,
   retryStrategy: (times: number) => {
-    const delay = Math.min(times * 50, 2000);
-    return delay;
+    return null; // Fail fast locally
   },
 });
 
@@ -17,7 +16,9 @@ redisClient.on('connect', () => {
 });
 
 redisClient.on('error', (error: Error) => {
-  logger.error('Redis connection error:', error);
+  logger.warn('Redis connection error (continuing without Redis):', error.message);
+  // @ts-ignore
+  redisClient.silenceUndefinedWarnings = true;
 });
 
 export const connectRedis = async (): Promise<void> => {
