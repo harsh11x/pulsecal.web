@@ -219,7 +219,7 @@ export default function DoctorOnboarding() {
       }
 
       // 1. Create Order
-      const { data: orderData }: any = await apiService.post("/api/v1/payments/create-order", {
+      const { data: orderData }: any = await apiService.post("/doctors/subscription/create", {
         plan: formData.subscriptionPlan
       })
 
@@ -254,11 +254,12 @@ export default function DoctorOnboarding() {
               subscriptionPlan: formData.subscriptionPlan
             };
 
-            const verifyResponse: any = await apiService.post("/api/v1/payments/verify", {
+            const verifyResponse: any = await apiService.post("/doctors/subscription/verify", {
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
-              clinicDetails: clinicData
+              clinicDetails: clinicData, // Note: Backend doesn't seem to use this in verify, but good to keep if needed later or for consistency
+              plan: formData.subscriptionPlan // Backend verify route expects 'plan' in body
             });
 
             toast.dismiss();

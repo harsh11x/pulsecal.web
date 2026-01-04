@@ -317,9 +317,12 @@ export const syncUserProfile = async (
       }
     }
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://pulsecal.com';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://13.205.127.21:3001/api/v1';
 
-    const response = await fetch(`${apiUrl}/auth/sync-profile`, {
+    // Remove trailing slash if present to avoid double slashes
+    const baseUrl = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
+
+    const response = await fetch(`${baseUrl}/auth/sync-profile`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -341,10 +344,9 @@ export const syncUserProfile = async (
     }
 
     const result = await response.json();
-    return result;
+    return result; // Return the parsed JSON directly
   } catch (error: any) {
     console.error('Sync profile error:', error);
     throw error;
   }
 };
-
