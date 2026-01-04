@@ -319,7 +319,7 @@ export const syncUserProfile = async (
 
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://pulsecal.com';
 
-    const response = await fetch(`${apiUrl}/api/v1/auth/sync-profile`, {
+    const response = await fetch(`${apiUrl}/auth/sync-profile`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
