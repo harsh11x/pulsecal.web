@@ -2018,9 +2018,16 @@ app.put(`${apiPrefix}/notifications/read-all`, authenticate, async (req, res, ne
 // Create doctor subscription order
 app.post(`${apiPrefix}/doctors/subscription/create`, authenticate, requireDoctor, async (req, res, next) => {
   try {
-    if (!razorpay) return sendError(res, 'Payment gateway not configured', 500);
+    logger.info('Subscription creation request received', { body: req.body, user: req.user.id });
+
+    if (!razorpay) {
+      logger.error('Razorpay instance is not initialized');
+      return sendError(res, 'Payment gateway not configured', 500);
+    }
 
     const { plan } = req.body; // BASIC, PROFESSIONAL, ENTERPRISE
+    logger.debug(`Requested plan: ${plan}`);
+
     const amounts = {
       BASIC: 1499,
       PROFESSIONAL: 2999,
@@ -2029,7 +2036,8 @@ app.post(`${apiPrefix}/doctors/subscription/create`, authenticate, requireDoctor
 
     const amount = amounts[plan];
     if (!amount) {
-      return sendError(res, 'Invalid subscription plan', 400);
+      logger.warn(`Invalid subscription plan requested: ${plan}`);
+      return sendError(res, `Invalid subscription plan: ${plan}. Allowed: BASIC, PROFESSIONAL, ENTERPRISE`, 400);
     }
 
     const options = {
@@ -2039,7 +2047,9 @@ app.post(`${apiPrefix}/doctors/subscription/create`, authenticate, requireDoctor
       payment_capture: 1
     };
 
+    logger.info('Creating Razorpay order with options:', options);
     const order = await razorpay.orders.create(options);
+    logger.info('Razorpay order created successfully:', order.id);
 
     sendSuccess(res, {
       orderId: order.id,
@@ -2049,6 +2059,11 @@ app.post(`${apiPrefix}/doctors/subscription/create`, authenticate, requireDoctor
       key: process.env.RAZORPAY_KEY_ID
     }, 'Subscription order created');
   } catch (err) {
+    logger.error('Error creating subscription order:', err);
+    // If it's a Razorpay specific error, it might have a description
+    if (err.error && err.error.description) {
+      return sendError(res, `Razorpay Error: ${err.error.description}`, 400);
+    }
     next(err);
   }
 });
