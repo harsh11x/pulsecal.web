@@ -2043,7 +2043,9 @@ app.post(`${apiPrefix}/doctors/subscription/create`, authenticate, requireDoctor
     const options = {
       amount: amount * 100, // convert to paise
       currency: 'INR',
-      receipt: `sub_${Date.now()}_${req.user.id}`,
+      // Max 40 chars. sub_ + 13 chars (time) = 17 chars. 
+      // Leave 23 chars for user ID. Truncate user ID to last 20 chars for uniqueness effectively.
+      receipt: `sub_${Date.now()}_${req.user.id.slice(-20)}`,
       payment_capture: 1
     };
 
