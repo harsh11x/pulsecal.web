@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { CreditCard, DollarSign, Calendar, Download, Plus, Loader2 } from "lucide-react"
+import { CreditCard, Calendar, Download, Plus, Loader2 } from "lucide-react"
 import { formatCurrency } from "@/utils/helpers"
 import { useEffect, useState } from "react"
 import { apiService } from "@/services/api"
@@ -130,9 +130,7 @@ export default function Payments() {
                             className={`h-10 w-10 rounded-full flex items-center justify-center ${transaction.amount > 0 ? "bg-green-100" : "bg-muted"
                               }`}
                           >
-                            <DollarSign
-                              className={`h-5 w-5 ${transaction.amount > 0 ? "text-green-600" : "text-muted-foreground"}`}
-                            />
+                            <span className={`text-lg font-bold ${transaction.amount > 0 ? "text-green-600" : "text-muted-foreground"}`}>₹</span>
                           </div>
                           <div>
                             <p className="font-medium">{transaction.description || "Payment"}</p>

@@ -814,7 +814,7 @@ export default function DoctorOnboarding() {
                 <Label htmlFor="clinicAddress">Street Address *</Label>
                 <Input
                   id="clinicAddress"
-                  placeholder="123 Main Street"
+                  placeholder="123, MG Road"
                   value={formData.clinicAddress}
                   onChange={(e) => setFormData({ ...formData, clinicAddress: e.target.value })}
                   required
@@ -826,7 +826,7 @@ export default function DoctorOnboarding() {
                   <Label htmlFor="clinicCity">City *</Label>
                   <Input
                     id="clinicCity"
-                    placeholder="New York"
+                    placeholder="Bangalore"
                     value={formData.clinicCity}
                     onChange={(e) => setFormData({ ...formData, clinicCity: e.target.value })}
                     required
@@ -836,7 +836,7 @@ export default function DoctorOnboarding() {
                   <Label htmlFor="clinicState">State/Province *</Label>
                   <Input
                     id="clinicState"
-                    placeholder="NY"
+                    placeholder="Karnataka"
                     value={formData.clinicState}
                     onChange={(e) => setFormData({ ...formData, clinicState: e.target.value })}
                     required
@@ -937,7 +937,7 @@ export default function DoctorOnboarding() {
           {step === 4 && (
             <div className="space-y-6">
               <div className="flex items-center gap-2 text-lg font-semibold">
-                <DollarSign className="h-5 w-5" />
+                <span className="text-xl">₹</span>
                 Services & Consultation Fees
               </div>
 
@@ -1115,7 +1115,7 @@ export default function DoctorOnboarding() {
           {step === 6 && clinicMode === "create" && (
             <div className="space-y-6">
               <div className="flex items-center gap-2 text-lg font-semibold">
-                <DollarSign className="h-5 w-5" />
+                <span className="text-xl">₹</span>
                 Select Subscription Plan
               </div>
 
