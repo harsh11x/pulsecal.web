@@ -13,21 +13,14 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const router = useRouter()
-  const { isAuthenticated, user } = useAppSelector((state) => state.auth)
-  const [isLoading, setIsLoading] = useState(true)
+  const { isAuthenticated, user, isLoading } = useAppSelector((state) => state.auth)
 
   useEffect(() => {
-    // Give Firebase auth state time to initialize
-    const timer = setTimeout(() => {
-      setIsLoading(false)
-
-      if (!isAuthenticated || !user) {
-        router.push("/auth/login")
-      }
-    }, 500) // Wait 500ms for auth state to rehydrate
-
-    return () => clearTimeout(timer)
-  }, [isAuthenticated, user, router])
+    // Only redirect if done loading and not authenticated
+    if (!isLoading && (!isAuthenticated || !user)) {
+      router.push("/auth/login")
+    }
+  }, [isLoading, isAuthenticated, user, router])
 
   // Show loading state while checking auth
   if (isLoading) {

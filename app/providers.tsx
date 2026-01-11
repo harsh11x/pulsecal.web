@@ -10,7 +10,7 @@ import { onAuthStateChanged } from "firebase/auth"
 import { getAuthInstance } from "@/lib/firebase"
 import { getIdToken } from "@/lib/firebaseAuth"
 import { apiService } from "@/services/api"
-import { setUser, logout } from "./features/authSlice"
+import { setUser, logout, setLoading } from "./features/authSlice"
 
 function AuthStateListener({ children }: { children: React.ReactNode }) {
   const dispatch = useDispatch()
@@ -75,6 +75,8 @@ function AuthStateListener({ children }: { children: React.ReactNode }) {
             // User is signed out
             dispatch(logout())
           }
+          // Auth check completed
+          dispatch(setLoading(false))
         })
 
         return () => {
@@ -86,6 +88,7 @@ function AuthStateListener({ children }: { children: React.ReactNode }) {
       return () => clearTimeout(initTimeout)
     } catch (error) {
       console.warn("Failed to set up auth state listener:", error)
+      dispatch(setLoading(false))
     }
   }, [dispatch])
 

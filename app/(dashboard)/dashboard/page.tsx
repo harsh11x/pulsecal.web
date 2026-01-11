@@ -15,45 +15,41 @@ const AdminDashboardPage = nextDynamic(() => import("@/pages/dashboard/AdminDash
 function DashboardContent() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
-  const [isReady, setIsReady] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
   // Only access Redux after component mounts
   useEffect(() => {
     // Ensure we're in the browser
     if (typeof window === "undefined") return
-    
+
     // Get initial state
     const state = store.getState()
     setUser(state.auth.user)
-    setIsReady(true)
-    
+    setIsLoading(state.auth.isLoading)
+
     // Subscribe to store changes
     const unsubscribe = store.subscribe(() => {
       const currentState = store.getState()
       setUser(currentState.auth.user)
+      setIsLoading(currentState.auth.isLoading)
     })
-    
+
     return () => unsubscribe()
   }, [])
 
   useEffect(() => {
-    if (!isReady) return
-    
-    if (!user) {
-      // Give a small delay to allow Redux state to update
-      const timer = setTimeout(() => {
-        router.push("/auth/login")
-      }, 500)
-      return () => clearTimeout(timer)
+    // Only redirect if done loading and no user
+    if (!isLoading && !user) {
+      router.push("/auth/login")
     }
 
-    // Check if onboarding is completed
+    // Check if onboarding is completed (only if we have a user)
     if (user && !user.onboardingCompleted) {
       router.push(`/onboarding?role=${user.role}`)
     }
-  }, [user, router, isReady])
+  }, [user, router, isLoading])
 
-  if (!isReady || !user) {
+  if (isLoading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>

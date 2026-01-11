@@ -15,54 +15,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useAutoLogout()
 
   const router = useRouter()
-  const pathname = usePathname()
-  const { isAuthenticated, user } = useAppSelector((state) => state.auth)
-  const [isLoading, setIsLoading] = useState(true)
-  const [firebaseAuthChecked, setFirebaseAuthChecked] = useState(false)
+  const { isAuthenticated, user, isLoading } = useAppSelector((state) => state.auth)
 
   useEffect(() => {
-    // Check Firebase auth state directly
-    try {
-      const auth = getAuthInstance()
-
-      const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-        setFirebaseAuthChecked(true)
-
-        if (!firebaseUser) {
-          // No Firebase user, redirect to login
-          router.push("/auth/login")
-          return
-        }
-
-        // Firebase user exists, check Redux state
-        if (!isAuthenticated && !user) {
-          // Give Redux a moment to update from AuthStateListener
-          setTimeout(() => {
-            setIsLoading(false)
-          }, 1000)
-        } else {
-          setIsLoading(false)
-        }
-      })
-
-      return () => unsubscribe()
-    } catch (error) {
-      console.warn("Failed to check Firebase auth:", error)
-      // If Firebase check fails, rely on Redux state
-      if (isAuthenticated && user) {
-        setIsLoading(false)
-      } else {
-        router.push("/auth/login")
-      }
+    // Only redirect if done loading and not authenticated
+    if (!isLoading && (!isAuthenticated || !user)) {
+      router.push("/auth/login")
     }
-  }, [router, isAuthenticated, user])
-
-  // Also check Redux state as fallback
-  useEffect(() => {
-    if (firebaseAuthChecked && isAuthenticated && user) {
-      setIsLoading(false)
-    }
-  }, [firebaseAuthChecked, isAuthenticated, user])
+  }, [isLoading, isAuthenticated, user, router])
 
   if (isLoading) {
     return (
