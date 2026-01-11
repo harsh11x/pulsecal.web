@@ -16,32 +16,7 @@ interface Notification {
 }
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: "1",
-      type: "appointment",
-      title: "Appointment Reminder",
-      message: "You have an appointment with Dr. Smith tomorrow at 10:00 AM",
-      timestamp: new Date(Date.now() - 1000 * 60 * 30),
-      read: false,
-    },
-    {
-      id: "2",
-      type: "record",
-      title: "New Medical Record",
-      message: "A new medical record has been added to your profile",
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
-      read: false,
-    },
-    {
-      id: "3",
-      type: "message",
-      title: "New Message",
-      message: "Dr. Johnson sent you a message",
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5),
-      read: true,
-    },
-  ])
+  const [notifications, setNotifications] = useState<Notification[]>([])
 
   const markAsRead = (id: string) => {
     setNotifications(notifications.map((notif) => (notif.id === id ? { ...notif, read: true } : notif)))

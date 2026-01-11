@@ -34,7 +34,7 @@ const setupCronJobs = (io) => {
                     },
                     status: 'CONFIRMED' // Only remind for confirmed appts
                 },
-                include: { patient: true, doctor: true, clinic: true }
+                include: { patient: true, doctor: true }
             });
 
             // Fetch appointments for 30 min reminder
@@ -46,7 +46,7 @@ const setupCronJobs = (io) => {
                     },
                     status: 'CONFIRMED'
                 },
-                include: { patient: true, doctor: true, clinic: true }
+                include: { patient: true, doctor: true }
             });
 
             // Fetch appointments starting NOW
@@ -58,7 +58,7 @@ const setupCronJobs = (io) => {
                     },
                     status: 'CONFIRMED'
                 },
-                include: { patient: true, doctor: true, clinic: true }
+                include: { patient: true, doctor: true }
             });
 
             // Send 15 Min Reminders

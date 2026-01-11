@@ -565,7 +565,7 @@ export default function DoctorOnboarding() {
                   <Input
                     id="phone"
                     type="tel"
-                    placeholder="+1 (555) 123-4567"
+                    placeholder="+91 98765 43210"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     required
@@ -843,10 +843,10 @@ export default function DoctorOnboarding() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="clinicZipCode">Zip/Postal Code *</Label>
+                  <Label htmlFor="clinicZipCode">Pincode *</Label>
                   <Input
                     id="clinicZipCode"
-                    placeholder="10001"
+                    placeholder="110001"
                     value={formData.clinicZipCode}
                     onChange={(e) => setFormData({ ...formData, clinicZipCode: e.target.value })}
                     required
@@ -860,7 +860,7 @@ export default function DoctorOnboarding() {
                   <Input
                     id="clinicCountry"
                     placeholder="United States"
-                    value={formData.clinicCountry}
+                    value="India"
                     onChange={(e) => setFormData({ ...formData, clinicCountry: e.target.value })}
                     required
                   />
@@ -942,7 +942,7 @@ export default function DoctorOnboarding() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="consultationFee">Base Consultation Fee ($) *</Label>
+                <Label htmlFor="consultationFee">Base Consultation Fee (₹) *</Label>
                 <Input
                   id="consultationFee"
                   type="number"

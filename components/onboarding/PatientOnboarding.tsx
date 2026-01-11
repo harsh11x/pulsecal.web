@@ -249,7 +249,7 @@ export default function PatientOnboarding() {
                   <Input
                     id="phone"
                     type="tel"
-                    placeholder="+1 (555) 123-4567"
+                    placeholder="+91 98765 43210"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     required
@@ -307,7 +307,7 @@ export default function PatientOnboarding() {
                   <Label htmlFor="city">City</Label>
                   <Input
                     id="city"
-                    placeholder="New York"
+                    placeholder="Mumbai"
                     value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                   />
@@ -316,16 +316,16 @@ export default function PatientOnboarding() {
                   <Label htmlFor="state">State</Label>
                   <Input
                     id="state"
-                    placeholder="NY"
+                    placeholder="Maharashtra"
                     value={formData.state}
                     onChange={(e) => setFormData({ ...formData, state: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="zipCode">Zip Code</Label>
+                  <Label htmlFor="zipCode">Pincode</Label>
                   <Input
                     id="zipCode"
-                    placeholder="10001"
+                    placeholder="110001"
                     value={formData.zipCode}
                     onChange={(e) => setFormData({ ...formData, zipCode: e.target.value })}
                   />
@@ -425,7 +425,7 @@ export default function PatientOnboarding() {
                   <Input
                     id="emergencyContactPhone"
                     type="tel"
-                    placeholder="+1 (555) 123-4567"
+                    placeholder="+91 98765 00000"
                     value={formData.emergencyContactPhone}
                     onChange={(e) => setFormData({ ...formData, emergencyContactPhone: e.target.value })}
                   />

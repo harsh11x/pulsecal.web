@@ -1162,7 +1162,7 @@ app.post(`${apiPrefix}/payments/verify`, authenticate, async (req, res, next) =>
           city: clinicDetails.city,
           state: clinicDetails.state || '',
           zipCode: clinicDetails.zipCode || '',
-          country: clinicDetails.country || 'USA',
+          country: clinicDetails.country || 'India',
           phone: clinicDetails.phone || '',
           email: clinicDetails.email,
           latitude: clinicDetails.latitude,
@@ -2773,7 +2773,7 @@ app.get(`${apiPrefix}/patients/payments`, authenticate, async (req, res, next) =
       summary: {
         totalPaid: paidTotal._sum.amount || 0,
         totalPending: pendingTotal._sum.amount || 0,
-        currency: 'USD' // Default
+        currency: 'INR' // Default
       }
     }, 'Payments fetched successfully');
   } catch (err) {
