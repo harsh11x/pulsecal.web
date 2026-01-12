@@ -100,8 +100,10 @@ const sendNotification = (io, appt, message, type) => {
     });
 
     // Notify Receptionists of that Clinic (This requires finding them or broadcasting to a clinic room)
-    if (appt.clinicId) {
-        io.to(`clinic_${appt.clinicId}`).emit('notification:reminder', {
+    // Access clinicId from the doctor (User model)
+    const clinicId = appt.doctor?.clinicId;
+    if (clinicId) {
+        io.to(`clinic_${clinicId}`).emit('notification:reminder', {
             ...payload,
             message: `${message}: Dr. ${appt.doctor.lastName} - ${appt.patient.firstName}`
         });

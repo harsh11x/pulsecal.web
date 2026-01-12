@@ -1260,7 +1260,6 @@ app.post(`${apiPrefix}/appointments/book`, authenticate, async (req, res, next) 
       }
     });
 
-    // Create payment record
     let payment = null;
     let razorpayOrder = null;
 
