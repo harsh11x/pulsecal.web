@@ -2260,7 +2260,7 @@ app.post(`${apiPrefix}/appointments/:id/sync-to-calendar`, authenticate, async (
       include: {
         patient: true,
         doctor: { include: { user: true } },
-        clinic: true
+        doctor: { include: { user: true } }
       }
     });
 
