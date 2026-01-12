@@ -26,40 +26,55 @@ const setupCronJobs = (io) => {
             const windowEndNow = new Date(now.setSeconds(59, 999));
 
             // Fetch appointments for 15 min reminder
-            const appointments15 = await prisma.appointment.findMany({
-                where: {
-                    scheduledAt: {
-                        gte: windowStart15,
-                        lte: windowEnd15
+            let appointments15 = [];
+            try {
+                appointments15 = await prisma.appointment.findMany({
+                    where: {
+                        scheduledAt: {
+                            gte: windowStart15,
+                            lte: windowEnd15
+                        },
+                        status: 'CONFIRMED'
                     },
-                    status: 'CONFIRMED' // Only remind for confirmed appts
-                },
-                include: { patient: true, doctor: true }
-            });
+                    include: { patient: true, doctor: true }
+                });
+            } catch (err) {
+                console.error("Error fetching 15min appointments:", err.message);
+            }
 
             // Fetch appointments for 30 min reminder
-            const appointments30 = await prisma.appointment.findMany({
-                where: {
-                    scheduledAt: {
-                        gte: windowStart30,
-                        lte: windowEnd30
+            let appointments30 = [];
+            try {
+                appointments30 = await prisma.appointment.findMany({
+                    where: {
+                        scheduledAt: {
+                            gte: windowStart30,
+                            lte: windowEnd30
+                        },
+                        status: 'CONFIRMED'
                     },
-                    status: 'CONFIRMED'
-                },
-                include: { patient: true, doctor: true }
-            });
+                    include: { patient: true, doctor: true }
+                });
+            } catch (err) {
+                console.error("Error fetching 30min appointments:", err.message);
+            }
 
             // Fetch appointments starting NOW
-            const appointmentsNow = await prisma.appointment.findMany({
-                where: {
-                    scheduledAt: {
-                        gte: windowStartNow,
-                        lte: windowEndNow
+            let appointmentsNow = [];
+            try {
+                appointmentsNow = await prisma.appointment.findMany({
+                    where: {
+                        scheduledAt: {
+                            gte: windowStartNow,
+                            lte: windowEndNow
+                        },
+                        status: 'CONFIRMED'
                     },
-                    status: 'CONFIRMED'
-                },
-                include: { patient: true, doctor: true }
-            });
+                    include: { patient: true, doctor: true }
+                });
+            } catch (err) {
+                console.error("Error fetching NOW appointments:", err.message);
+            }
 
             // Send 15 Min Reminders
             appointments15.forEach(appt => {
