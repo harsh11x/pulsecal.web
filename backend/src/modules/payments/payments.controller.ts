@@ -110,17 +110,8 @@ export const updatePaymentStatusController = async (
       value.transactionId
     );
 
-    // Emit real-time notification to doctor if payment has appointment
-    if (payment.appointmentId && payment.appointment?.doctorId) {
-      const { emitPaymentUpdate } = await import('../../utils/socketEmitter');
-      emitPaymentUpdate({
-        id: payment.id,
-        appointmentId: payment.appointmentId || undefined,
-        doctorId: payment.appointment.doctorId,
-        amount: Number(payment.amount),
-        status: payment.status,
-      });
-    }
+    // Note: Payment model doesn't have a direct relation to Appointment
+    // Real-time notification would need to be handled differently if needed
 
     sendSuccess(res, payment, 'Payment status updated successfully');
   } catch (err) {
@@ -144,7 +135,7 @@ export const deletePaymentController = async (
 // Razorpay Integration Controllers
 
 const createRazorpayOrderSchema = Joi.object({
-  plan: Joi.string().valid('BASIC', 'PROFESSIONAL', 'ENTERPRISE').required(),
+  plan: Joi.string().valid('TEST', 'BASIC', 'PROFESSIONAL', 'ENTERPRISE').required(),
 });
 
 const verifyRazorpayPaymentSchema = Joi.object({
@@ -162,7 +153,7 @@ const verifyRazorpayPaymentSchema = Joi.object({
     email: Joi.string().email().required(),
     latitude: Joi.number().allow(null).optional(),
     longitude: Joi.number().allow(null).optional(),
-    subscriptionPlan: Joi.string().valid('BASIC', 'PROFESSIONAL', 'ENTERPRISE').required(),
+    subscriptionPlan: Joi.string().valid('TEST', 'BASIC', 'PROFESSIONAL', 'ENTERPRISE').required(),
   }).required(),
 });
 
@@ -183,10 +174,12 @@ export const createRazorpayOrderController = async (
 
     // Plan pricing (in paise for Razorpay - multiply by 100)
     const planPricing: Record<string, number> = {
+      TEST: 100, // ₹1 for testing
       BASIC: 149900, // ₹1499
       PROFESSIONAL: 299900, // ₹2999
       ENTERPRISE: 499900, // ₹4999
     };
+
 
     const amount = planPricing[value.plan];
     if (!amount) {
@@ -271,17 +264,28 @@ export const verifyRazorpayPaymentController = async (
     // subscriptionStatus: 'ACTIVE',
     // ownerId: req.user.id,
 
-    // Create payment record
+    // Calculate the actual amount paid based on the plan
+    const planAmounts: Record<string, number> = {
+      TEST: 1,
+      BASIC: 1499,
+      PROFESSIONAL: 2999,
+      ENTERPRISE: 4999,
+    };
+    const amount = planAmounts[clinicDetails.subscriptionPlan] || 1499;
+
+    // Create payment record with COMPLETED status
     await createPayment({
       patientId: req.user.id,
-      amount: razorpay_order_id.includes('BASIC') ? 1499 : razorpay_order_id.includes('PROFESSIONAL') ? 2999 : 4999,
+      amount,
       currency: 'INR',
-      method: 'CREDIT_CARD',
+      method: 'RAZORPAY_ONLINE',
       transactionId: razorpay_payment_id,
+      razorpayOrderId: razorpay_order_id,
+      razorpayPaymentId: razorpay_payment_id,
+      razorpaySignature: razorpay_signature,
+      status: 'COMPLETED',
       description: `Subscription payment for ${clinicDetails.subscriptionPlan} plan`,
     });
-
-    // TODO: Update payment status to COMPLETED after adding status field to createPayment
 
     sendSuccess(
       res,

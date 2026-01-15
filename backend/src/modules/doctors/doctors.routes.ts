@@ -5,11 +5,20 @@ import {
   getDoctorAvailabilityController,
 } from './doctors.controller';
 import { getDoctorAnalyticsController } from './doctors.analytics.controller';
+import {
+  createRazorpayOrderController,
+  verifyRazorpayPaymentController,
+} from '../payments/payments.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
 import { requireDoctor } from '../../middlewares/role.middleware';
 
 const router = Router();
 
+// Subscription routes for doctor onboarding
+router.post('/subscription/create', authenticate, createRazorpayOrderController);
+router.post('/subscription/verify', authenticate, verifyRazorpayPaymentController);
+
+// Doctor search and profile routes
 router.get('/search', authenticate, searchDoctorsController);
 router.get('/analytics', authenticate, requireDoctor, getDoctorAnalyticsController);
 router.get('/:id', authenticate, getDoctorByIdController);

@@ -70,7 +70,7 @@ export default function DoctorOnboarding() {
     clinicVerificationDocument: null as File | null,
 
     // Subscription
-    subscriptionPlan: "BASIC" as "BASIC" | "PROFESSIONAL" | "ENTERPRISE",
+    subscriptionPlan: "TEST" as "TEST" | "BASIC" | "PROFESSIONAL" | "ENTERPRISE",
   })
 
   useEffect(() => {
@@ -1119,11 +1119,12 @@ export default function DoctorOnboarding() {
                 Select Subscription Plan
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 {[
-                  { id: 'BASIC', name: 'Basic', price: '₹1499/mo', limit: 'Max 5 Doctors' },
-                  { id: 'PROFESSIONAL', name: 'Professional', price: '₹2999/mo', limit: 'Max 10 Doctors' },
-                  { id: 'ENTERPRISE', name: 'Enterprise', price: '₹4999/mo', limit: 'Unlimited Doctors' }
+                  { id: 'TEST', name: 'Test (₹1)', price: '₹1', limit: 'For Testing Only', highlight: true },
+                  { id: 'BASIC', name: 'Basic', price: '₹1499/mo', limit: 'Max 5 Doctors', highlight: false },
+                  { id: 'PROFESSIONAL', name: 'Professional', price: '₹2999/mo', limit: 'Max 10 Doctors', highlight: false },
+                  { id: 'ENTERPRISE', name: 'Enterprise', price: '₹4999/mo', limit: 'Unlimited Doctors', highlight: false }
                 ].map((plan) => (
                   <Card key={plan.id}
                     className={`cursor-pointer transition-all hover:border-primary ${formData.subscriptionPlan === plan.id ? 'border-primary border-2 bg-primary/5' : ''}`}

@@ -2,6 +2,7 @@ import prisma from '../../config/database';
 import { getPaginationParams, getSortParams } from '../../utils/helpers';
 import { AppError } from '../../middlewares/error.middleware';
 import { encrypt } from '../../utils/encrypt';
+import { PaymentStatus, PaymentMethod } from '@prisma/client';
 
 export const createPayment = async (data: {
   patientId: string;
@@ -11,19 +12,30 @@ export const createPayment = async (data: {
   method: string;
   cardData?: string;
   description?: string;
+  transactionId?: string;
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  razorpaySignature?: string;
+  status?: 'PENDING' | 'COMPLETED' | 'FAILED' | 'REFUNDED';
 }) => {
   const encryptedCardData = data.cardData ? encrypt(data.cardData) : null;
+  const status = data.status || 'PENDING';
 
   const payment = await prisma.payment.create({
     data: {
       patientId: data.patientId,
       appointmentId: data.appointmentId,
       amount: data.amount,
-      currency: data.currency || 'USD',
-      method: data.method as 'CREDIT_CARD' | 'DEBIT_CARD' | 'INSURANCE' | 'CASH' | 'BANK_TRANSFER',
+      currency: data.currency || 'INR',
+      method: data.method as PaymentMethod,
       encryptedCardData,
       description: data.description,
-      status: 'PENDING',
+      transactionId: data.transactionId,
+      razorpayOrderId: data.razorpayOrderId,
+      razorpayPaymentId: data.razorpayPaymentId,
+      razorpaySignature: data.razorpaySignature,
+      status,
+      paidAt: status === 'COMPLETED' ? new Date() : undefined,
     },
     include: {
       patient: {
@@ -55,7 +67,7 @@ export const getPayments = async (req: {
 
   const where: {
     patientId?: string;
-    status?: string;
+    status?: PaymentStatus;
     deletedAt?: null;
   } = {
     deletedAt: null,
@@ -68,7 +80,7 @@ export const getPayments = async (req: {
   }
 
   if (req.query.status) {
-    where.status = req.query.status;
+    where.status = req.query.status as PaymentStatus;
   }
 
   const [payments, total] = await Promise.all([
@@ -143,7 +155,7 @@ export const updatePaymentStatus = async (
   const payment = await prisma.payment.update({
     where: { id: paymentId },
     data: {
-      status: status as 'PENDING' | 'COMPLETED' | 'FAILED' | 'REFUNDED',
+      status: status as PaymentStatus,
       transactionId,
       paidAt: status === 'COMPLETED' ? new Date() : undefined,
     },
@@ -153,12 +165,6 @@ export const updatePaymentStatus = async (
           id: true,
           firstName: true,
           lastName: true,
-        },
-      },
-      appointment: {
-        select: {
-          id: true,
-          doctorId: true,
         },
       },
     },
