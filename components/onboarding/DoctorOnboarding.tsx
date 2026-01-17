@@ -45,7 +45,7 @@ export default function DoctorOnboarding() {
     clinicCity: "",
     clinicState: "",
     clinicZipCode: "",
-    clinicCountry: "",
+    clinicCountry: "India",
     clinicPhone: "",
     clinicEmail: "",
     clinicLatitude: "",
@@ -859,8 +859,8 @@ export default function DoctorOnboarding() {
                   <Label htmlFor="clinicCountry">Country *</Label>
                   <Input
                     id="clinicCountry"
-                    placeholder="United States"
-                    value="India"
+                    placeholder="India"
+                    value={formData.clinicCountry}
                     onChange={(e) => setFormData({ ...formData, clinicCountry: e.target.value })}
                     required
                   />
