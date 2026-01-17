@@ -271,6 +271,7 @@ export const verifyRazorpayPaymentController = async (
       data: {
         clinicId: clinic.id,
         onboardingCompleted: true,
+        role: 'DOCTOR',
       },
     });
 
