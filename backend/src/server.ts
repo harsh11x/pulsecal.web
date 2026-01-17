@@ -2,7 +2,7 @@ import http from 'http';
 import app from './app';
 import { config } from './config/env';
 import { connectDatabase, disconnectDatabase } from './config/database';
-import { connectRedis } from './config/redis';
+import { connectRedis, disconnectRedis } from './config/redis';
 import { initializeSocket } from './config/socket';
 import { setupChatSocket } from './socket/chat.socket';
 import { setupQueueSocket } from './socket/queue.socket';
@@ -10,45 +10,93 @@ import { setupNotificationSocket } from './socket/notification.socket';
 import { setSocketInstance } from './utils/socketEmitter';
 import { logger } from './utils/logger';
 
+// Create HTTP server
 const server = http.createServer(app);
-const io = initializeSocket(server);
 
-// Set socket instance for real-time notifications
+// Initialize Socket.IO
+const io = initializeSocket(server);
 setSocketInstance(io);
 
+// Setup Socket Namespaces/Events
 setupChatSocket(io);
 setupQueueSocket(io);
 setupNotificationSocket(io);
 
-const startServer = async (): Promise<void> => {
-  try {
-    await connectDatabase();
-    try {
-      await connectRedis();
-    } catch (err) {
-      logger.warn('Failed to connect to Redis, continuing without it');
-    }
+// Graceful Shutdown Handler
+const gracefulShutdown = async (signal: string) => {
+  logger.info(`${signal} received. Starting graceful shutdown...`);
 
-    server.listen(config.port, () => {
-      logger.info(`Server running on port ${config.port}`);
-      logger.info(`Environment: ${config.nodeEnv}`);
+  const shutdownPromise = new Promise<void>((resolve) => {
+    server.close(() => {
+      logger.info('HTTP server closed.');
+      resolve();
     });
+  });
+
+  try {
+    // 1. Close HTTP Server (stop accepting new requests)
+    await shutdownPromise;
+
+    // 2. Perform cleanup (DB, Redis, etc.)
+    await Promise.all([
+      disconnectDatabase(),
+      disconnectRedis().catch(err => logger.warn({ err }, 'Redis disconnect failed')),
+    ]);
+
+    logger.info('Database and Redis connections closed.');
+    logger.info('Graceful shutdown completed.');
+    process.exit(0);
   } catch (error) {
-    logger.error('Failed to start server:', error);
+    logger.error({ err: error }, 'Error during graceful shutdown');
     process.exit(1);
   }
 };
 
-const shutdown = async (): Promise<void> => {
-  logger.info('Shutting down server...');
-  server.close(async () => {
-    await disconnectDatabase();
-    process.exit(0);
-  });
+// Start Server
+const startServer = async () => {
+  try {
+    logger.info('Initializing PulseCal Backend...');
+
+    // 1. Connect to Database
+    await connectDatabase();
+    logger.info('Database connected successfully.');
+
+    // 2. Connect to Redis
+    try {
+      await connectRedis();
+      logger.info('Redis connected successfully.');
+    } catch (err) {
+      logger.error({ err }, 'CRITICAL: Redis connection failed. Server cannot start.');
+      process.exit(1); // Fail fast in production if Redis is required
+    }
+
+    // 3. Start HTTP Listener
+    server.listen(config.port, () => {
+      logger.info(`Server listening on port ${config.port}`);
+      logger.info(`Environment: ${config.nodeEnv}`);
+      logger.info(`API Version: ${config.apiVersion}`);
+    });
+
+  } catch (error) {
+    logger.error({ err: error }, 'Failed to start server');
+    process.exit(1);
+  }
 };
 
-process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);
+// Handle System Signals
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
+// Handle Uncaught Errors
+process.on('uncaughtException', (error) => {
+  logger.fatal({ err: error }, 'Uncaught Exception');
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  logger.fatal({ err: reason }, 'Unhandled Rejection');
+  process.exit(1);
+});
+
+// Boot the server
 startServer();
-

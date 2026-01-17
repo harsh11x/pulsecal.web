@@ -1,22 +1,22 @@
 module.exports = {
-  apps: [{
-    name: "pulsecal-backend",
-    script: "./server.js",
-    exec_mode: "fork",
-    instances: 1,
-    autorestart: true,
-    watch: false,
-    max_memory_restart: '1G',
-    env: {
-      NODE_ENV: "development",
+  apps: [
+    {
+      name: 'pulsecal-backend',
+      script: './server.js',
+      instances: 'max', // Scale to all available CPUs
+      exec_mode: 'cluster', // Enable load balancing
+      env: {
+        NODE_ENV: 'production',
+        PORT: 3001,
+      },
+      env_development: {
+        NODE_ENV: 'development',
+        PORT: 3001,
+      },
+      // Error handling params
+      max_memory_restart: '1G',
+      autorestart: true,
+      exp_backoff_restart_delay: 100,
     },
-    env_production: {
-      NODE_ENV: "production",
-      PORT: 3001,
-      // You can add other env vars here or keep them in .env
-      // DATABASE_URL: "..." 
-      CORS_ORIGIN: "https://pulsecal.com",
-    },
-    cwd: "/home/ubuntu/pulsecal.web/backend"
-  }]
+  ],
 };

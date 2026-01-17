@@ -48,7 +48,7 @@ export const getReceptionistStats = async (receptionistId: string) => {
   const stats = {
     totalBooked: todayAppointments.length,
     completed: todayAppointments.filter(apt => apt.status === 'COMPLETED').length,
-    waiting: todayAppointments.filter(apt => 
+    waiting: todayAppointments.filter(apt =>
       ['SCHEDULED', 'CONFIRMED'].includes(apt.status)
     ).length,
     inProgress: todayAppointments.filter(apt => apt.status === 'IN_PROGRESS').length,
@@ -136,3 +136,51 @@ export const linkReceptionistToClinic = async (
   };
 };
 
+/**
+ * Register offline patient
+ */
+export const registerOfflinePatient = async (data: {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email?: string;
+  dateOfBirth?: Date;
+  gender?: string;
+  clinicId: string;
+}) => {
+  // Check if patient with phone already exists
+  const existingUser = await prisma.user.findFirst({
+    where: { phone: data.phone },
+  });
+
+  if (existingUser) {
+    throw new AppError('Patient with this phone number already exists', 400);
+  }
+
+  // Create user with null firebaseUid (Offline patient)
+  // We use the phone number as a pseudo-unique identifier for offline users if email is missing
+  const email = data.email || `offline_${data.phone}@pulsecal.local`;
+
+  const user = await prisma.user.create({
+    data: {
+      firstName: data.firstName,
+      lastName: data.lastName,
+      email: email,
+      phone: data.phone,
+      dateOfBirth: data.dateOfBirth,
+      role: 'PATIENT',
+      isActive: true,
+      clinicId: data.clinicId, // Link to clinic that registered them
+      isEmailVerified: false,
+    },
+  });
+
+  // Create Patient Profile
+  await prisma.patientProfile.create({
+    data: {
+      userId: user.id,
+    },
+  });
+
+  return user;
+};

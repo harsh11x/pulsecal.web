@@ -12,16 +12,18 @@ import {
 import { authenticate } from '../../middlewares/auth.middleware';
 import { requireDoctorOrReceptionist, requireReceptionist } from '../../middlewares/role.middleware';
 
+import { checkSubscriptionStatus } from '../../middlewares/subscription.middleware';
+
 const router = Router();
 
-router.post('/', authenticate, requireDoctorOrReceptionist, createAppointmentController);
-router.get('/', authenticate, getAppointmentsController);
-router.get('/:id', authenticate, getAppointmentByIdController);
-router.put('/:id', authenticate, requireDoctorOrReceptionist, updateAppointmentController);
-router.post('/:id/reschedule', authenticate, rescheduleAppointmentController);
-router.post('/:id/cancel', authenticate, cancelAppointmentController);
-router.post('/:id/checkin', authenticate, requireReceptionist, checkInAppointmentController);
-router.delete('/:id', authenticate, requireDoctorOrReceptionist, deleteAppointmentController);
+router.post('/', authenticate, checkSubscriptionStatus as any, requireDoctorOrReceptionist, createAppointmentController);
+router.get('/', authenticate, checkSubscriptionStatus as any, getAppointmentsController);
+router.get('/:id', authenticate, checkSubscriptionStatus as any, getAppointmentByIdController);
+router.put('/:id', authenticate, checkSubscriptionStatus as any, requireDoctorOrReceptionist, updateAppointmentController);
+router.post('/:id/reschedule', authenticate, checkSubscriptionStatus as any, rescheduleAppointmentController);
+router.post('/:id/cancel', authenticate, checkSubscriptionStatus as any, cancelAppointmentController);
+router.post('/:id/checkin', authenticate, checkSubscriptionStatus as any, requireReceptionist, checkInAppointmentController);
+router.delete('/:id', authenticate, checkSubscriptionStatus as any, requireDoctorOrReceptionist, deleteAppointmentController);
 
 export default router;
 

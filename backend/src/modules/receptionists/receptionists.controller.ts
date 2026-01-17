@@ -1,8 +1,44 @@
 import { Response, NextFunction } from 'express';
-import { getReceptionistStats, getQueueStatus, linkReceptionistToClinic } from './receptionists.service';
+import Joi from 'joi';
+import { getReceptionistStats, getQueueStatus, linkReceptionistToClinic, registerOfflinePatient } from './receptionists.service';
 import { sendSuccess } from '../../utils/apiResponse';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { AppError } from '../../middlewares/error.middleware';
+
+const registerPatientSchema = Joi.object({
+  firstName: Joi.string().required(),
+  lastName: Joi.string().required(),
+  phone: Joi.string().pattern(/^[0-9]{10}$/).required(),
+  email: Joi.string().email().optional(),
+  dateOfBirth: Joi.date().optional(),
+});
+
+export const registerPatientController = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { error, value } = registerPatientSchema.validate(req.body);
+    if (error) {
+      throw new AppError(error.details[0].message, 400);
+    }
+
+    // Ensure clinic context exists
+    if (!req.user?.clinicId) {
+      throw new AppError('Receptionist must belong to a clinic', 403);
+    }
+
+    const patient = await registerOfflinePatient({
+      ...value,
+      clinicId: req.user.clinicId
+    });
+
+    sendSuccess(res, patient, 'Patient registered successfully', 201);
+  } catch (err) {
+    next(err);
+  }
+};
 
 export const getReceptionistStatsController = async (
   req: AuthRequest,
@@ -58,4 +94,3 @@ export const linkReceptionistController = async (
     next(err);
   }
 };
-
