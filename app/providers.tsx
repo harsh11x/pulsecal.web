@@ -57,7 +57,8 @@ function AuthStateListener({ children }: { children: React.ReactNode }) {
                   // Fallback: Get role from ID token claims
                   let firebaseRole = "patient";
                   try {
-                    const idTokenResult = await firebaseUser.getIdTokenResult();
+                    // Force refresh to ensure we get the latest claims (including the newly assigned DOCTOR role)
+                    const idTokenResult = await firebaseUser.getIdTokenResult(true);
                     if (idTokenResult.claims.role) {
                       firebaseRole = (idTokenResult.claims.role as string).toLowerCase();
                       console.log("Using role from Firebase claims:", firebaseRole);

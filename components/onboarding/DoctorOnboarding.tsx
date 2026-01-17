@@ -315,6 +315,16 @@ export default function DoctorOnboarding() {
               setFormData(prev => ({ ...prev, clinicId: verifyResponse.data.clinic.id }));
             }
 
+            // Optimistically update Redux state immediately to prevent race conditions
+            if (user) {
+              dispatch(setUser({
+                ...user,
+                role: 'doctor',
+                onboardingCompleted: true,
+                clinicId: verifyResponse.data?.clinic?.id || user.clinicId
+              }));
+            }
+
             setLoading(false);
 
             try {
@@ -331,15 +341,21 @@ export default function DoctorOnboarding() {
                   lastName: userProfile.lastName,
                   phone: userProfile.phone,
                   dateOfBirth: userProfile.dateOfBirth,
-                  role: (userProfile.role || "PATIENT").toLowerCase() as "patient" | "doctor" | "receptionist" | "admin",
+                  role: (userProfile.role || "DOCTOR").toLowerCase() as "patient" | "doctor" | "receptionist" | "admin", // Fallback to DOCTOR here since we just paid
                   isActive: userProfile.isActive !== false,
                   isEmailVerified: userProfile.isEmailVerified || false,
                   profileImage: userProfile.profileImage,
-                  onboardingCompleted: userProfile.onboardingCompleted || false,
+                  onboardingCompleted: true, // Force true
                   clinicId: userProfile.clinicId,
                 };
                 dispatch(setUser(userData));
                 console.log("Profile refreshed after payment, role:", userData.role);
+
+                // Double check role
+                if (userData.role !== 'doctor') {
+                  console.warn("Backend still reports non-doctor role despite payment. Forcing doctor role locally.");
+                  dispatch(setUser({ ...userData, role: 'doctor' }));
+                }
 
                 // Allow state to update before redirect
                 setTimeout(() => {
