@@ -6,10 +6,10 @@ import nextDynamic from "next/dynamic"
 import { store } from "@/app/store"
 
 // Dynamically import dashboard pages to prevent static generation - client only
-const PatientDashboardPage = nextDynamic(() => import("@/pages/dashboard/PatientDashboardPage"), { ssr: false })
-const DoctorDashboardPage = nextDynamic(() => import("@/pages/dashboard/DoctorDashboardPage"), { ssr: false })
-const ReceptionistDashboardPage = nextDynamic(() => import("@/pages/dashboard/ReceptionistDashboardPage"), { ssr: false })
-const AdminDashboardPage = nextDynamic(() => import("@/pages/dashboard/AdminDashboardPage"), { ssr: false })
+const PatientDashboardPage = nextDynamic(() => import("@/components/pages/dashboard/PatientDashboardPage"), { ssr: false })
+const DoctorDashboardPage = nextDynamic(() => import("@/components/pages/dashboard/DoctorDashboardPage"), { ssr: false })
+const ReceptionistDashboardPage = nextDynamic(() => import("@/components/pages/dashboard/ReceptionistDashboardPage"), { ssr: false })
+const AdminDashboardPage = nextDynamic(() => import("@/components/pages/dashboard/AdminDashboardPage"), { ssr: false })
 
 // Client-only component that uses Redux
 function DashboardContent() {
