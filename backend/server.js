@@ -5,9 +5,24 @@
  * It imports compiled artifacts from the ./dist directory.
  */
 
+
 require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
+
+// Verify Build Exists
+const distPath = path.join(__dirname, 'dist');
+if (!fs.existsSync(distPath)) {
+  console.error('\x1b[31m%s\x1b[0m', 'CRITICAL ERROR: Build not found!');
+  console.error('You are trying to run the server without building it first.');
+  console.error('Please run the following command to compile the application:');
+  console.error('\x1b[36m%s\x1b[0m', '  npm run build');
+  process.exit(1);
+}
+
 const http = require('http');
 const { logger } = require('./dist/utils/logger'); // Import configured logger
+
 
 // Global Error Handlers (Fail Fast)
 process.on('uncaughtException', (err) => {
