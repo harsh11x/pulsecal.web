@@ -119,7 +119,7 @@ export const getClinicStaff = async (clinicId: string) => {
             const appointmentsManaged = await prisma.appointment.count({
                 where: {
                     doctor: {
-                        clinicId: receptionist.clinicId,
+                        clinicId: clinicId,
                     },
                     scheduledAt: { gte: startOfMonth },
                     deletedAt: null,
