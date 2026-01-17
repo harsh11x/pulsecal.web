@@ -53,17 +53,30 @@ function AuthStateListener({ children }: { children: React.ReactNode }) {
                   }
                 } catch (error) {
                   console.warn("Failed to fetch user profile on auth state change:", error)
+
+                  // Fallback: Get role from ID token claims
+                  let firebaseRole = "patient";
+                  try {
+                    const idTokenResult = await firebaseUser.getIdTokenResult();
+                    if (idTokenResult.claims.role) {
+                      firebaseRole = (idTokenResult.claims.role as string).toLowerCase();
+                      console.log("Using role from Firebase claims:", firebaseRole);
+                    }
+                  } catch (e) {
+                    console.error("Failed to get ID token result:", e);
+                  }
+
                   // Don't logout if backend is unavailable - create minimal user from Firebase
                   const userData = {
                     id: firebaseUser.uid,
                     email: firebaseUser.email || "",
                     firstName: firebaseUser.displayName?.split(" ")[0] || "User",
                     lastName: firebaseUser.displayName?.split(" ").slice(1).join(" ") || "",
-                    role: "patient" as const,
+                    role: firebaseRole as "patient" | "doctor" | "receptionist" | "admin",
                     isActive: true,
                     isEmailVerified: firebaseUser.emailVerified || false,
                     profileImage: firebaseUser.photoURL || undefined,
-                    onboardingCompleted: false,
+                    onboardingCompleted: false, // Default to false if we can't reach backend
                   }
                   dispatch(setUser(userData))
                 }

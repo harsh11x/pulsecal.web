@@ -343,15 +343,15 @@ export default function DoctorOnboarding() {
 
                 // Allow state to update before redirect
                 setTimeout(() => {
-                  window.location.href = '/dashboard';
+                  router.push('/dashboard');
                 }, 500);
               } else {
                 console.warn("Failed to get valid profile after payment");
-                window.location.href = '/dashboard';
+                router.push('/dashboard');
               }
             } catch (refreshError) {
               console.error("Failed to refresh profile after payment:", refreshError);
-              window.location.href = '/dashboard';
+              router.push('/dashboard');
             }
 
           } catch (verifyError: any) {
