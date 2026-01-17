@@ -18,6 +18,8 @@ import { logout } from "@/app/features/authSlice"
 import { getInitials } from "@/utils/helpers"
 import { APP_NAME } from "@/utils/constants"
 
+import { logOut } from "@/lib/firebaseAuth"
+
 interface NavbarProps {
   onMenuClick?: () => void
 }
@@ -29,9 +31,20 @@ export function Navbar({ onMenuClick }: NavbarProps) {
   const { user } = useAppSelector((state) => state.auth)
   const { unreadCount } = useAppSelector((state) => state.notifications)
 
-  const handleLogout = () => {
-    dispatch(logout())
-    router.push("/")
+  const handleLogout = async () => {
+    try {
+      // Sign out from Firebase
+      await logOut()
+      // Clear Redux state
+      dispatch(logout())
+      // Redirect to home page
+      router.push("/")
+    } catch (error) {
+      console.error("Logout error:", error)
+      // Still clear Redux state and redirect even if Firebase logout fails
+      dispatch(logout())
+      router.push("/")
+    }
   }
 
   return (

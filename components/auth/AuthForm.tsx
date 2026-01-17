@@ -40,7 +40,7 @@ export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
         // Sign in with email and password
         await signIn(formData.email, formData.password)
         toast.success("Signed in successfully!")
-        
+
         // Existing users always go to dashboard
         router.push("/dashboard")
       } else {
@@ -84,7 +84,7 @@ export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
 
       // Handle specific Firebase errors
       let errorMessage = "An error occurred"
-      
+
       // Special handling for existing users trying to sign up
       if (error.code === "auth/email-already-in-use" && mode === "signup") {
         // User already exists - try to sign them in instead
@@ -176,15 +176,22 @@ export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
     sessionStorage.removeItem('selectedRole')
     sessionStorage.removeItem('pendingAuthRole')
 
-    // If user exists (has any data), go to dashboard - skip onboarding
-    if (user?.onboardingCompleted || user?.id) {
-      console.log("✅ Existing user, redirecting to dashboard")
+    // If signing in (not signing up), always go to dashboard
+    if (mode === "signin") {
+      console.log("✅ Sign-in mode: redirecting to dashboard")
       router.push("/dashboard")
       return
     }
 
-    // Only new users go to onboarding
-    console.log(`🚀 Redirecting to onboarding for role: ${userRole}`)
+    // For signup mode: check if onboarding is completed
+    if (user?.onboardingCompleted === true) {
+      console.log("✅ Onboarding already completed, redirecting to dashboard")
+      router.push("/dashboard")
+      return
+    }
+
+    // New users in signup mode go to onboarding
+    console.log(`🚀 New user signup: redirecting to onboarding for role: ${userRole}`)
     if (userRole === 'DOCTOR') {
       router.push("/onboarding?role=doctor")
     } else if (userRole === 'RECEPTIONIST') {
