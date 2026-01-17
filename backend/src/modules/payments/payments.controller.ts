@@ -143,6 +143,7 @@ const verifyRazorpayPaymentSchema = Joi.object({
   razorpay_order_id: Joi.string().required(),
   razorpay_payment_id: Joi.string().required(),
   razorpay_signature: Joi.string().required(),
+  plan: Joi.string().valid('STARTER', 'BASIC', 'PROFESSIONAL', 'ENTERPRISE').optional(),
   clinicDetails: Joi.object({
     name: Joi.string().required(),
     address: Joi.string().required(),
