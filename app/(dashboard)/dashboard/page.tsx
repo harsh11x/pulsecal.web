@@ -40,7 +40,7 @@ function DashboardContent() {
   useEffect(() => {
     // Only redirect if done loading and no user
     if (!isLoading && !user) {
-      router.push("/auth/login")
+      window.location.href = "https://pulsecal.com"
     }
 
     // Only redirect to onboarding if user has no role or is explicitly incomplete

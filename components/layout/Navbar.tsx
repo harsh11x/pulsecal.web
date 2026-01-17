@@ -38,12 +38,12 @@ export function Navbar({ onMenuClick }: NavbarProps) {
       // Clear Redux state
       dispatch(logout())
       // Redirect to home page
-      router.push("/")
+      window.location.href = "https://pulsecal.com"
     } catch (error) {
       console.error("Logout error:", error)
       // Still clear Redux state and redirect even if Firebase logout fails
       dispatch(logout())
-      router.push("/")
+      window.location.href = "https://pulsecal.com"
     }
   }
 

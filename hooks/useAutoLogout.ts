@@ -21,7 +21,7 @@ export function useAutoLogout() {
         timeoutRef.current = setTimeout(async () => {
             toast.info('Logged out due to inactivity')
             await logOut()
-            router.push('/auth/login')
+            window.location.href = 'https://pulsecal.com'
         }, INACTIVITY_TIMEOUT)
     }
 

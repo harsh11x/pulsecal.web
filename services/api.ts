@@ -34,7 +34,7 @@ class ApiService {
         if (error.response?.status === 401) {
           // Redirect to login on unauthorized
           if (typeof window !== "undefined") {
-            window.location.href = "/auth/login"
+            window.location.href = "https://pulsecal.com"
           }
         }
         // For network errors, suppress console errors to prevent "Load failed" spam

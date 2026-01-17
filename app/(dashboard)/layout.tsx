@@ -20,7 +20,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     // Only redirect if done loading and not authenticated
     if (!isLoading && (!isAuthenticated || !user)) {
-      router.push("/auth/login")
+      window.location.href = "https://pulsecal.com"
     }
   }, [isLoading, isAuthenticated, user, router])
 

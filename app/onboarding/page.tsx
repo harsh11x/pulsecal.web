@@ -34,13 +34,13 @@ function OnboardingContent() {
         try {
           // Use timeout to prevent hanging
           const profilePromise = apiService.get("/api/v1/auth/profile")
-          const timeoutPromise = new Promise<never>((_, reject) => 
+          const timeoutPromise = new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error("Request timeout")), 5000)
           )
-          
+
           const profileResponse: any = await Promise.race([profilePromise, timeoutPromise])
           const userProfile = profileResponse?.data || profileResponse
-          
+
           if (userProfile && userProfile.id && isMounted) {
             const userData = {
               id: userProfile.id,
@@ -56,13 +56,13 @@ function OnboardingContent() {
               onboardingCompleted: userProfile.onboardingCompleted || false,
             }
             dispatch(setUser(userData))
-            
+
             // If user already completed onboarding, redirect to dashboard
             if (userData.onboardingCompleted) {
               router.push("/dashboard")
               return
             }
-            
+
             if (isMounted) {
               setLoading(false)
             }
@@ -70,10 +70,10 @@ function OnboardingContent() {
           }
         } catch (apiError: any) {
           // Network/timeout errors - fallback to Firebase
-          if (apiError.code === "ERR_NETWORK" || 
-              apiError.message?.includes("Network Error") || 
-              apiError.message?.includes("timeout") ||
-              apiError.message === "Request timeout") {
+          if (apiError.code === "ERR_NETWORK" ||
+            apiError.message?.includes("Network Error") ||
+            apiError.message?.includes("timeout") ||
+            apiError.message === "Request timeout") {
             console.warn("Backend not available - using Firebase user")
             await createFirebaseUser()
             return
@@ -113,11 +113,11 @@ function OnboardingContent() {
       } catch (firebaseError) {
         console.error("Failed to get Firebase user:", firebaseError)
       }
-      
+
       // If we can't get user profile, redirect to login after a delay
       if (isMounted) {
         setTimeout(() => {
-          router.push("/auth/login")
+          window.location.href = "https://pulsecal.com"
         }, 1000)
       }
     }
