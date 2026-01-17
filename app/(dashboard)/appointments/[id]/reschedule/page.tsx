@@ -1,15 +1,30 @@
 "use client"
 
-import { AppLayout } from "@/components/layout/AppLayout"
-import { ProtectedRoute } from "@/routes/ProtectedRoute"
-import RescheduleAppointmentPage from "@/pages/appointments/RescheduleAppointmentPage"
+import { useRouter } from "next/navigation"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { ArrowLeft } from "lucide-react"
 
 export default function RescheduleAppointment({ params }: { params: { id: string } }) {
+  const router = useRouter()
+
   return (
-    <ProtectedRoute>
-      <AppLayout>
-        <RescheduleAppointmentPage appointmentId={params.id} />
-      </AppLayout>
-    </ProtectedRoute>
+    <div className="container mx-auto py-8">
+      <Button variant="ghost" onClick={() => router.back()} className="mb-4">
+        <ArrowLeft className="mr-2 h-4 w-4" />
+        Back
+      </Button>
+      <Card>
+        <CardHeader>
+          <CardTitle>Reschedule Appointment</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground">
+            Appointment ID: {params.id}
+          </p>
+          <p className="mt-4">Rescheduling interface coming soon.</p>
+        </CardContent>
+      </Card>
+    </div>
   )
 }
