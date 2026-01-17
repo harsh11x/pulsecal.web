@@ -135,7 +135,7 @@ export const deletePaymentController = async (
 // Razorpay Integration Controllers
 
 const createRazorpayOrderSchema = Joi.object({
-  plan: Joi.string().valid('TEST', 'BASIC', 'PROFESSIONAL', 'ENTERPRISE').required(),
+  plan: Joi.string().valid('STARTER', 'BASIC', 'PROFESSIONAL', 'ENTERPRISE').required(),
 });
 
 const verifyRazorpayPaymentSchema = Joi.object({
@@ -153,7 +153,7 @@ const verifyRazorpayPaymentSchema = Joi.object({
     email: Joi.string().email().required(),
     latitude: Joi.number().allow(null).optional(),
     longitude: Joi.number().allow(null).optional(),
-    subscriptionPlan: Joi.string().valid('TEST', 'BASIC', 'PROFESSIONAL', 'ENTERPRISE').required(),
+    subscriptionPlan: Joi.string().valid('STARTER', 'BASIC', 'PROFESSIONAL', 'ENTERPRISE').required(),
   }).required(),
 });
 
@@ -174,7 +174,7 @@ export const createRazorpayOrderController = async (
 
     // Plan pricing (in paise for Razorpay - multiply by 100)
     const planPricing: Record<string, number> = {
-      TEST: 100, // ₹1 for testing
+      STARTER: 100, // ₹1/month - Solo practitioner plan
       BASIC: 149900, // ₹1499
       PROFESSIONAL: 299900, // ₹2999
       ENTERPRISE: 499900, // ₹4999
@@ -266,7 +266,7 @@ export const verifyRazorpayPaymentController = async (
 
     // Calculate the actual amount paid based on the plan
     const planAmounts: Record<string, number> = {
-      TEST: 1,
+      STARTER: 1,
       BASIC: 1499,
       PROFESSIONAL: 2999,
       ENTERPRISE: 4999,

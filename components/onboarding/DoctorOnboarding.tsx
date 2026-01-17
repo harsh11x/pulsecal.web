@@ -70,7 +70,7 @@ export default function DoctorOnboarding() {
     clinicVerificationDocument: null as File | null,
 
     // Subscription
-    subscriptionPlan: "TEST" as "TEST" | "BASIC" | "PROFESSIONAL" | "ENTERPRISE",
+    subscriptionPlan: "STARTER" as "STARTER" | "BASIC" | "PROFESSIONAL" | "ENTERPRISE",
   })
 
   useEffect(() => {
@@ -1121,7 +1121,7 @@ export default function DoctorOnboarding() {
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 {[
-                  { id: 'TEST', name: 'Test (₹1)', price: '₹1', limit: 'For Testing Only', highlight: true },
+                  { id: 'STARTER', name: 'Starter', price: '₹1/mo', limit: 'Solo Practitioner (1 Doctor)', highlight: true },
                   { id: 'BASIC', name: 'Basic', price: '₹1499/mo', limit: 'Max 5 Doctors', highlight: false },
                   { id: 'PROFESSIONAL', name: 'Professional', price: '₹2999/mo', limit: 'Max 10 Doctors', highlight: false },
                   { id: 'ENTERPRISE', name: 'Enterprise', price: '₹4999/mo', limit: 'Unlimited Doctors', highlight: false }
