@@ -43,22 +43,14 @@ function DashboardContent() {
       router.push("/auth/login")
     }
 
-    // Check if onboarding is completed (only if we have a user)
-    if (user && !user.onboardingCompleted) {
-      router.push(`/onboarding?role=${user.role}`)
+    // Only redirect to onboarding if user has no role or is explicitly incomplete
+    // Don't block doctors who have completed payment/registration
+    if (user && !user.role) {
+      router.push(`/onboarding?role=patient`)
     }
   }, [user, router, isLoading])
 
   if (isLoading || !user) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    )
-  }
-
-  // Check if onboarding is completed
-  if (!user.onboardingCompleted) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
