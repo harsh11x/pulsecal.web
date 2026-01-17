@@ -22,7 +22,7 @@ export const addExportJob = async (data: {
 const exportWorker = new Worker(
   'export',
   async (job) => {
-    const { userId, exportType, data: exportData, fileUrl } = job.data;
+    const { userId: _userId, exportType: _exportType, data: exportData, fileUrl } = job.data;
     try {
       const exportsDir = path.join(process.cwd(), 'exports');
       await fs.mkdir(exportsDir, { recursive: true });

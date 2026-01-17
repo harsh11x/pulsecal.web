@@ -1,6 +1,6 @@
 import prisma from '../../config/database';
 import { getPaginationParams, getSortParams } from '../../utils/helpers';
-import { AuditAction, Prisma } from '@prisma/client';
+import { AuditAction } from '@prisma/client';
 
 export const getAuditLogs = async (req: {
   query: {

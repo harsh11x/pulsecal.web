@@ -4,7 +4,6 @@ import {
   getSystemStats,
 } from './admin.service';
 import { sendSuccess, sendPaginated } from '../../utils/apiResponse';
-import { AppError } from '../../middlewares/error.middleware';
 
 import { AuthRequest } from '../../middlewares/auth.middleware';
 

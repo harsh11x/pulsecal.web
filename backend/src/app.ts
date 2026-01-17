@@ -14,7 +14,7 @@ import './config/firebase';
 const app: Express = express();
 
 // Request ID Injection
-app.use((req, res, next) => {
+app.use((req, _res, next) => {
   req.id = uuidv4();
   next();
 });
@@ -54,7 +54,7 @@ app.use(hpp());
 
 app.use(apiRateLimiter);
 
-app.use('/health', (req, res) => {
+app.use('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 

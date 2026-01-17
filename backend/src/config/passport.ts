@@ -70,6 +70,10 @@ passport.use(
           return done(null, false, { message: 'Account is locked' });
         }
 
+        if (!user.password) {
+          return done(null, false, { message: 'Invalid credentials' });
+        }
+
         const isPasswordValid = await comparePassword(password, user.password);
 
         if (!isPasswordValid) {

@@ -6,7 +6,7 @@ import { PLAN_CONFIG, SubscriptionPlan, FeatureName } from '../config/plan.confi
 
 export const checkSubscriptionStatus = async (
     req: AuthRequest,
-    res: Response,
+    _res: Response,
     next: NextFunction
 ) => {
     try {
@@ -42,7 +42,7 @@ export const checkSubscriptionStatus = async (
 };
 
 export const checkFeatureAccess = (featureName: FeatureName) => {
-    return (req: AuthRequest, res: Response, next: NextFunction) => {
+    return (req: AuthRequest, _res: Response, next: NextFunction) => {
         try {
             const clinic = (req as any).clinic;
             if (!clinic) {
