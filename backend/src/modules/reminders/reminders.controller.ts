@@ -83,7 +83,15 @@ export const updateReminderController = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { error, value } = reminderSchema.partial().validate(req.body);
+    const updateSchema = Joi.object({
+      title: Joi.string().optional(),
+      description: Joi.string().optional(),
+      scheduledAt: Joi.date().iso().optional(),
+      type: Joi.string().valid('MEDICATION', 'APPOINTMENT', 'GENERAL').optional(),
+      status: Joi.string().valid('PENDING', 'SENT', 'FAILED', 'CANCELLED').optional(),
+    }).min(1);
+
+    const { error, value } = updateSchema.validate(req.body);
     if (error) {
       throw new AppError(error.details[0].message, 400);
     }

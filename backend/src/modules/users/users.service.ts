@@ -1,7 +1,7 @@
 import prisma from '../../config/database';
 import { getPaginationParams, getSortParams } from '../../utils/helpers';
 import { AppError } from '../../middlewares/error.middleware';
-import { encrypt } from '../../utils/encrypt';
+
 
 export const getProfile = async (userId: string) => {
   const user = await prisma.user.findUnique({
@@ -71,14 +71,7 @@ export const getAllUsers = async (req: {
   const { page, limit, skip } = getPaginationParams(req as never);
   const { orderBy, order } = getSortParams(req as never);
 
-  const where: {
-    role?: string;
-    OR?: Array<{
-      firstName?: { contains: string; mode: 'insensitive' };
-      lastName?: { contains: string; mode: 'insensitive' };
-      email?: { contains: string; mode: 'insensitive' };
-    }>;
-  } = {
+  const where: any = {
     deletedAt: null,
   };
 

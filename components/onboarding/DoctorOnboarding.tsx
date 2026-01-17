@@ -74,6 +74,16 @@ export default function DoctorOnboarding() {
     subscriptionPlan: "STARTER" as "STARTER" | "BASIC" | "PROFESSIONAL" | "ENTERPRISE",
   })
 
+  // Helper validation function
+  const isValidPhone = (phone: string) => {
+    return /^\d{10}$/.test(phone);
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+    setFormData({ ...formData, phone: value });
+  };
+
   useEffect(() => {
     const script = document.createElement("script")
     script.src = "https://checkout.razorpay.com/v1/checkout.js"
@@ -374,27 +384,34 @@ export default function DoctorOnboarding() {
 
       // Step 2: Create/update doctor profile - with timeout and error handling
       try {
-        const doctorProfileData = {
+        const doctorProfileData: any = {
           licenseNumber: formData.licenseNumber,
           specialization: formData.specialization,
           qualifications: formData.qualifications,
           yearsOfExperience: parseInt(formData.yearsOfExperience) || 0,
           consultationFee: parseFloat(formData.consultationFee) || 0,
           bio: formData.bio,
-          clinicName: formData.clinicName,
-          clinicAddress: `${formData.clinicAddress}, ${formData.clinicCity}, ${formData.clinicState} ${formData.clinicZipCode}`,
-          clinicCity: formData.clinicCity,
-          clinicState: formData.clinicState,
-          clinicZipCode: formData.clinicZipCode,
-          clinicCountry: formData.clinicCountry,
           clinicPhone: formData.clinicPhone,
           clinicEmail: formData.clinicEmail,
-          clinicLatitude: formData.clinicLatitude ? parseFloat(formData.clinicLatitude) : null,
-          clinicLongitude: formData.clinicLongitude ? parseFloat(formData.clinicLongitude) : null,
           services: formData.services,
           workingHours: formData.workingHours,
         }
 
+        if (clinicMode === 'create') {
+          doctorProfileData.clinicName = formData.clinicName;
+          doctorProfileData.clinicAddress = `${formData.clinicAddress}, ${formData.clinicCity}, ${formData.clinicState} ${formData.clinicZipCode}`;
+          doctorProfileData.clinicCity = formData.clinicCity;
+          doctorProfileData.clinicState = formData.clinicState;
+          doctorProfileData.clinicZipCode = formData.clinicZipCode;
+          doctorProfileData.clinicCountry = formData.clinicCountry;
+          doctorProfileData.clinicLatitude = formData.clinicLatitude ? parseFloat(formData.clinicLatitude) : null;
+          doctorProfileData.clinicLongitude = formData.clinicLongitude ? parseFloat(formData.clinicLongitude) : null;
+        } else if (clinicMode === 'join' && selectedClinicId) {
+          doctorProfileData.clinicId = selectedClinicId;
+          // If joining, we don't send clinic name/address as they are derived from ID
+        }
+
+        // Use the new endpoint for doctor profiles
         const doctorPromise = apiService.post("/api/v1/doctor-profiles", doctorProfileData)
         const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("Request timeout")), 10000)
@@ -403,7 +420,9 @@ export default function DoctorOnboarding() {
       } catch (doctorError: any) {
         console.warn("Doctor profile warning:", doctorError)
         if (doctorError.code !== "ERR_NETWORK" && !doctorError.message?.includes("timeout")) {
-          errors.push("Failed to save doctor profile")
+          errors.push(doctorError.response?.data?.message || "Failed to save doctor profile")
+          // If this fails, we should actually stop and alert the user
+          throw new Error(doctorError.response?.data?.message || "Failed to save doctor profile");
         }
       }
 
@@ -605,11 +624,15 @@ export default function DoctorOnboarding() {
                   <Input
                     id="phone"
                     type="tel"
-                    placeholder="+91 98765 43210"
+                    placeholder="9876543210 (10 digits)"
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    onChange={handlePhoneChange}
                     required
+                    className={!isValidPhone(formData.phone) && formData.phone ? "border-red-500" : ""}
                   />
+                  {formData.phone && !isValidPhone(formData.phone) && (
+                    <p className="text-xs text-red-500 mt-1">Must be exactly 10 digits</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="licenseNumber">Medical License Number *</Label>
@@ -749,7 +772,7 @@ export default function DoctorOnboarding() {
                   setClinicMode(null)
                   setStep(1)
                 }
-              }} className="w-full" disabled={!formData.phone || !formData.licenseNumber || !formData.specialization}>
+              }} className="w-full" disabled={!formData.phone || !isValidPhone(formData.phone) || !formData.licenseNumber || !formData.specialization}>
                 Continue
               </Button>
             </div>
@@ -1060,12 +1083,12 @@ export default function DoctorOnboarding() {
                 </Button>
                 <Button onClick={() => {
                   if (clinicMode === "join") {
-                    setStep(5) // Skip working hours, go to review
+                    setStep(7) // Skip working hours and plan, go to Verification for joiners
                   } else {
-                    setStep(5) // Go to working hours
+                    setStep(5) // Go to working hours for creators
                   }
                 }} className="flex-1" disabled={!formData.consultationFee || formData.services.length === 0}>
-                  {clinicMode === "join" ? "Continue to Review" : "Continue to Working Hours"}
+                  {clinicMode === "join" ? "Continue to Verification" : "Continue to Working Hours"}
                 </Button>
               </div>
             </div>
@@ -1275,7 +1298,7 @@ export default function DoctorOnboarding() {
                   if (clinicMode === "join") {
                     setStep(4)
                   } else {
-                    setStep(5)
+                    setStep(6) // Back to plan selection
                   }
                 }} className="flex-1">
                   Back

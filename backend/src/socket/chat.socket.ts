@@ -29,7 +29,7 @@ export const setupChatSocket = (io: SocketIOServer): void => {
           socket.emit('error', { message: 'Room not found' });
         }
       } catch (error) {
-        logger.error('Join room error:', error);
+        logger.error(error, 'Join room error:');
         socket.emit('error', { message: 'Failed to join room' });
       }
     });
@@ -71,7 +71,7 @@ export const setupChatSocket = (io: SocketIOServer): void => {
         chatNamespace.to(data.roomId).emit('new-message', message);
         logger.info(`Message sent in room ${data.roomId}`);
       } catch (error) {
-        logger.error('Send message error:', error);
+        logger.error(error, 'Send message error:');
         socket.emit('error', { message: 'Failed to send message' });
       }
     });
@@ -95,7 +95,7 @@ export const setupChatSocket = (io: SocketIOServer): void => {
           userId: socket.data.user.id,
         });
       } catch (error) {
-        logger.error('Mark read error:', error);
+        logger.error(error, 'Mark read error:');
       }
     });
 

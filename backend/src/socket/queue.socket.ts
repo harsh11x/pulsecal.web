@@ -36,7 +36,7 @@ export const setupQueueSocket = (io: SocketIOServer): void => {
 
         socket.emit('queue-update', queue);
       } catch (error) {
-        logger.error('Join queue error:', error);
+        logger.error(error, 'Join queue error:');
         socket.emit('error', { message: 'Failed to join queue' });
       }
     });
@@ -70,7 +70,7 @@ export const setupQueueSocket = (io: SocketIOServer): void => {
           }
         }
       } catch (error) {
-        logger.error('Get queue status error:', error);
+        logger.error(error, 'Get queue status error:');
       }
     });
 

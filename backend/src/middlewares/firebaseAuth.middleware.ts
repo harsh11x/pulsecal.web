@@ -12,6 +12,7 @@ export interface AuthRequest extends Request {
     isActive: boolean;
     isEmailVerified: boolean;
     firebaseUid: string;
+    clinicId?: string | null;
   };
 }
 
@@ -43,6 +44,8 @@ export const authenticate = async (
         isActive: true,
         isEmailVerified: true,
         firebaseUid: true,
+        clinicId: true,
+        emailVerifiedAt: true,
       },
     });
 
@@ -57,6 +60,8 @@ export const authenticate = async (
           isActive: true,
           isEmailVerified: true,
           firebaseUid: true,
+          clinicId: true,
+          emailVerifiedAt: true,
         },
       });
     }
@@ -84,6 +89,8 @@ export const authenticate = async (
           isActive: true,
           isEmailVerified: true,
           firebaseUid: true,
+          clinicId: true,
+          emailVerifiedAt: true,
         },
       });
 
@@ -121,6 +128,8 @@ export const authenticate = async (
             isActive: true,
             isEmailVerified: true,
             firebaseUid: true,
+            clinicId: true,
+            emailVerifiedAt: true,
           },
         });
       }
@@ -137,11 +146,12 @@ export const authenticate = async (
       isActive: user.isActive,
       isEmailVerified: user.isEmailVerified,
       firebaseUid: user.firebaseUid || decodedToken.uid,
+      clinicId: user.clinicId,
     };
 
     next();
   } catch (error) {
-    logger.error('Firebase authentication error:', error);
+    logger.error(error, 'Firebase authentication error:');
     return sendError(res, 'Invalid or expired token', 401);
   }
 };

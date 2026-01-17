@@ -1,4 +1,4 @@
-import { Response, NextFunction } from 'express';
+import { Response, NextFunction, Request } from 'express';
 import {
   createClinic,
   getClinics,
@@ -24,7 +24,7 @@ const clinicSchema = Joi.object({
 });
 
 export const createClinicController = async (
-  req: never,
+  req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
@@ -41,7 +41,7 @@ export const createClinicController = async (
 };
 
 export const getClinicsController = async (
-  req: never,
+  req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
@@ -59,7 +59,7 @@ export const getClinicsController = async (
 };
 
 export const getClinicByIdController = async (
-  req: never,
+  req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
@@ -72,12 +72,26 @@ export const getClinicByIdController = async (
 };
 
 export const updateClinicController = async (
-  req: never,
+  req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { error, value } = clinicSchema.partial().validate(req.body);
+    // Create a new schema where all keys are optional for update
+    const updateSchema = Joi.object({
+      name: Joi.string().optional(),
+      address: Joi.string().optional(),
+      city: Joi.string().optional(),
+      state: Joi.string().optional(),
+      zipCode: Joi.string().optional(),
+      country: Joi.string().optional(),
+      phone: Joi.string().optional(),
+      email: Joi.string().email().optional(),
+      latitude: Joi.number().optional(),
+      longitude: Joi.number().optional(),
+    }).min(1);
+
+    const { error, value } = updateSchema.validate(req.body);
     if (error) {
       throw new AppError(error.details[0].message, 400);
     }
@@ -89,7 +103,7 @@ export const updateClinicController = async (
 };
 
 export const deleteClinicController = async (
-  req: never,
+  req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {

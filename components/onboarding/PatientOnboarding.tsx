@@ -39,6 +39,16 @@ export default function PatientOnboarding() {
     country: "",
   })
 
+  // Helper validation function
+  const isValidPhone = (phone: string) => {
+    return /^\d{10}$/.test(phone);
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+    setFormData({ ...formData, phone: value });
+  };
+
   const totalSteps = 3
   const progress = (step / totalSteps) * 100
 
@@ -77,6 +87,12 @@ export default function PatientOnboarding() {
   const handleSubmit = async () => {
     setLoading(true)
     const errors: string[] = []
+
+    if (!isValidPhone(formData.phone)) {
+      toast.error("Please enter a valid 10-digit phone number");
+      setLoading(false);
+      return;
+    }
 
     try {
       // Update user profile - with timeout and error handling
@@ -249,11 +265,15 @@ export default function PatientOnboarding() {
                   <Input
                     id="phone"
                     type="tel"
-                    placeholder="+91 98765 43210"
+                    placeholder="9876543210 (10 digits)"
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    onChange={handlePhoneChange}
                     required
+                    className={!isValidPhone(formData.phone) && formData.phone ? "border-red-500" : ""}
                   />
+                  {formData.phone && !isValidPhone(formData.phone) && (
+                    <p className="text-xs text-red-500 mt-1">Must be exactly 10 digits</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="dateOfBirth">Date of Birth</Label>
