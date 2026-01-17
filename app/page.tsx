@@ -1,11 +1,12 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { store } from "@/app/store"
 import { Header } from "@/components/landing/Header"
 import { Footer } from "@/components/landing/Footer"
 import { GetStartedAction } from "@/components/landing/GetStartedAction"
+import { AuthModal } from "@/components/auth/AuthModal"
 import { Button } from "@/components/ui/button"
 import {
   Calendar,
@@ -25,6 +26,7 @@ import {
 
 export default function Home() {
   const router = useRouter()
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
 
   // Redirect logged-in users to dashboard
   useEffect(() => {
