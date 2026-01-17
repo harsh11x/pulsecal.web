@@ -15,6 +15,8 @@ export const getProfile = async (userId: string) => {
       dateOfBirth: true,
       role: true,
       isEmailVerified: true,
+      onboardingCompleted: true,
+      clinicId: true,
       profileImage: true,
       createdAt: true,
       patientProfile: true,

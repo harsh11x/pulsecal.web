@@ -320,7 +320,7 @@ export default function DoctorOnboarding() {
             try {
               // Force refresh user profile from backend to ensure role is updated to DOCTOR
               console.log("Refreshing profile after payment...");
-              const profileResponse: any = await apiService.get("/api/v1/users/profile");
+              const profileResponse: any = await apiService.get("/api/v1/auth/profile");
               const userProfile = profileResponse?.data || profileResponse;
 
               if (userProfile && userProfile.id) {

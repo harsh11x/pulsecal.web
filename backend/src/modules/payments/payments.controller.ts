@@ -13,6 +13,7 @@ import { AppError } from '../../middlewares/error.middleware';
 import Joi from 'joi';
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
+import admin from '../../config/firebase';
 
 // Initialize Razorpay
 const razorpay = new Razorpay({
@@ -274,6 +275,17 @@ export const verifyRazorpayPaymentController = async (
         role: 'DOCTOR',
       },
     });
+
+    // Sync role to Firebase Custom Claims
+    try {
+      if (req.user.firebaseUid) {
+        await admin.auth().setCustomUserClaims(req.user.firebaseUid, { role: 'DOCTOR' });
+        console.log(`Synced DOCTOR role to Firebase for user ${req.user.id}`);
+      }
+    } catch (firebaseError) {
+      console.error('Failed to sync Firestore role:', firebaseError);
+      // Don't fail the written payment, just log error
+    }
 
     // Update or create doctor profile with subscription status
     const existingDoctorProfile = await prisma.doctorProfile.findUnique({
