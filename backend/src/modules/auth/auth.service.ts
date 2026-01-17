@@ -10,6 +10,7 @@ export const syncUserProfile = async (firebaseUid: string, data: {
   phone?: string;
   dateOfBirth?: Date;
   profileImage?: string;
+  role?: 'PATIENT' | 'DOCTOR' | 'RECEPTIONIST' | 'ADMIN';
 }) => {
   // Use findUnique since firebaseUid is unique
   const user = await prisma.user.findUnique({
@@ -21,6 +22,17 @@ export const syncUserProfile = async (firebaseUid: string, data: {
     throw new AppError('User not found. Please try signing in again.', 404);
   }
 
+  // If role is being updated, update Firebase custom claims first
+  if (data.role && data.role !== user.role) {
+    try {
+      await admin.auth().setCustomUserClaims(firebaseUid, { role: data.role });
+      logger.info(`Updated Firebase custom claims for ${firebaseUid} to role: ${data.role}`);
+    } catch (error) {
+      logger.error(error, 'Error updating Firebase custom claims');
+      throw new AppError('Failed to update user role in Firebase', 500);
+    }
+  }
+
   const updated = await prisma.user.update({
     where: { id: user.id },
     data: {
@@ -29,6 +41,7 @@ export const syncUserProfile = async (firebaseUid: string, data: {
       phone: data.phone || user.phone,
       dateOfBirth: data.dateOfBirth || user.dateOfBirth,
       profileImage: data.profileImage || user.profileImage,
+      ...(data.role && { role: data.role }),
     },
     select: {
       id: true,

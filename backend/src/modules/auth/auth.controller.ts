@@ -15,6 +15,7 @@ const syncProfileSchema = Joi.object({
   phone: Joi.string().optional(),
   dateOfBirth: Joi.date().optional(),
   profileImage: Joi.string().optional(),
+  role: Joi.string().valid('PATIENT', 'DOCTOR', 'RECEPTIONIST', 'ADMIN').optional(),
 });
 
 const updateRoleSchema = Joi.object({
