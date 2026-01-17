@@ -1,4 +1,5 @@
 import prisma from '../../config/database';
+import { Prisma } from '@prisma/client';
 import { getPaginationParams, getSortParams } from '../../utils/helpers';
 import { AppError } from '../../middlewares/error.middleware';
 
@@ -65,12 +66,12 @@ export const getReminders = async (req: {
 
   const [reminders, total] = await Promise.all([
     prisma.reminder.findMany({
-      where,
+      where: where as Prisma.ReminderWhereInput,
       skip,
       take: limit,
       orderBy: { [orderBy]: order },
     }),
-    prisma.reminder.count({ where }),
+    prisma.reminder.count({ where: where as Prisma.ReminderWhereInput }),
   ]);
 
   return {
@@ -107,7 +108,7 @@ export const updateReminder = async (
 ) => {
   const reminder = await prisma.reminder.update({
     where: { id: reminderId },
-    data,
+    data: data as Prisma.ReminderUpdateInput,
   });
 
   return reminder;

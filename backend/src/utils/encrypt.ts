@@ -4,8 +4,7 @@ import { config } from '../config/env';
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 16;
-const SALT_LENGTH = 64;
-const TAG_LENGTH = 16;
+
 
 export const hashPassword = async (password: string): Promise<string> => {
   return bcrypt.hash(password, config.security.bcryptRounds);

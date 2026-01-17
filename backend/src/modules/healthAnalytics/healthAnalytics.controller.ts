@@ -19,6 +19,14 @@ const metricSchema = Joi.object({
   recordedAt: Joi.date().optional(),
 });
 
+const updateMetricSchema = Joi.object({
+  metricType: Joi.string().optional(),
+  value: Joi.number().optional(),
+  unit: Joi.string().optional(),
+  notes: Joi.string().optional(),
+  recordedAt: Joi.date().optional(),
+});
+
 export const createHealthMetricController = async (
   req: AuthRequest,
   res: Response,
@@ -82,7 +90,7 @@ export const updateHealthMetricController = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { error, value } = metricSchema.partial().validate(req.body);
+    const { error, value } = updateMetricSchema.validate(req.body);
     if (error) {
       throw new AppError(error.details[0].message, 400);
     }

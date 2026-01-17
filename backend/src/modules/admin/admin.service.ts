@@ -1,6 +1,6 @@
 import prisma from '../../config/database';
 import { getPaginationParams, getSortParams } from '../../utils/helpers';
-import { AppError } from '../../middlewares/error.middleware';
+import { AuditAction, Prisma } from '@prisma/client';
 
 export const getAuditLogs = async (req: {
   query: {
@@ -20,7 +20,7 @@ export const getAuditLogs = async (req: {
 
   const where: {
     userId?: string;
-    action?: string;
+    action?: AuditAction;
     resourceType?: string;
     createdAt?: { gte?: Date; lte?: Date };
   } = {};
@@ -30,7 +30,7 @@ export const getAuditLogs = async (req: {
   }
 
   if (req.query.action) {
-    where.action = req.query.action as 'CREATE' | 'READ' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT' | 'EXPORT' | 'IMPORT';
+    where.action = req.query.action as AuditAction;
   }
 
   if (req.query.resourceType) {

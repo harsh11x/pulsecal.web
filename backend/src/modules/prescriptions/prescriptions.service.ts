@@ -1,4 +1,5 @@
 import prisma from '../../config/database';
+import { Prisma } from '@prisma/client';
 import { getPaginationParams, getSortParams } from '../../utils/helpers';
 import { AppError } from '../../middlewares/error.middleware';
 
@@ -82,7 +83,7 @@ export const getPrescriptions = async (req: {
 
   const [prescriptions, total] = await Promise.all([
     prisma.prescription.findMany({
-      where,
+      where: where as Prisma.PrescriptionWhereInput,
       skip,
       take: limit,
       orderBy: { [orderBy]: order },
@@ -96,7 +97,7 @@ export const getPrescriptions = async (req: {
         },
       },
     }),
-    prisma.prescription.count({ where }),
+    prisma.prescription.count({ where: where as Prisma.PrescriptionWhereInput }),
   ]);
 
   return {
@@ -200,7 +201,7 @@ export const updatePrescription = async (
 ) => {
   const prescription = await prisma.prescription.update({
     where: { id: prescriptionId },
-    data,
+    data: data as Prisma.PrescriptionUpdateInput,
     include: {
       patient: {
         select: {

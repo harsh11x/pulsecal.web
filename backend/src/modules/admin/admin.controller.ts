@@ -6,8 +6,10 @@ import {
 import { sendSuccess, sendPaginated } from '../../utils/apiResponse';
 import { AppError } from '../../middlewares/error.middleware';
 
+import { AuthRequest } from '../../middlewares/auth.middleware';
+
 export const getAuditLogsController = async (
-  req: never,
+  req: AuthRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
@@ -25,7 +27,7 @@ export const getAuditLogsController = async (
 };
 
 export const getSystemStatsController = async (
-  req: never,
+  _req: AuthRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {

@@ -97,7 +97,7 @@ export const updateUserRole = async (
   try {
     await admin.auth().setCustomUserClaims(firebaseUid, { role });
   } catch (error) {
-    logger.error('Error updating Firebase custom claims:', error);
+    logger.error(error, 'Error updating Firebase custom claims');
     throw new AppError('Failed to update user role in Firebase', 500);
   }
 

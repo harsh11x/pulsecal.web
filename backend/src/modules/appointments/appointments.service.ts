@@ -1,7 +1,8 @@
 import prisma from '../../config/database';
 import { getPaginationParams, getSortParams } from '../../utils/helpers';
 import { AppError } from '../../middlewares/error.middleware';
-import { APPOINTMENT_STATUS } from '../../utils/constants';
+
+import { Prisma } from '@prisma/client';
 
 export const createAppointment = async (data: {
   patientId: string;
@@ -100,7 +101,7 @@ export const getAppointments = async (req: {
 
   const [appointments, total] = await Promise.all([
     prisma.appointment.findMany({
-      where,
+      where: where as Prisma.AppointmentWhereInput,
       skip,
       take: limit,
       orderBy: { [orderBy]: order },
@@ -124,7 +125,7 @@ export const getAppointments = async (req: {
         },
       },
     }),
-    prisma.appointment.count({ where }),
+    prisma.appointment.count({ where: where as Prisma.AppointmentWhereInput }),
   ]);
 
   return {
@@ -197,7 +198,7 @@ export const updateAppointment = async (
 ) => {
   const appointment = await prisma.appointment.update({
     where: { id: appointmentId },
-    data,
+    data: data as Prisma.AppointmentUpdateInput,
     include: {
       patient: {
         select: {

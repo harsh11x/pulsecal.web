@@ -8,7 +8,7 @@ import { logger } from '../utils/logger';
 
 const jwtOptions = {
   jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-  secretOrKey: config.jwt.secret,
+  secretOrKey: config.security.jwtSecret,
 };
 
 passport.use(
@@ -40,7 +40,7 @@ passport.use(
 
       return done(null, user);
     } catch (error) {
-      logger.error('JWT Strategy error:', error);
+      logger.error(error, 'JWT Strategy error');
       return done(error, false);
     }
   })
@@ -109,7 +109,7 @@ passport.use(
 
         return done(null, user);
       } catch (error) {
-        logger.error('Local Strategy error:', error);
+        logger.error(error, 'Local Strategy error');
         return done(error, false);
       }
     }

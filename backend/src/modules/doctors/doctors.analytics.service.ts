@@ -1,5 +1,5 @@
 import prisma from '../../config/database';
-import { AppError } from '../../middlewares/error.middleware';
+import { Prisma } from '@prisma/client';
 
 /**
  * Get doctor analytics including revenue, appointments, and trends
@@ -80,15 +80,15 @@ export const getDoctorAnalytics = async (doctorId: string, period: 'day' | 'week
     },
   });
 
-  const confirmedAppointments = appointments.filter(apt => 
+  const confirmedAppointments = appointments.filter(apt =>
     ['CONFIRMED', 'IN_PROGRESS', 'COMPLETED'].includes(apt.status)
   ).length;
 
-  const cancelledAppointments = appointments.filter(apt => 
+  const cancelledAppointments = appointments.filter(apt =>
     apt.status === 'CANCELLED'
   ).length;
 
-  const totalRevenue = payments.reduce((sum, payment) => 
+  const totalRevenue = payments.reduce((sum, payment) =>
     sum + Number(payment.amount), 0
   );
 
@@ -97,7 +97,7 @@ export const getDoctorAnalytics = async (doctorId: string, period: 'day' | 'week
     const paidDate = payment.paidAt ? new Date(payment.paidAt) : new Date(payment.createdAt);
     return paidDate.toDateString() === now.toDateString();
   });
-  const todayRevenue = todayPayments.reduce((sum, payment) => 
+  const todayRevenue = todayPayments.reduce((sum, payment) =>
     sum + Number(payment.amount), 0
   );
 
@@ -112,7 +112,7 @@ export const getDoctorAnalytics = async (doctorId: string, period: 'day' | 'week
       },
     },
   });
-  const yesterdayRevenue = yesterdayPayments.reduce((sum, payment) => 
+  const yesterdayRevenue = yesterdayPayments.reduce((sum, payment) =>
     sum + Number(payment.amount), 0
   );
 
@@ -126,8 +126,8 @@ export const getDoctorAnalytics = async (doctorId: string, period: 'day' | 'week
   const patientGrowth = await getPatientGrowth(doctorId, period, startDate);
 
   // Cancellation rate
-  const cancellationRate = totalAppointments > 0 
-    ? (cancelledAppointments / totalAppointments) * 100 
+  const cancellationRate = totalAppointments > 0
+    ? (cancelledAppointments / totalAppointments) * 100
     : 0;
 
   return {
@@ -141,7 +141,7 @@ export const getDoctorAnalytics = async (doctorId: string, period: 'day' | 'week
       totalRevenue: Number(totalRevenue.toFixed(2)),
       todayRevenue: Number(todayRevenue.toFixed(2)),
       yesterdayRevenue: Number(yesterdayRevenue.toFixed(2)),
-      revenueChange: yesterdayRevenue > 0 
+      revenueChange: yesterdayRevenue > 0
         ? Number((((todayRevenue - yesterdayRevenue) / yesterdayRevenue) * 100).toFixed(2))
         : 0,
       cancellationRate: Number(cancellationRate.toFixed(2)),
@@ -161,11 +161,8 @@ export const getDoctorAnalytics = async (doctorId: string, period: 'day' | 'week
 const getRevenueTrends = async (doctorId: string, period: string, startDate: Date) => {
   const payments = await prisma.payment.findMany({
     where: {
-      appointment: {
-        doctorId,
-        status: 'COMPLETED',
-        scheduledAt: { gte: startDate },
-      },
+      doctorId,
+      updatedAt: { gte: startDate },
       status: 'COMPLETED',
     },
     select: {
@@ -365,7 +362,7 @@ const getPatientGrowth = async (doctorId: string, period: string, startDate: Dat
 
       const periodPatients = new Set(periodApps.map(apt => apt.patientId));
       const newPatients = Array.from(periodPatients).filter(id => !seenPatients.has(id)).length;
-      seenPatients.add(...Array.from(periodPatients));
+      Array.from(periodPatients).forEach(p => seenPatients.add(p));
 
       growth.push({
         date: date.toISOString(),

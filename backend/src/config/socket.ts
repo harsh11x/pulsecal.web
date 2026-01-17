@@ -1,7 +1,6 @@
 import { Server as SocketIOServer } from 'socket.io';
 import { Server as HTTPServer } from 'http';
-import { createAdapter } from '@socket.io/redis-adapter';
-import redisClient from './redis';
+
 import { logger } from '../utils/logger';
 
 export const initializeSocket = (httpServer: HTTPServer): SocketIOServer => {
@@ -51,7 +50,7 @@ export const initializeSocket = (httpServer: HTTPServer): SocketIOServer => {
       socket.data.user = user;
       next();
     } catch (error) {
-      logger.error('Socket authentication error:', error);
+      logger.error(error, 'Socket authentication error');
       next(new Error('Authentication error'));
     }
   });
@@ -64,7 +63,7 @@ export const initializeSocket = (httpServer: HTTPServer): SocketIOServer => {
     });
 
     socket.on('error', (error: Error) => {
-      logger.error(`Socket error for ${socket.id}:`, error);
+      logger.error(error, `Socket error for ${socket.id}`);
     });
   });
 

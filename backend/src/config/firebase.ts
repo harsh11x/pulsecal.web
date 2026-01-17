@@ -26,7 +26,7 @@ if (!admin.apps.length) {
 
     logger.info('Firebase Admin initialized successfully');
   } catch (error) {
-    logger.error('Firebase initialization error:', error);
+    logger.error(error, 'Firebase initialization error');
     throw error;
   }
 }

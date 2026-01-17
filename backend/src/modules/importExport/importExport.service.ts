@@ -1,6 +1,6 @@
 import prisma from '../../config/database';
 import { AppError } from '../../middlewares/error.middleware';
-import { generateToken } from '../../utils/encrypt';
+
 
 export const exportUserData = async (
   userId: string,

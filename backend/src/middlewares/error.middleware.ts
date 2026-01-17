@@ -18,23 +18,23 @@ export const errorHandler = (
   err: Error | AppError,
   req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ): void => {
   if (err instanceof AppError) {
-    logger.warn(`AppError: ${err.message}`, {
+    logger.warn({
       statusCode: err.statusCode,
       path: req.path,
       method: req.method,
-    });
+    }, `AppError: ${err.message}`);
     return sendError(res, err.message, err.statusCode);
   }
 
-  logger.error('Unhandled error:', {
+  logger.error({
     error: err.message,
     stack: err.stack,
     path: req.path,
     method: req.method,
-  });
+  }, 'Unhandled error');
 
   sendError(
     res,
@@ -48,7 +48,7 @@ export const errorHandler = (
 export const notFoundHandler = (
   req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ): void => {
   sendError(res, `Route ${req.originalUrl} not found`, 404);
 };

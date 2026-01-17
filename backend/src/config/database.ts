@@ -11,7 +11,7 @@ const prisma = new PrismaClient({
 
 if (process.env.NODE_ENV === 'development') {
   prisma.$on('query' as never, (e: unknown) => {
-    logger.debug('Query', e);
+    logger.debug({ msg: 'Query', ...(typeof e === 'object' ? e : { data: e }) });
   });
 }
 
@@ -20,7 +20,7 @@ export const connectDatabase = async (): Promise<void> => {
     await prisma.$connect();
     logger.info('Database connected successfully');
   } catch (error) {
-    logger.error('Database connection error:', error);
+    logger.error(error, 'Database connection error');
     process.exit(1);
   }
 };
@@ -30,7 +30,7 @@ export const disconnectDatabase = async (): Promise<void> => {
     await prisma.$disconnect();
     logger.info('Database disconnected successfully');
   } catch (error) {
-    logger.error('Database disconnection error:', error);
+    logger.error(error, 'Database disconnection error');
   }
 };
 

@@ -73,7 +73,7 @@ export const checkFeatureAccess = (featureName: FeatureName) => {
 };
 
 export const checkLimit = (limitName: 'maxDoctors' | 'clinicLocations') => {
-    return async (req: AuthRequest, res: Response, next: NextFunction) => {
+    return async (req: AuthRequest, _res: Response, next: NextFunction) => {
         try {
             const clinic = (req as any).clinic;
             if (!clinic) {

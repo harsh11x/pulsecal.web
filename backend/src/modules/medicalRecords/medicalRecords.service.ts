@@ -169,6 +169,8 @@ export const updateMedicalRecord = async (
     fileName?: string;
   }
 ) => {
+  const { sensitiveData, ...rest } = data;
+
   const updateData: {
     title?: string;
     description?: string;
@@ -177,13 +179,10 @@ export const updateMedicalRecord = async (
     encryptedData?: string | null;
     fileUrl?: string;
     fileName?: string;
-  } = { ...data };
+  } = { ...rest };
 
-  if (data.sensitiveData !== undefined) {
-    updateData.encryptedData = data.sensitiveData
-      ? encrypt(data.sensitiveData)
-      : null;
-    delete updateData.sensitiveData;
+  if (sensitiveData) {
+    updateData.encryptedData = encrypt(sensitiveData);
   }
 
   const record = await prisma.medicalRecord.update({

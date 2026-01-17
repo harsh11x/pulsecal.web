@@ -88,7 +88,8 @@ export const getChatMessagesController = async (
 ): Promise<void> => {
   try {
     const result = await getChatMessages({
-      ...req,
+      params: { roomId: req.params.roomId },
+      query: req.query as any,
       user: req.user,
     });
     sendPaginated(

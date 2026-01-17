@@ -4,7 +4,7 @@ import { AppError } from '../../middlewares/error.middleware';
 /**
  * Get receptionist dashboard stats
  */
-export const getReceptionistStats = async (receptionistId: string) => {
+export const getReceptionistStats = async (_receptionistId: string) => {
   const now = new Date();
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const endOfDay = new Date(now);
@@ -109,9 +109,9 @@ export const getQueueStatus = async (clinicId?: string) => {
  * Link receptionist to clinic
  */
 export const linkReceptionistToClinic = async (
-  receptionistId: string,
+  _receptionistId: string,
   clinicId: string,
-  verificationCode?: string
+  _verificationCode?: string
 ) => {
   // Verify clinic exists
   const clinic = await prisma.clinic.findUnique({

@@ -220,7 +220,7 @@ export const getDoctorAvailability = async (doctorId: string, date: Date) => {
 
   // Parse working hours
   const workingHours = doctor.workingHours as any;
-  const dayName = date.toLocaleDateString('en-US', { weekday: 'lowercase' });
+  const dayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
   const daySchedule = workingHours?.[dayName];
 
   if (!daySchedule || !daySchedule.isOpen) {
@@ -231,10 +231,10 @@ export const getDoctorAvailability = async (doctorId: string, date: Date) => {
   const slots: string[] = [];
   const [startHour, startMin] = daySchedule.start.split(':').map(Number);
   const [endHour, endMin] = daySchedule.end.split(':').map(Number);
-  
+
   const startTime = new Date(date);
   startTime.setHours(startHour, startMin, 0, 0);
-  
+
   const endTime = new Date(date);
   endTime.setHours(endHour, endMin, 0, 0);
 
@@ -243,7 +243,7 @@ export const getDoctorAvailability = async (doctorId: string, date: Date) => {
 
   while (currentTime < endTime) {
     const slotEnd = new Date(currentTime.getTime() + slotDuration * 60000);
-    
+
     // Check if slot conflicts with existing appointments
     const hasConflict = appointments.some((apt) => {
       const aptStart = new Date(apt.scheduledAt);
