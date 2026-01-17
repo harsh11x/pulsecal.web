@@ -14,6 +14,7 @@ import { toast } from "sonner"
 import { apiService } from "@/services/api"
 import { MapPin, Clock, DollarSign, Upload, CheckCircle, Building2, FileText, User, Search } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
+import { indianStates, citiesByState } from "@/lib/indianLocations"
 
 export default function DoctorOnboarding() {
   const router = useRouter()
@@ -862,24 +863,41 @@ export default function DoctorOnboarding() {
 
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-2">
-                  <Label htmlFor="clinicCity">City *</Label>
-                  <Input
-                    id="clinicCity"
-                    placeholder="Bangalore"
-                    value={formData.clinicCity}
-                    onChange={(e) => setFormData({ ...formData, clinicCity: e.target.value })}
-                    required
-                  />
+                  <Label htmlFor="clinicState">State *</Label>
+                  <Select
+                    value={formData.clinicState}
+                    onValueChange={(value) => setFormData({ ...formData, clinicState: value, clinicCity: "" })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select State" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[300px]">
+                      {indianStates.map((state) => (
+                        <SelectItem key={state} value={state}>
+                          {state}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="clinicState">State/Province *</Label>
-                  <Input
-                    id="clinicState"
-                    placeholder="Karnataka"
-                    value={formData.clinicState}
-                    onChange={(e) => setFormData({ ...formData, clinicState: e.target.value })}
-                    required
-                  />
+                  <Label htmlFor="clinicCity">City *</Label>
+                  <Select
+                    value={formData.clinicCity}
+                    onValueChange={(value) => setFormData({ ...formData, clinicCity: value })}
+                    disabled={!formData.clinicState}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={formData.clinicState ? "Select City" : "Select State First"} />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[300px]">
+                      {(citiesByState[formData.clinicState] || []).map((city) => (
+                        <SelectItem key={city} value={city}>
+                          {city}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="clinicZipCode">Pincode *</Label>
