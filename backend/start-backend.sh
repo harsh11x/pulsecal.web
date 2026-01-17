@@ -19,7 +19,7 @@ if [ ! -f "package.json" ]; then
 fi
 
 echo -e "${YELLOW}📦 Step 1: Installing dependencies...${NC}"
-npm install --production
+npm install
 
 echo -e "${YELLOW}🔧 Step 2: Generating Prisma client...${NC}"
 npx prisma generate
