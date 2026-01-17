@@ -53,6 +53,7 @@ const navItems: NavItem[] = [
     title: "Health Services",
     href: "/services/insurance",
     icon: Heart,
+    permission: "VIEW_INSURANCE",
   },
   {
     title: "Payments",
@@ -103,7 +104,7 @@ export function Sidebar({ className }: SidebarProps) {
         <nav className="space-y-1">
           {filteredNavItems.map((item) => {
             const Icon = item.icon
-            const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
+            const isActive = pathname ? (pathname === item.href || pathname.startsWith(item.href + "/")) : false
 
             return (
               <Link

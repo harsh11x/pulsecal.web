@@ -10,12 +10,27 @@ import { Calendar, Clock, MapPin, Plus, User, Phone, Loader2 } from "lucide-reac
 import { apiService } from "@/services/api"
 import { toast } from "sonner"
 import { format } from "date-fns"
+import { useAppSelector } from "@/app/hooks"
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 export default function AppointmentsListPage() {
   const router = useRouter()
+  const { user } = useAppSelector((state) => state.auth)
+  const isDoctor = user?.role === "doctor"
   const [appointments, setAppointments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("upcoming")
+  const [cancelId, setCancelId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchAppointments()
@@ -33,13 +48,29 @@ export default function AppointmentsListPage() {
     }
   }
 
+  const handleCancel = async () => {
+    if (!cancelId) return
+    try {
+      await apiService.post(`/api/v1/appointments/${cancelId}/cancel`, { reason: "Patient requested cancellation" })
+      toast.success("Appointment cancelled successfully")
+      fetchAppointments()
+    } catch (error: any) {
+      console.error("Failed to cancel appointment:", error)
+      toast.error(error.message || "Failed to cancel appointment")
+    } finally {
+      setCancelId(null)
+    }
+  }
+
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { variant: any; label: string }> = {
       SCHEDULED: { variant: "default", label: "Scheduled" },
       CONFIRMED: { variant: "default", label: "Confirmed" },
       COMPLETED: { variant: "secondary", label: "Completed" },
       CANCELLED: { variant: "destructive", label: "Cancelled" },
-      NO_SHOW: { variant: "outline", label: "No Show" }
+      NO_SHOW: { variant: "outline", label: "No Show" },
+      CHECKED_IN: { variant: "default", label: "Checked In" },
+      IN_PROGRESS: { variant: "default", label: "In Progress" }
     }
 
     const config = statusConfig[status] || { variant: "outline", label: status }
@@ -49,13 +80,13 @@ export default function AppointmentsListPage() {
   const filterAppointments = (status: string) => {
     if (status === "upcoming") {
       return appointments.filter(apt =>
-        ["SCHEDULED", "CONFIRMED"].includes(apt.status) &&
-        new Date(apt.appointmentDate) >= new Date()
+        ["SCHEDULED", "CONFIRMED", "CHECKED_IN", "IN_PROGRESS"].includes(apt.status) &&
+        (apt.status === "IN_PROGRESS" || new Date(apt.appointmentDate || apt.scheduledAt) >= new Date())
       )
     } else if (status === "past") {
       return appointments.filter(apt =>
-        apt.status === "COMPLETED" ||
-        new Date(apt.appointmentDate) < new Date()
+        apt.status === "COMPLETED" || apt.status === "NO_SHOW" ||
+        (new Date(apt.appointmentDate || apt.scheduledAt) < new Date() && apt.status !== "CANCELLED" && apt.status !== "IN_PROGRESS")
       )
     } else if (status === "cancelled") {
       return appointments.filter(apt => apt.status === "CANCELLED")
@@ -77,13 +108,17 @@ export default function AppointmentsListPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">My Appointments</h1>
-          <p className="text-muted-foreground">View and manage your appointments</p>
+          <h1 className="text-3xl font-bold">
+            {isDoctor ? "Patient Appointments" : "My Appointments"}
+          </h1>
+          <p className="text-muted-foreground">View and manage all appointments</p>
         </div>
-        <Button onClick={() => router.push("/appointments/create")} size="lg">
-          <Plus className="mr-2 h-5 w-5" />
-          Book New Appointment
-        </Button>
+        {!isDoctor && (
+          <Button onClick={() => router.push("/appointments/create")} size="lg">
+            <Plus className="mr-2 h-5 w-5" />
+            Book New Appointment
+          </Button>
+        )}
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
@@ -107,11 +142,11 @@ export default function AppointmentsListPage() {
                 <h3 className="text-lg font-semibold">No {activeTab} appointments</h3>
                 <p className="text-muted-foreground mb-4 max-w-sm">
                   {activeTab === "upcoming"
-                    ? "You don't have any upcoming appointments. Book one to get started!"
+                    ? (isDoctor ? "No upcoming appointments." : "You don't have any upcoming appointments.")
                     : `You don't have any ${activeTab} appointments.`
                   }
                 </p>
-                {activeTab === "upcoming" && (
+                {!isDoctor && activeTab === "upcoming" && (
                   <Button onClick={() => router.push("/appointments/create")}>
                     <Plus className="mr-2 h-4 w-4" />
                     Book Appointment
@@ -131,11 +166,23 @@ export default function AppointmentsListPage() {
                     <div className="flex items-start justify-between">
                       <div className="space-y-1">
                         <CardTitle className="text-xl">
-                          Dr. {appointment.doctor?.firstName} {appointment.doctor?.lastName}
+                          {isDoctor
+                            ? (appointment.patient?.firstName ? `${appointment.patient.firstName} ${appointment.patient.lastName}` : (appointment.patientName || `Patient #${appointment.patientId}`))
+                            : `Dr. ${appointment.doctor?.firstName} ${appointment.doctor?.lastName}`
+                          }
                         </CardTitle>
                         <CardDescription className="flex items-center gap-2">
-                          <User className="h-3 w-3" />
-                          {appointment.doctor?.specialization || "General Physician"}
+                          {isDoctor ? (
+                            <>
+                              <Phone className="h-3 w-3" />
+                              {appointment.patient?.phone || appointment.patientPhone || "No phone"}
+                            </>
+                          ) : (
+                            <>
+                              <User className="h-3 w-3" />
+                              {appointment.doctor?.specialization || "General Physician"}
+                            </>
+                          )}
                         </CardDescription>
                       </div>
                       {getStatusBadge(appointment.status)}
@@ -145,11 +192,11 @@ export default function AppointmentsListPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div className="flex items-center gap-2 text-sm">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <span>{format(new Date(appointment.appointmentDate), "EEEE, MMMM d, yyyy")}</span>
+                        <span>{format(new Date(appointment.scheduledAt || appointment.appointmentDate), "EEEE, MMMM d, yyyy")}</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm">
                         <Clock className="h-4 w-4 text-muted-foreground" />
-                        <span>{appointment.timeSlot || "Not specified"}</span>
+                        <span>{appointment.time || (appointment.scheduledAt ? format(new Date(appointment.scheduledAt), "h:mm a") : "Not specified")}</span>
                       </div>
                       {appointment.clinic && (
                         <div className="flex items-center gap-2 text-sm md:col-span-2">
@@ -164,7 +211,7 @@ export default function AppointmentsListPage() {
                       )}
                     </div>
 
-                    {appointment.status === "SCHEDULED" && (
+                    {appointment.status === "SCHEDULED" && !isDoctor && (
                       <div className="flex gap-2 pt-2">
                         <Button
                           variant="outline"
@@ -179,9 +226,10 @@ export default function AppointmentsListPage() {
                         <Button
                           variant="outline"
                           size="sm"
+                          className="text-destructive hover:text-destructive"
                           onClick={(e) => {
                             e.stopPropagation()
-                            // Handle cancel
+                            setCancelId(appointment.id)
                           }}
                         >
                           Cancel
@@ -195,6 +243,23 @@ export default function AppointmentsListPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      <AlertDialog open={!!cancelId} onOpenChange={(open) => !open && setCancelId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Appointment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to cancel this appointment? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Appointment</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCancel} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Yes, Cancel It
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

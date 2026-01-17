@@ -18,6 +18,7 @@ import adminRoutes from './modules/admin/admin.routes';
 import doctorsRoutes from './modules/doctors/doctors.routes';
 import doctorProfilesRoutes from './modules/doctor-profiles/doctor-profiles.routes';
 import receptionistsRoutes from './modules/receptionists/receptionists.routes';
+import reviewsRoutes from './modules/reviews/reviews.routes';
 import { config } from './config/env';
 
 const router = Router();
@@ -44,6 +45,6 @@ router.use(`${apiPrefix}/admin`, adminRoutes);
 router.use(`${apiPrefix}/doctors`, doctorsRoutes);
 router.use(`${apiPrefix}/doctor-profiles`, doctorProfilesRoutes);
 router.use(`${apiPrefix}/receptionists`, receptionistsRoutes);
+router.use(`${apiPrefix}/reviews`, reviewsRoutes);
 
 export default router;
-

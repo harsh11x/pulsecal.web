@@ -147,6 +147,8 @@ model User {
   notifications     Notification[]
   clinicId          String?
   clinic            Clinic?   @relation(fields: [clinicId], references: [id])
+  reviewsGiven      Review[]  @relation("PatientReviews")
+  reviewsReceived   Review[]  @relation("DoctorReviews")
 
   @@index([email])
   @@index([firebaseUid])
@@ -154,6 +156,27 @@ model User {
   @@index([isActive])
   @@index([phone])
   @@map("users")
+}
+
+model Review {
+  id                String   @id @default(uuid())
+  patientId         String
+  doctorId          String
+  appointmentId     String?  @unique
+  rating            Int      @default(5)
+  comment           String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  deletedAt         DateTime?
+
+  patient           User     @relation("PatientReviews", fields: [patientId], references: [id])
+  doctor            User     @relation("DoctorReviews", fields: [doctorId], references: [id])
+  appointment       Appointment? @relation(fields: [appointmentId], references: [id])
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([rating])
+  @@map("reviews")
 }
 
 model PatientProfile {
@@ -227,6 +250,7 @@ model Appointment {
   prescription      Prescription?     @relation("AppointmentPrescription")
   medicalRecords    MedicalRecord[]
   telemedicineSession TelemedicineSession?
+  review            Review?
 
   @@index([patientId])
   @@index([doctorId])

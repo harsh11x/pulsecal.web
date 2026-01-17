@@ -130,6 +130,9 @@ export const getDoctorAnalytics = async (doctorId: string, period: 'day' | 'week
     ? (cancelledAppointments / totalAppointments) * 100
     : 0;
 
+  // Get reviews
+  const { totalReviews, averageRating, recentReviews } = await getDoctorReviews(doctorId);
+
   return {
     period,
     summary: {
@@ -152,8 +155,38 @@ export const getDoctorAnalytics = async (doctorId: string, period: 'day' | 'week
       appointments: appointmentTrends,
       patientGrowth,
     },
+    reviews: {
+      total: totalReviews,
+      averageRating: Number(averageRating.toFixed(1)),
+      recent: recentReviews
+    }
   };
 };
+
+// ... (previous helper functions) ...
+
+const getDoctorReviews = async (doctorId: string) => {
+  const reviews = await prisma.review.findMany({
+    where: { doctorId, deletedAt: null },
+    orderBy: { createdAt: 'desc' },
+    take: 5,
+    include: {
+      patient: { select: { firstName: true, lastName: true } }
+    }
+  });
+
+  const aggregate = await prisma.review.aggregate({
+    where: { doctorId, deletedAt: null },
+    _avg: { rating: true },
+    _count: { rating: true }
+  });
+
+  return {
+    recentReviews: reviews,
+    averageRating: aggregate._avg.rating || 0,
+    totalReviews: aggregate._count.rating || 0
+  }
+}
 
 /**
  * Get revenue trends for a period

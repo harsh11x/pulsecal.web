@@ -22,6 +22,7 @@ export const PERMISSIONS = {
   MANAGE_USERS: [ROLES.ADMIN],
   VIEW_AUDIT_LOGS: [ROLES.ADMIN],
   VIEW_ANALYTICS: [ROLES.DOCTOR, ROLES.ADMIN],
+  VIEW_INSURANCE: [ROLES.PATIENT],
 
   // Queue permissions
   MANAGE_QUEUE: [ROLES.RECEPTIONIST, ROLES.ADMIN],
@@ -29,7 +30,7 @@ export const PERMISSIONS = {
 } as const
 
 export const hasPermission = (userRole: UserRole, permission: keyof typeof PERMISSIONS): boolean => {
-  return PERMISSIONS[permission].includes(userRole)
+  return (PERMISSIONS[permission] as readonly UserRole[]).includes(userRole)
 }
 
 export const canAccessRoute = (userRole: UserRole, route: string): boolean => {

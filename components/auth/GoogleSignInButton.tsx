@@ -69,9 +69,22 @@ export function GoogleSignInButton({
         console.log("✅ Profile synced successfully:", user)
       } catch (syncError: any) {
         console.warn("⚠️ Profile sync failed (non-blocking):", syncError.message || syncError)
+
+        // Attempt to get role from token claims as a better fallback
+        let fallbackRole = storedRole || role || "PATIENT";
+        try {
+          const idTokenResult = await userCredential.user.getIdTokenResult(true);
+          if (idTokenResult.claims.role) {
+            fallbackRole = (idTokenResult.claims.role as string).toUpperCase() as "PATIENT" | "DOCTOR" | "RECEPTIONIST";
+            console.log("Using role from token claims for fallback:", fallbackRole);
+          }
+        } catch (tokenError) {
+          console.error("Failed to get token claims:", tokenError);
+        }
+
         // Still proceed with auth even if backend sync fails
         // Pass role info to onSuccess so routing still works
-        user = { role: storedRole || role || "PATIENT" }
+        user = { role: fallbackRole }
       }
 
       // Clean up stored role
