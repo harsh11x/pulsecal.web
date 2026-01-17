@@ -13,7 +13,20 @@ export const createClinic = async (data: {
   email?: string;
   latitude?: number;
   longitude?: number;
+  subscriptionPlan?: string;
+  subscriptionStatus?: string;
+  maxDoctors?: number;
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
 }) => {
+  // Determine maxDoctors based on plan
+  const planLimits: Record<string, number> = {
+    STARTER: 1,
+    BASIC: 5,
+    PROFESSIONAL: 10,
+    ENTERPRISE: 9999,
+  };
+
   const clinic = await prisma.clinic.create({
     data: {
       name: data.name,
@@ -21,11 +34,16 @@ export const createClinic = async (data: {
       city: data.city,
       state: data.state,
       zipCode: data.zipCode,
-      country: data.country || 'USA',
+      country: data.country || 'India',
       phone: data.phone,
       email: data.email,
       latitude: data.latitude,
       longitude: data.longitude,
+      subscriptionPlan: data.subscriptionPlan || 'STARTER',
+      subscriptionStatus: data.subscriptionStatus || 'ACTIVE',
+      maxDoctors: data.maxDoctors || planLimits[data.subscriptionPlan || 'STARTER'] || 1,
+      razorpayOrderId: data.razorpayOrderId,
+      razorpayPaymentId: data.razorpayPaymentId,
     },
   });
 

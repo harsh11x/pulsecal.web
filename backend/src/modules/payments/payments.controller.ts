@@ -1,4 +1,5 @@
 import { Response, NextFunction } from 'express';
+import prisma from '../../config/database';
 import {
   createPayment,
   getPayments,
@@ -243,7 +244,7 @@ export const verifyRazorpayPaymentController = async (
       throw new AppError('Invalid payment signature', 400);
     }
 
-    // Payment verified successfully - create clinic
+    // Payment verified successfully - create clinic with subscription details
     const { createClinic } = await import('../clinics/clinics.service');
 
     const clinic = await createClinic({
@@ -257,12 +258,39 @@ export const verifyRazorpayPaymentController = async (
       email: clinicDetails.email,
       latitude: clinicDetails.latitude,
       longitude: clinicDetails.longitude,
+      subscriptionPlan: clinicDetails.subscriptionPlan,
+      subscriptionStatus: 'ACTIVE',
+      razorpayOrderId: razorpay_order_id,
+      razorpayPaymentId: razorpay_payment_id,
     });
 
-    // TODO: Update clinic with subscription details after adding fields to schema
-    // subscriptionPlan: clinicDetails.subscriptionPlan,
-    // subscriptionStatus: 'ACTIVE',
-    // ownerId: req.user.id,
+    // Link user to clinic
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: {
+        clinicId: clinic.id,
+        onboardingCompleted: true,
+      },
+    });
+
+    // Update or create doctor profile with subscription status
+    const existingDoctorProfile = await prisma.doctorProfile.findUnique({
+      where: { userId: req.user.id },
+    });
+
+    if (existingDoctorProfile) {
+      await prisma.doctorProfile.update({
+        where: { userId: req.user.id },
+        data: {
+          subscriptionPlan: clinicDetails.subscriptionPlan,
+          subscriptionStatus: 'ACTIVE',
+          subscriptionExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+          razorpaySubscriptionId: razorpay_payment_id,
+          clinicName: clinicDetails.name,
+          clinicAddress: `${clinicDetails.address}, ${clinicDetails.city}, ${clinicDetails.state} ${clinicDetails.zipCode}`,
+        },
+      });
+    }
 
     // Calculate the actual amount paid based on the plan
     const planAmounts: Record<string, number> = {
@@ -284,7 +312,7 @@ export const verifyRazorpayPaymentController = async (
       razorpayPaymentId: razorpay_payment_id,
       razorpaySignature: razorpay_signature,
       status: 'COMPLETED',
-      description: `Subscription payment for ${clinicDetails.subscriptionPlan} plan`,
+      description: `Subscription payment for ${clinicDetails.subscriptionPlan} plan - Clinic: ${clinicDetails.name}`,
     });
 
     sendSuccess(
@@ -293,6 +321,8 @@ export const verifyRazorpayPaymentController = async (
         clinic,
         paymentId: razorpay_payment_id,
         orderId: razorpay_order_id,
+        subscriptionStatus: 'ACTIVE',
+        message: 'Clinic registered successfully! You can now access your dashboard.',
       },
       'Payment verified and clinic created successfully',
       201

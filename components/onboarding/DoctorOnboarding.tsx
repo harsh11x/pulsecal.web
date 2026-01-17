@@ -211,6 +211,41 @@ export default function DoctorOnboarding() {
         return
       }
 
+      // Validate clinic details before payment
+      const clinicEmail = formData.clinicEmail || user?.email || ''
+      const clinicPhone = formData.clinicPhone || formData.phone || ''
+
+      if (!formData.clinicName) {
+        toast.error('Clinic name is required. Please go back and fill clinic details.')
+        setLoading(false)
+        setStep(3)
+        return
+      }
+      if (!formData.clinicAddress) {
+        toast.error('Clinic address is required. Please go back and fill clinic details.')
+        setLoading(false)
+        setStep(3)
+        return
+      }
+      if (!formData.clinicCity) {
+        toast.error('Clinic city is required. Please go back and fill clinic details.')
+        setLoading(false)
+        setStep(3)
+        return
+      }
+      if (!formData.clinicState) {
+        toast.error('Clinic state is required. Please go back and fill clinic details.')
+        setLoading(false)
+        setStep(3)
+        return
+      }
+      if (!formData.clinicZipCode) {
+        toast.error('Clinic zip code is required. Please go back and fill clinic details.')
+        setLoading(false)
+        setStep(3)
+        return
+      }
+
       // Check if Razorpay is loaded
       if (!(window as any).Razorpay) {
         toast.error("Payment gateway failed to load. Please refresh.");
@@ -246,9 +281,9 @@ export default function DoctorOnboarding() {
               city: formData.clinicCity,
               state: formData.clinicState,
               zipCode: formData.clinicZipCode,
-              country: formData.clinicCountry,
-              phone: formData.clinicPhone,
-              email: formData.clinicEmail,
+              country: formData.clinicCountry || 'India',
+              phone: clinicPhone,
+              email: clinicEmail,
               latitude: formData.clinicLatitude ? parseFloat(formData.clinicLatitude) : null,
               longitude: formData.clinicLongitude ? parseFloat(formData.clinicLongitude) : null,
               subscriptionPlan: formData.subscriptionPlan
@@ -263,14 +298,18 @@ export default function DoctorOnboarding() {
             });
 
             toast.dismiss();
-            toast.success("Payment successful! Clinic created.");
+            toast.success("Payment successful! Clinic registered. Redirecting to dashboard...");
 
             if (verifyResponse.data?.clinic?.id) {
               setFormData(prev => ({ ...prev, clinicId: verifyResponse.data.clinic.id }));
             }
 
             setLoading(false);
-            setStep(7); // Move to final step
+
+            // Redirect to doctor dashboard after 1.5 seconds
+            setTimeout(() => {
+              window.location.href = '/dashboard';
+            }, 1500);
 
           } catch (verifyError: any) {
             console.error("Payment verification failed", verifyError);
