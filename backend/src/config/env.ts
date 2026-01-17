@@ -104,7 +104,7 @@ export const config: EnvConfig = {
     s3Bucket: getEnvVar('AWS_S3_BUCKET', false),
   },
   cors: {
-    origin: getEnvVar('CORS_ORIGIN', false, 'http://localhost:3000'),
+    origin: getEnvVar('CORS_ORIGIN', false, 'http://localhost:3000,https://pulsecal.com,https://www.pulsecal.com'),
   },
   rateLimit: {
     windowMs: parseInt(getEnvVar('RATE_LIMIT_WINDOW_MS', false, '900000'), 10),
