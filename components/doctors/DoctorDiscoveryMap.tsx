@@ -54,18 +54,27 @@ export function DoctorDiscoveryMap() {
 
   const specializations = [
     "All Specializations",
-    "General Practice",
-    "Cardiology",
-    "Dermatology",
-    "Endocrinology",
-    "Gastroenterology",
-    "Neurology",
-    "Oncology",
-    "Orthopedics",
-    "Pediatrics",
-    "Psychiatry",
-    "Pulmonology",
-    "Urology",
+    "General Physician",
+    "Cardiologist",
+    "Dermatologist",
+    "Dentist",
+    "ENT Specialist",
+    "Gastroenterologist",
+    "General Surgeon",
+    "Gynecologist",
+    "Neurologist",
+    "Oncologist",
+    "Ophthalmologist",
+    "Orthopedic",
+    "Pediatrician",
+    "Psychiatrist",
+    "Pulmonologist",
+    "Urologist",
+    "Nephrologist",
+    "Endocrinologist",
+    "Ayurveda",
+    "Homeopathy",
+    "Physiotherapist",
   ]
 
   useEffect(() => {
@@ -254,7 +263,7 @@ export function DoctorDiscoveryMap() {
               <h3 class="font-bold text-lg">${doctor.firstName} ${doctor.lastName}</h3>
               <p class="text-sm text-gray-600">${doctor.specialization}</p>
               <p class="text-sm font-medium">${doctor.clinicName}</p>
-              <p class="text-sm">$${doctor.consultationFee}</p>
+              <p class="text-sm">₹${doctor.consultationFee}</p>
               ${doctor.distance ? `<p class="text-xs text-gray-500 mt-1">${doctor.distance.toFixed(1)} km away</p>` : ""}
               <button onclick="window.selectDoctor('${doctor.id}')" class="mt-2 px-3 py-1 bg-blue-600 text-white rounded text-sm">
                 View Details
@@ -395,7 +404,7 @@ export function DoctorDiscoveryMap() {
               </div>
 
               <div className="space-y-2">
-                <Label>Price Range: ${priceRange[0]} - ${priceRange[1]}</Label>
+                <Label>Price Range: ₹{priceRange[0]} - ₹{priceRange[1]}</Label>
                 <div className="flex gap-2">
                   <Input
                     type="number"
@@ -498,8 +507,7 @@ export function DoctorDiscoveryMap() {
                           )}
                           <div className="flex items-center gap-2 mt-2 flex-wrap">
                             <Badge variant="outline" className="flex items-center gap-1 text-xs">
-                              <DollarSign className="h-3 w-3" />
-                              ${doctor.consultationFee}
+                              ₹{doctor.consultationFee}
                             </Badge>
                             {doctor.distance && (
                               <Badge variant="secondary" className="text-xs">
