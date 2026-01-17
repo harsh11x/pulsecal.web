@@ -317,10 +317,42 @@ export default function DoctorOnboarding() {
 
             setLoading(false);
 
-            // Redirect to doctor dashboard after 1.5 seconds
-            setTimeout(() => {
+            try {
+              // Force refresh user profile from backend to ensure role is updated to DOCTOR
+              console.log("Refreshing profile after payment...");
+              const profileResponse: any = await apiService.get("/api/v1/users/profile");
+              const userProfile = profileResponse?.data || profileResponse;
+
+              if (userProfile && userProfile.id) {
+                const userData = {
+                  id: userProfile.id,
+                  email: userProfile.email,
+                  firstName: userProfile.firstName,
+                  lastName: userProfile.lastName,
+                  phone: userProfile.phone,
+                  dateOfBirth: userProfile.dateOfBirth,
+                  role: (userProfile.role || "PATIENT").toLowerCase() as "patient" | "doctor" | "receptionist" | "admin",
+                  isActive: userProfile.isActive !== false,
+                  isEmailVerified: userProfile.isEmailVerified || false,
+                  profileImage: userProfile.profileImage,
+                  onboardingCompleted: userProfile.onboardingCompleted || false,
+                  clinicId: userProfile.clinicId,
+                };
+                dispatch(setUser(userData));
+                console.log("Profile refreshed after payment, role:", userData.role);
+
+                // Allow state to update before redirect
+                setTimeout(() => {
+                  window.location.href = '/dashboard';
+                }, 500);
+              } else {
+                console.warn("Failed to get valid profile after payment");
+                window.location.href = '/dashboard';
+              }
+            } catch (refreshError) {
+              console.error("Failed to refresh profile after payment:", refreshError);
               window.location.href = '/dashboard';
-            }, 1500);
+            }
 
           } catch (verifyError: any) {
             console.error("Payment verification failed", verifyError);
