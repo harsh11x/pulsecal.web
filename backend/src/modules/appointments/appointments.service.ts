@@ -351,6 +351,19 @@ export const checkInAppointment = async (appointmentId: string) => {
     },
   });
 
+  // Automatically add to queue upon check-in
+  if (updated.doctorId) {
+    try {
+      const { addToQueue } = await import('../queue/queue.service');
+      await addToQueue({
+        patientId: updated.patientId,
+        doctorId: updated.doctorId,
+      });
+    } catch (error) {
+      console.error('Failed to add to queue on check-in:', error);
+    }
+  }
+
   return updated;
 };
 

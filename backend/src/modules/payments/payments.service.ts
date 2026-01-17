@@ -6,6 +6,7 @@ import { PaymentStatus, PaymentMethod } from '@prisma/client';
 
 export const createPayment = async (data: {
   patientId: string;
+  doctorId?: string;
   appointmentId?: string;
   amount: number;
   currency?: string;
@@ -21,9 +22,23 @@ export const createPayment = async (data: {
   const encryptedCardData = data.cardData ? encrypt(data.cardData) : null;
   const status = data.status || 'PENDING';
 
+  let doctorId = data.doctorId;
+
+  // If appointmentId is provided but doctorId is not, fetch it from the appointment
+  if (data.appointmentId && !doctorId) {
+    const appointment = await prisma.appointment.findUnique({
+      where: { id: data.appointmentId },
+      select: { doctorId: true }
+    });
+    if (appointment) {
+      doctorId = appointment.doctorId;
+    }
+  }
+
   const payment = await prisma.payment.create({
     data: {
       patientId: data.patientId,
+      doctorId,
       appointmentId: data.appointmentId,
       amount: data.amount,
       currency: data.currency || 'INR',
@@ -58,6 +73,7 @@ export const getPayments = async (req: {
     sortBy?: string;
     sortOrder?: string;
     patientId?: string;
+    doctorId?: string;
     status?: string;
   };
   user?: { id: string; role: string };
@@ -65,18 +81,26 @@ export const getPayments = async (req: {
   const { page, limit, skip } = getPaginationParams(req as never);
   const { orderBy, order } = getSortParams(req as never);
 
-  const where: {
-    patientId?: string;
-    status?: PaymentStatus;
-    deletedAt?: null;
-  } = {
+  const where: any = {
     deletedAt: null,
   };
 
   if (req.user?.role === 'PATIENT') {
     where.patientId = req.user.id;
-  } else if (req.query.patientId) {
+  } else if (req.user?.role === 'DOCTOR') {
+    // Doctor should see payments where they are the recipient (doctorId) OR the payer (patientId - for subscriptions)
+    where.OR = [
+      { doctorId: req.user.id },
+      { patientId: req.user.id }
+    ];
+  }
+
+  if (req.query.patientId) {
     where.patientId = req.query.patientId;
+  }
+
+  if (req.query.doctorId) {
+    where.doctorId = req.query.doctorId;
   }
 
   if (req.query.status) {
