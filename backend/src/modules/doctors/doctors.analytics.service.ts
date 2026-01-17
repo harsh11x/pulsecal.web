@@ -3,37 +3,51 @@ import prisma from '../../config/database';
 /**
  * Get doctor analytics including revenue, appointments, and trends
  */
-export const getDoctorAnalytics = async (doctorId: string, period: 'day' | 'week' | 'month' | '3months' | 'year' = 'day') => {
+export const getDoctorAnalytics = async (
+  doctorId: string,
+  period: 'day' | 'week' | 'month' | '3months' | 'year' | 'custom' = 'day',
+  customStartDate?: Date,
+  customEndDate?: Date
+) => {
   const now = new Date();
   let startDate: Date;
+  let endDate: Date = now;
 
-  switch (period) {
-    case 'day':
-      startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      break;
-    case 'week':
-      startDate = new Date(now);
-      startDate.setDate(now.getDate() - 7);
-      break;
-    case 'month':
-      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-      break;
-    case '3months':
-      startDate = new Date(now);
-      startDate.setMonth(now.getMonth() - 3);
-      break;
-    case 'year':
-      startDate = new Date(now.getFullYear(), 0, 1);
-      break;
-    default:
-      startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (period === 'custom' && customStartDate && customEndDate) {
+    startDate = new Date(customStartDate);
+    endDate = new Date(customEndDate);
+  } else {
+    switch (period) {
+      case 'day':
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        break;
+      case 'week':
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - 7);
+        break;
+      case 'month':
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        break;
+      case '3months':
+        startDate = new Date(now);
+        startDate.setMonth(now.getMonth() - 3);
+        break;
+      case 'year':
+        startDate = new Date(now.getFullYear(), 0, 1);
+        break;
+      default:
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    }
   }
 
   // Get appointments
   const appointments = await prisma.appointment.findMany({
     where: {
       doctorId,
-      scheduledAt: { gte: startDate },
+      scheduledAt: {
+        gte: startDate,
+        lte: endDate
+      },
       deletedAt: null,
     },
     include: {

@@ -1,5 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { searchDoctors, getDoctorById, getDoctorAvailability } from './doctors.service';
+import { getDoctorAnalytics } from './doctors.analytics.service';
+import { getClinicStaff } from './doctors.staff.service';
 import { sendSuccess } from '../../utils/apiResponse';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { AppError } from '../../middlewares/error.middleware';
@@ -78,3 +80,43 @@ export const getDoctorAvailabilityController = async (
   }
 };
 
+export const getDoctorAnalyticsController = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const doctorId = req.user!.id;
+    const { period, startDate, endDate } = req.query;
+
+    const analytics = await getDoctorAnalytics(
+      doctorId,
+      (period as any) || 'day',
+      startDate ? new Date(startDate as string) : undefined,
+      endDate ? new Date(endDate as string) : undefined
+    );
+
+    sendSuccess(res, analytics, 'Analytics retrieved successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getClinicStaffController = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const clinicId = req.user!.clinicId;
+
+    if (!clinicId) {
+      throw new AppError('User is not associated with a clinic', 400);
+    }
+
+    const staff = await getClinicStaff(clinicId);
+    sendSuccess(res, staff, 'Clinic staff retrieved successfully');
+  } catch (err) {
+    next(err);
+  }
+};

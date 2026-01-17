@@ -3,8 +3,9 @@ import {
   searchDoctorsController,
   getDoctorByIdController,
   getDoctorAvailabilityController,
+  getDoctorAnalyticsController,
+  getClinicStaffController,
 } from './doctors.controller';
-import { getDoctorAnalyticsController } from './doctors.analytics.controller';
 import {
   createRazorpayOrderController,
   verifyRazorpayPaymentController,
@@ -21,6 +22,7 @@ router.post('/subscription/verify', authenticate, verifyRazorpayPaymentControlle
 // Doctor search and profile routes
 router.get('/search', authenticate, searchDoctorsController);
 router.get('/analytics', authenticate, requireDoctor, getDoctorAnalyticsController);
+router.get('/clinic/staff', authenticate, requireDoctor, getClinicStaffController);
 router.get('/:id', authenticate, getDoctorByIdController);
 router.get('/:id/availability', authenticate, getDoctorAvailabilityController);
 
