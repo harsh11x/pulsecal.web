@@ -1,0 +1,74 @@
+#!/bin/bash
+
+# PulseCal Backend Deployment Script for AWS
+# This script deploys the backend to your AWS EC2 instance
+
+set -e  # Exit on error
+
+echo "🚀 Starting PulseCal Backend Deployment to AWS..."
+
+# Configuration
+AWS_HOST="13.205.127.21"
+AWS_USER="ubuntu"  # Change if different
+BACKEND_DIR="/home/ubuntu/pulsecal/backend"  # Change to your actual path
+SSH_KEY="~/.ssh/your-key.pem"  # Update with your actual SSH key path
+
+echo "📦 Step 1: Committing latest changes..."
+git add .
+git commit -m "Deploy backend updates" || echo "No changes to commit"
+git push origin main
+
+echo "🔐 Step 2: Connecting to AWS server..."
+ssh -i "$SSH_KEY" "$AWS_USER@$AWS_HOST" << 'ENDSSH'
+    set -e
+    
+    echo "📂 Navigating to backend directory..."
+    cd /home/ubuntu/pulsecal/backend || exit 1
+    
+    echo "⬇️  Pulling latest code..."
+    git pull origin main
+    
+    echo "📦 Installing dependencies..."
+    npm install --production
+    
+    echo "🔧 Building TypeScript..."
+    npm run build
+    
+    echo "🔑 Checking environment variables..."
+    # Ensure all required env vars are set
+    if ! grep -q "ENCRYPTION_KEY" .env; then
+        echo "ENCRYPTION_KEY=$(openssl rand -hex 32)" >> .env
+    fi
+    if ! grep -q "JWT_SECRET" .env; then
+        echo "JWT_SECRET=$(openssl rand -hex 32)" >> .env
+    fi
+    if ! grep -q "JWT_REFRESH_SECRET" .env; then
+        echo "JWT_REFRESH_SECRET=$(openssl rand -hex 32)" >> .env
+    fi
+    if ! grep -q "FIREBASE_PROJECT_ID" .env; then
+        echo "FIREBASE_PROJECT_ID=pulsecal-web" >> .env
+    fi
+    
+    echo "🔄 Restarting backend server..."
+    # Using PM2 (recommended)
+    if command -v pm2 &> /dev/null; then
+        pm2 restart pulsecal-backend || pm2 start npm --name "pulsecal-backend" -- start
+        pm2 save
+    else
+        # Fallback: kill existing process and start new one
+        pkill -f "node server.js" || true
+        nohup npm start > backend.log 2>&1 &
+    fi
+    
+    echo "✅ Deployment complete!"
+    
+    # Show server status
+    if command -v pm2 &> /dev/null; then
+        pm2 status
+    else
+        ps aux | grep "node server.js" | grep -v grep
+    fi
+ENDSSH
+
+echo "🎉 Deployment to AWS completed successfully!"
+echo "🔍 Check server logs with: ssh -i $SSH_KEY $AWS_USER@$AWS_HOST 'pm2 logs pulsecal-backend'"
