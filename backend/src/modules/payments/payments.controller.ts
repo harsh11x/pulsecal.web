@@ -157,7 +157,7 @@ const verifyRazorpayPaymentSchema = Joi.object({
     latitude: Joi.number().allow(null).optional(),
     longitude: Joi.number().allow(null).optional(),
     subscriptionPlan: Joi.string().valid('STARTER', 'BASIC', 'PROFESSIONAL', 'ENTERPRISE').required(),
-  }).required(),
+  }).optional(), // Made optional to handle cases where clinic already exists
 });
 
 export const createRazorpayOrderController = async (
@@ -247,6 +247,10 @@ export const verifyRazorpayPaymentController = async (
     }
 
     // Payment verified successfully - create clinic with subscription details
+    if (!clinicDetails) {
+      throw new AppError('Clinic details are required for payment verification', 400);
+    }
+
     const { createClinic } = await import('../clinics/clinics.service');
 
     const clinic = await createClinic({
