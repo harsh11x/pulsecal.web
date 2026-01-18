@@ -24,6 +24,13 @@ export const authenticate = async (
   try {
     const authHeader = req.headers.authorization;
 
+    // DEBUG LOG
+    if (authHeader) {
+      logger.info(`Auth Middleware: Received header: ${authHeader.substring(0, 20)}...`);
+    } else {
+      logger.warn(`Auth Middleware: No Authorization header received. Headers: ${JSON.stringify(req.headers)}`);
+    }
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return sendError(res, 'No token provided', 401);
     }
@@ -163,8 +170,8 @@ export const authenticate = async (
       return sendError(res, 'Invalid authentication token', 401);
     }
 
-    logger.error(error, 'Firebase authentication error:');
-    return sendError(res, 'Invalid or expired token', 401);
+    logger.error(error, 'Authentication Middleware Error:'); // Changed log message
+    return sendError(res, 'Internal Server Error during authentication', 500);
   }
 };
 
