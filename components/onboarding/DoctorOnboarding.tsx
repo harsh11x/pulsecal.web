@@ -259,9 +259,19 @@ export default function DoctorOnboarding() {
 
       // Check if Razorpay is loaded
       if (!(window as any).Razorpay) {
-        toast.error("Payment gateway failed to load. Please refresh.");
+        toast.error("Payment gateway failed to load. Please refresh the page.");
         setLoading(false);
         return;
+      }
+
+      // CRITICAL FIX: Force refresh token before payment initiation to prevent 401s
+      try {
+        const { getIdToken } = await import("@/lib/firebaseAuth");
+        console.log("Forcing token refresh before payment...");
+        await getIdToken(true);
+      } catch (tokenError) {
+        console.error("Failed to refresh token before payment:", tokenError);
+        // Continue anyway - apiService interceptor might handle it, or it might still work
       }
 
       // 1. Create Order
@@ -304,8 +314,8 @@ export default function DoctorOnboarding() {
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
-              clinicDetails: clinicData, // Note: Backend doesn't seem to use this in verify, but good to keep if needed later or for consistency
-              plan: formData.subscriptionPlan // Backend verify route expects 'plan' in body
+              clinicDetails: clinicData, // Note: Backend logic now handles renewals if clinicId exists
+              plan: formData.subscriptionPlan
             });
 
             toast.dismiss();
@@ -341,7 +351,7 @@ export default function DoctorOnboarding() {
                   lastName: userProfile.lastName,
                   phone: userProfile.phone,
                   dateOfBirth: userProfile.dateOfBirth,
-                  role: (userProfile.role || "DOCTOR").toLowerCase() as "patient" | "doctor" | "receptionist" | "admin", // Fallback to DOCTOR here since we just paid
+                  role: (userProfile.role || "DOCTOR").toLowerCase() as "patient" | "doctor" | "receptionist" | "admin",
                   isActive: userProfile.isActive !== false,
                   isEmailVerified: userProfile.isEmailVerified || false,
                   profileImage: userProfile.profileImage,
@@ -349,20 +359,13 @@ export default function DoctorOnboarding() {
                   clinicId: userProfile.clinicId,
                 };
                 dispatch(setUser(userData));
-                console.log("Profile refreshed after payment, role:", userData.role);
-
-                // Double check role
-                if (userData.role !== 'doctor') {
-                  console.warn("Backend still reports non-doctor role despite payment. Forcing doctor role locally.");
-                  dispatch(setUser({ ...userData, role: 'doctor' }));
-                }
 
                 // Allow state to update before redirect
                 setTimeout(() => {
                   router.push('/dashboard');
                 }, 500);
               } else {
-                console.warn("Failed to get valid profile after payment");
+                // Fallback redirect
                 router.push('/dashboard');
               }
             } catch (refreshError) {
@@ -404,7 +407,11 @@ export default function DoctorOnboarding() {
     } catch (error: any) {
       console.error("Payment initialization error", error)
       toast.dismiss()
-      toast.error(error?.response?.data?.message || error?.message || "Failed to initialize payment")
+      if (error?.response?.status === 401) {
+        toast.error("Session expired. Please refresh the page and try again.");
+      } else {
+        toast.error(error?.response?.data?.message || error?.message || "Failed to initialize payment");
+      }
       setLoading(false)
     }
   }

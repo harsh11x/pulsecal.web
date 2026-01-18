@@ -246,50 +246,73 @@ export const verifyRazorpayPaymentController = async (
       throw new AppError('Invalid payment signature', 400);
     }
 
-    // Payment verified successfully - create clinic with subscription details
-    if (!clinicDetails) {
-      throw new AppError('Clinic details are required for payment verification', 400);
-    }
+    // Determine if this is a new clinic registration or a renewal
+    const isNewRegistration = !req.user.clinicId;
+    let clinic;
 
-    const { createClinic } = await import('../clinics/clinics.service');
-
-    const clinic = await createClinic({
-      name: clinicDetails.name,
-      address: clinicDetails.address,
-      city: clinicDetails.city,
-      state: clinicDetails.state,
-      zipCode: clinicDetails.zipCode,
-      country: clinicDetails.country,
-      phone: clinicDetails.phone,
-      email: clinicDetails.email,
-      latitude: clinicDetails.latitude,
-      longitude: clinicDetails.longitude,
-      subscriptionPlan: clinicDetails.subscriptionPlan,
-      subscriptionStatus: 'ACTIVE',
-      razorpayOrderId: razorpay_order_id,
-      razorpayPaymentId: razorpay_payment_id,
-    });
-
-    // Link user to clinic
-    await prisma.user.update({
-      where: { id: req.user.id },
-      data: {
-        clinicId: clinic.id,
-        onboardingCompleted: true,
-        role: 'DOCTOR',
-      },
-    });
-
-    // Sync role to Firebase Custom Claims
-    try {
-      if (req.user.firebaseUid) {
-        await admin.auth().setCustomUserClaims(req.user.firebaseUid, { role: 'DOCTOR' });
-        console.log(`Synced DOCTOR role to Firebase for user ${req.user.id}`);
+    if (isNewRegistration) {
+      if (!clinicDetails) {
+        throw new AppError('Clinic details are required for new clinic registration', 400);
       }
-    } catch (firebaseError) {
-      console.error('Failed to sync Firestore role:', firebaseError);
-      // Don't fail the written payment, just log error
+
+      const { createClinic } = await import('../clinics/clinics.service');
+
+      // Create new clinic
+      clinic = await createClinic({
+        name: clinicDetails.name,
+        address: clinicDetails.address,
+        city: clinicDetails.city,
+        state: clinicDetails.state,
+        zipCode: clinicDetails.zipCode,
+        country: clinicDetails.country,
+        phone: clinicDetails.phone,
+        email: clinicDetails.email,
+        latitude: clinicDetails.latitude,
+        longitude: clinicDetails.longitude,
+        subscriptionPlan: clinicDetails.subscriptionPlan,
+        subscriptionStatus: 'ACTIVE',
+        razorpayOrderId: razorpay_order_id,
+        razorpayPaymentId: razorpay_payment_id,
+      });
+
+      // Link user to clinic
+      await prisma.user.update({
+        where: { id: req.user.id },
+        data: {
+          clinicId: clinic.id,
+          onboardingCompleted: true,
+          role: 'DOCTOR',
+        },
+      });
+
+      // Sync role to Firebase Custom Claims
+      try {
+        if (req.user.firebaseUid) {
+          await admin.auth().setCustomUserClaims(req.user.firebaseUid, { role: 'DOCTOR' });
+          console.log(`Synced DOCTOR role to Firebase for user ${req.user.id}`);
+        }
+      } catch (firebaseError) {
+        console.error('Failed to sync Firestore role:', firebaseError);
+      }
+
+    } else {
+      // Existing clinic renewal - check if user already has a clinic
+      // Note: In real scenarios we might want to allow updating the plan here
+      // For now, we just acknowledge the payment for the existing clinic
+      clinic = await prisma.clinic.findUnique({ where: { id: req.user.clinicId! } });
+      if (!clinic) {
+        // Edge case: User has clinicId but clinic not found
+        if (!clinicDetails) {
+          throw new AppError('Clinic details required as associated clinic not found', 400);
+        }
+        // Logic to recreate would go here, but for now treating as error or fallback to create
+        const { createClinic } = await import('../clinics/clinics.service');
+        clinic = await createClinic({ ...clinicDetails, subscriptionStatus: 'ACTIVE', razorpayOrderId: razorpay_order_id, razorpayPaymentId: razorpay_payment_id });
+        await prisma.user.update({ where: { id: req.user.id }, data: { clinicId: clinic.id, role: 'DOCTOR' } });
+      }
     }
+
+    const subscriptionPlan = clinicDetails?.subscriptionPlan || value.plan || 'STARTER';
 
     // Update or create doctor profile with subscription status
     const existingDoctorProfile = await prisma.doctorProfile.findUnique({
@@ -300,12 +323,15 @@ export const verifyRazorpayPaymentController = async (
       await prisma.doctorProfile.update({
         where: { userId: req.user.id },
         data: {
-          subscriptionPlan: clinicDetails.subscriptionPlan,
+          subscriptionPlan: subscriptionPlan,
           subscriptionStatus: 'ACTIVE',
           subscriptionExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
           razorpaySubscriptionId: razorpay_payment_id,
-          clinicName: clinicDetails.name,
-          clinicAddress: `${clinicDetails.address}, ${clinicDetails.city}, ${clinicDetails.state} ${clinicDetails.zipCode}`,
+          // Only update clinic info if provided (i.e. if it was a new registration/update)
+          ...(clinicDetails ? {
+            clinicName: clinicDetails.name,
+            clinicAddress: `${clinicDetails.address}, ${clinicDetails.city}, ${clinicDetails.state} ${clinicDetails.zipCode}`,
+          } : {})
         },
       });
     }
@@ -317,7 +343,7 @@ export const verifyRazorpayPaymentController = async (
       PROFESSIONAL: 2999,
       ENTERPRISE: 4999,
     };
-    const amount = planAmounts[clinicDetails.subscriptionPlan] || 1499;
+    const amount = planAmounts[subscriptionPlan] || 1499;
 
     // Create payment record with COMPLETED status
     await createPayment({
@@ -330,7 +356,7 @@ export const verifyRazorpayPaymentController = async (
       razorpayPaymentId: razorpay_payment_id,
       razorpaySignature: razorpay_signature,
       status: 'COMPLETED',
-      description: `Subscription payment for ${clinicDetails.subscriptionPlan} plan - Clinic: ${clinicDetails.name}`,
+      description: `Subscription payment for ${subscriptionPlan} plan - Application: PulseCal`,
     });
 
     sendSuccess(
@@ -340,9 +366,9 @@ export const verifyRazorpayPaymentController = async (
         paymentId: razorpay_payment_id,
         orderId: razorpay_order_id,
         subscriptionStatus: 'ACTIVE',
-        message: 'Clinic registered successfully! You can now access your dashboard.',
+        message: 'Payment verified and subscription activated successfully!',
       },
-      'Payment verified and clinic created successfully',
+      'Payment verified successfully',
       201
     );
   } catch (err: any) {
