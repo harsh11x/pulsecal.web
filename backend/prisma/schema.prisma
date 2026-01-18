@@ -99,8 +99,7 @@ model User {
   id                String    @id @default(uuid())
   email             String    @unique
   firebaseUid       String?   @unique
-  googleId          String?   @unique  // Google OAuth ID
-  password          String?   // Optional - not used with Google OAuth
+  password          String?   // Optional - not used with Firebase
   firstName         String
   lastName          String
   phone             String?
