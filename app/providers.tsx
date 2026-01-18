@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { Provider, useDispatch } from "react-redux"
 import { store } from "./store"
 import { useState, useEffect } from "react"
-import { onAuthStateChanged } from "firebase/auth"
+import { onIdTokenChanged, User } from "firebase/auth"
 import { getAuthInstance } from "@/lib/firebase"
 import { getIdToken } from "@/lib/firebaseAuth"
 import { apiService } from "@/services/api"
@@ -21,15 +21,22 @@ function AuthStateListener({ children }: { children: React.ReactNode }) {
 
       // Wait a bit for Firebase to initialize
       const initTimeout = setTimeout(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+        // Use onIdTokenChanged to catch token refreshes as well as sign-in/out
+        const unsubscribe = onIdTokenChanged(auth, async (firebaseUser: User | null) => {
           if (firebaseUser) {
-            // User is signed in, fetch profile from backend
+            // User is signed in or token refreshed
             try {
-              // Wait a moment for token to be available
-              await new Promise(resolve => setTimeout(resolve, 300))
+              // Get the token directly from the user object
+              const token = await firebaseUser.getIdToken()
 
-              const token = await getIdToken()
               if (token) {
+                // Update default headers for all future requests
+                // This is critical for ensuring seamless requests after refresh
+                // @ts-ignore - Accessing private property or using axios default headers access
+                if (apiService['api']) {
+                  apiService['api'].defaults.headers.common["Authorization"] = `Bearer ${token}`
+                }
+
                 try {
                   const profileResponse: any = await apiService.get("/api/v1/auth/profile")
                   const userProfile = profileResponse?.data || profileResponse
@@ -57,11 +64,10 @@ function AuthStateListener({ children }: { children: React.ReactNode }) {
                   // Fallback: Get role from ID token claims
                   let firebaseRole = "patient";
                   try {
-                    // Force refresh to ensure we get the latest claims (including the newly assigned DOCTOR role)
-                    const idTokenResult = await firebaseUser.getIdTokenResult(true);
+                    // Force refresh to ensure we get the latest claims
+                    const idTokenResult = await firebaseUser.getIdTokenResult();
                     if (idTokenResult.claims.role) {
                       firebaseRole = (idTokenResult.claims.role as string).toLowerCase();
-                      console.log("Using role from Firebase claims:", firebaseRole);
                     }
                   } catch (e) {
                     console.error("Failed to get ID token result:", e);
@@ -88,6 +94,10 @@ function AuthStateListener({ children }: { children: React.ReactNode }) {
           } else {
             // User is signed out
             dispatch(logout())
+            // Clear headers
+            if (apiService['api']) {
+              delete apiService['api'].defaults.headers.common["Authorization"]
+            }
           }
           // Auth check completed
           dispatch(setLoading(false))

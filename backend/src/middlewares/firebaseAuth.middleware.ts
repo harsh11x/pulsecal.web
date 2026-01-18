@@ -150,7 +150,19 @@ export const authenticate = async (
     };
 
     next();
-  } catch (error) {
+  } catch (error: any) {
+    // Log specific error details for debugging
+    if (error.code === 'auth/id-token-expired') {
+      logger.error('Token expired - client needs refresh: ' + error.message);
+      return sendError(res, 'Token expired', 401);
+    } else if (error.code === 'auth/argument-error') {
+      logger.error('Invalid token format: ' + error.message);
+      return sendError(res, 'Invalid token format', 401);
+    } else if (error.code === 'auth/invalid-id-token') {
+      logger.error('Invalid token (wrong project?): ' + error.message);
+      return sendError(res, 'Invalid authentication token', 401);
+    }
+
     logger.error(error, 'Firebase authentication error:');
     return sendError(res, 'Invalid or expired token', 401);
   }
