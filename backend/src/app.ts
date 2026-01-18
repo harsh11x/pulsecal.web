@@ -40,7 +40,9 @@ app.use(
 app.use(helmet());
 app.use(
   cors({
-    origin: config.cors.origin,
+    origin: config.cors.origin.includes(',')
+      ? config.cors.origin.split(',').map(o => o.trim())
+      : config.cors.origin,
     credentials: true,
   })
 );
