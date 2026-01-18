@@ -2,6 +2,7 @@ import express, { Express } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import hpp from 'hpp';
+import cookieParser from 'cookie-parser';
 import pinoHttp from 'pino-http';
 import { v4 as uuidv4 } from 'uuid';
 import routes from './routes';
@@ -48,6 +49,9 @@ app.use(
 // Body Parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Cookie Parsing
+app.use(cookieParser());
 
 // Security: HTTP Parameter Pollution
 app.use(hpp());
