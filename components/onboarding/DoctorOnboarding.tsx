@@ -265,13 +265,28 @@ export default function DoctorOnboarding() {
       }
 
       // CRITICAL FIX: Force refresh token before payment initiation to prevent 401s
+      let token = null;
       try {
         const { getIdToken } = await import("@/lib/firebaseAuth");
         console.log("Forcing token refresh before payment...");
-        await getIdToken(true);
+        token = await getIdToken(true);
+
+        if (!token) {
+          // Case: Firebase SDK thinks user is logged out (currentUser is null)
+          console.error("No token received - user might be logged out in Firebase SDK");
+          toast.error("Authentication session lost. Please log in again.");
+          // Optional: Dispatch logout or redirect
+          router.push("/auth/login?redirect=/onboarding");
+          setLoading(false);
+          return;
+        }
+        console.log("Token refreshed successfully");
       } catch (tokenError) {
         console.error("Failed to refresh token before payment:", tokenError);
-        // Continue anyway - apiService interceptor might handle it, or it might still work
+        // If we can't get a token, we definitely shouldn't proceed
+        toast.error("Failed to refresh session. Please check your internet or log in again.");
+        setLoading(false);
+        return;
       }
 
       // 1. Create Order
