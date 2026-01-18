@@ -1,7 +1,7 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from "axios"
 import { getIdToken } from "@/lib/firebaseAuth"
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://13.205.127.21:3001/api/v1"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://13.205.127.21:3001"
 
 class ApiService {
   private api: AxiosInstance
@@ -47,10 +47,10 @@ class ApiService {
               originalRequest.headers.Authorization = `Bearer ${token}`
               // Update the default header for future requests as well
               this.api.defaults.headers.common["Authorization"] = `Bearer ${token}`
-              
+
               // Add a small delay to ensure the token is fully propagated
               await new Promise(resolve => setTimeout(resolve, 500))
-              
+
               // Retry the original request
               return this.api(originalRequest)
             } else {

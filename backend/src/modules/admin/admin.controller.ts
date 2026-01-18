@@ -2,6 +2,8 @@ import { Response, NextFunction } from 'express';
 import {
   getAuditLogs,
   getSystemStats,
+  getAllClinicsWithStats,
+  getClinicDetails,
 } from './admin.service';
 import { sendSuccess, sendPaginated } from '../../utils/apiResponse';
 
@@ -38,3 +40,33 @@ export const getSystemStatsController = async (
   }
 };
 
+export const getAllClinicsController = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const result = await getAllClinicsWithStats(req);
+    sendPaginated(
+      res,
+      result.clinics,
+      result.pagination,
+      'Clinics retrieved successfully'
+    );
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getClinicDetailsController = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const clinic = await getClinicDetails(req.params.id);
+    sendSuccess(res, clinic, 'Clinic details retrieved successfully');
+  } catch (err) {
+    next(err);
+  }
+};
