@@ -317,12 +317,12 @@ export const syncUserProfile = async (
       }
     }
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://13.205.127.21:3001/api/v1';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
 
     // Remove trailing slash if present to avoid double slashes
     const baseUrl = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
 
-    const response = await fetch(`${baseUrl}/auth/sync-profile`, {
+    const response = await fetch(`${baseUrl}/api/v1/auth/sync-profile`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
