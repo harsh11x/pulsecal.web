@@ -61,6 +61,15 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
             }
         });
 
+        // Explicitly ensure Authorization header is present
+        const authHeader = request.headers.get('authorization');
+        if (authHeader) {
+            headers['authorization'] = authHeader;
+            console.log("Proxy: Forwarding Authorization header:", authHeader.substring(0, 20) + "...");
+        } else {
+            console.warn("Proxy: No Authorization header found in request");
+        }
+
         // Make the request to the backend
         const response = await fetch(targetUrl, {
             method: request.method,
