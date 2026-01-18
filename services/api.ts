@@ -1,7 +1,7 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from "axios"
 import { getIdToken } from "@/lib/firebaseAuth"
 
-const API_BASE_URL = "/api/v1"
+const API_BASE_URL = ""
 
 class ApiService {
   private api: AxiosInstance

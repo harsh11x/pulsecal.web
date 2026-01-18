@@ -227,8 +227,8 @@ export default function DoctorOnboarding() {
       const clinicEmail = formData.clinicEmail || user?.email || ''
       const clinicPhone = formData.clinicPhone || formData.phone || ''
 
-      if (!formData.clinicName || !formData.clinicAddress || !formData.clinicCity || 
-          !formData.clinicState || !formData.clinicZipCode) {
+      if (!formData.clinicName || !formData.clinicAddress || !formData.clinicCity ||
+        !formData.clinicState || !formData.clinicZipCode) {
         toast.error('Please complete clinic details first')
         setLoading(false)
         setStep(3)
@@ -248,7 +248,7 @@ export default function DoctorOnboarding() {
       console.log("🔐 Getting fresh authentication token...");
       const { getCurrentUser } = await import("@/lib/firebaseAuth");
       const firebaseUser = getCurrentUser();
-      
+
       if (!firebaseUser) {
         console.error("❌ No Firebase user found");
         toast.error("Session expired. Please log in again.");
@@ -275,9 +275,9 @@ export default function DoctorOnboarding() {
       const orderResponse: any = await apiService.post("/api/v1/doctors/subscription/create", {
         plan: formData.subscriptionPlan
       });
-      
+
       const orderData = orderResponse.data || orderResponse;
-      
+
       if (!orderData?.orderId) {
         console.error("❌ Invalid order data:", orderData);
         toast.error("Failed to create payment order");
@@ -379,7 +379,7 @@ export default function DoctorOnboarding() {
 
             console.log("✅ Redirecting to dashboard...");
             toast.success("Welcome to PulseCal!");
-            
+
             setTimeout(() => {
               router.push('/dashboard');
             }, 500);
@@ -427,8 +427,8 @@ export default function DoctorOnboarding() {
       toast.error(error?.message || "Failed to initialize payment. Please try again.");
       setLoading(false);
     }
-    
-    console.log("=== PAYMENT FLOW COMPLETE ===");
+
+
   }
 
   const handleSubmit = async () => {

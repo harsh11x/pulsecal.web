@@ -322,7 +322,7 @@ export const syncUserProfile = async (
     // Remove trailing slash if present to avoid double slashes
     const baseUrl = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
 
-    const response = await fetch(`${baseUrl}/api/v1/auth/sync-profile`, {
+    const response = await fetch(`${baseUrl}/auth/sync-profile`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
