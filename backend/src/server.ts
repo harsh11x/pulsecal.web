@@ -66,8 +66,8 @@ const startServer = async () => {
       await connectRedis();
       logger.info('Redis connected successfully.');
     } catch (err) {
-      logger.error({ err }, 'CRITICAL: Redis connection failed. Server cannot start.');
-      process.exit(1); // Fail fast in production if Redis is required
+      logger.warn({ err }, 'Redis connection failed. Continuing without Redis.');
+      // process.exit(1); // Continuing without Redis for now
     }
 
     // 3. Start HTTP Listener
