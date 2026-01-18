@@ -213,6 +213,7 @@ export default function DoctorOnboarding() {
 
   const handlePayment = async () => {
     setLoading(true)
+    console.log("=== PAYMENT FLOW STARTED ===");
 
     try {
       // Validate required fields
@@ -264,44 +265,119 @@ export default function DoctorOnboarding() {
         return;
       }
 
-      // CRITICAL FIX: Force refresh token before payment initiation to prevent 401s
-      let token = null;
-      try {
-        const { getIdToken } = await import("@/lib/firebaseAuth");
-        console.log("Forcing token refresh before payment...");
-        token = await getIdToken(true);
+      console.log("✅ Validation complete");
 
-        if (!token) {
-          // Case: Firebase SDK thinks user is logged out (currentUser is null)
-          console.error("No token received - user might be logged out in Firebase SDK");
-          toast.error("Authentication session lost. Please log in again.");
-          // Optional: Dispatch logout or redirect
-          router.push("/auth/login?redirect=/onboarding");
+      // STEP 1: Get fresh authentication token
+      let freshToken: string;
+      try {
+        console.log("🔐 Getting Firebase user...");
+        const { getCurrentUser } = await import("@/lib/firebaseAuth");
+        const firebaseUser = getCurrentUser();
+        
+        if (!firebaseUser) {
+          console.error("❌ No Firebase user found");
+          toast.error("Your session has expired. Please log in again.");
+          setTimeout(() => router.push("/auth/login?redirect=/onboarding"), 1000);
           setLoading(false);
           return;
         }
-        console.log("Token refreshed successfully");
+
+        console.log("✅ Firebase user found:", firebaseUser.uid);
+        console.log("🔄 Forcing token refresh...");
         
-        // CRITICAL: Wait for token to propagate through Firebase SDK
-        // This ensures the API interceptor picks up the fresh token
+        // Force refresh token - this is critical
+        freshToken = await firebaseUser.getIdToken(true);
+        
+        if (!freshToken) {
+          console.error("❌ Token refresh returned null");
+          toast.error("Unable to verify authentication. Please log in again.");
+          setTimeout(() => router.push("/auth/login?redirect=/onboarding"), 1000);
+          setLoading(false);
+          return;
+        }
+
+        console.log("✅ Fresh token obtained, length:", freshToken.length);
+        
+        // Wait for token to propagate through Firebase SDK
+        console.log("⏳ Waiting for token propagation...");
         await new Promise(resolve => setTimeout(resolve, 1000));
-        console.log("Token propagation complete, proceeding with payment...");
-      } catch (tokenError) {
-        console.error("Failed to refresh token before payment:", tokenError);
-        // If we can't get a token, we definitely shouldn't proceed
-        toast.error("Failed to refresh session. Please check your internet or log in again.");
+        console.log("✅ Token propagated");
+        
+      } catch (authError: any) {
+        console.error("❌ Authentication error:", authError);
+        toast.error("Authentication failed. Please log in again.");
+        setTimeout(() => router.push("/auth/login?redirect=/onboarding"), 1000);
         setLoading(false);
         return;
       }
 
-      // 1. Create Order
-      const { data: orderData }: any = await apiService.post("/doctors/subscription/create", {
-        plan: formData.subscriptionPlan
-      })
+      // STEP 2: Create Razorpay order with retry logic
+      let orderData: any;
+      const maxRetries = 2;
+      let retryCount = 0;
+      
+      while (retryCount <= maxRetries) {
+        try {
+          console.log(`🛒 Creating order (attempt ${retryCount + 1}/${maxRetries + 1})...`);
+          
+          const response: any = await apiService.post("/doctors/subscription/create", {
+            plan: formData.subscriptionPlan
+          });
+          
+          orderData = response.data || response;
+          console.log("✅ Order created:", orderData);
+          break; // Success, exit retry loop
+          
+        } catch (orderError: any) {
+          console.error(`❌ Order creation error (attempt ${retryCount + 1}):`, orderError);
+          
+          if (orderError?.response?.status === 401) {
+            // Token issue - try one more refresh
+            if (retryCount < maxRetries) {
+              console.log("🔄 Token issue detected, refreshing again...");
+              try {
+                const { getCurrentUser } = await import("@/lib/firebaseAuth");
+                const firebaseUser = getCurrentUser();
+                if (firebaseUser) {
+                  freshToken = await firebaseUser.getIdToken(true);
+                  await new Promise(resolve => setTimeout(resolve, 1000));
+                  retryCount++;
+                  continue; // Retry
+                }
+              } catch (refreshErr) {
+                console.error("❌ Token refresh failed:", refreshErr);
+              }
+            }
+            
+            // Max retries reached or refresh failed
+            toast.error("Your session has expired. Please log in again.");
+            setTimeout(() => router.push("/auth/login?redirect=/onboarding"), 1000);
+            setLoading(false);
+            return;
+          }
+          
+          // Other errors
+          if (retryCount < maxRetries) {
+            retryCount++;
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            continue;
+          }
+          
+          // Max retries reached
+          toast.error(orderError?.response?.data?.message || "Failed to create payment order. Please try again.");
+          setLoading(false);
+          return;
+        }
+      }
 
       if (!orderData || !orderData.orderId) {
-        throw new Error("Failed to create payment order")
+        console.error("❌ Invalid order data:", orderData);
+        toast.error("Failed to create payment order. Please try again.");
+        setLoading(false);
+        return;
       }
+
+      console.log("✅ Order ready, opening Razorpay...");
 
       // 2. Open Razorpay
       const options = {
@@ -313,9 +389,10 @@ export default function DoctorOnboarding() {
         order_id: orderData.orderId,
         handler: async (response: any) => {
           try {
+            console.log("💳 Payment successful, verifying...");
             toast.loading("Verifying payment...");
 
-            // 3. Verify Payment & Create Clinic
+            // Prepare clinic data
             const clinicData = {
               name: formData.clinicName,
               address: formData.clinicAddress,
@@ -330,49 +407,97 @@ export default function DoctorOnboarding() {
               subscriptionPlan: formData.subscriptionPlan
             };
 
-            const verifyResponse: any = await apiService.post("/doctors/subscription/verify", {
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              clinicDetails: clinicData, // Note: Backend logic now handles renewals if clinicId exists
-              plan: formData.subscriptionPlan
-            });
-
-            toast.dismiss();
-            toast.success("Payment successful! Clinic registered. Redirecting to dashboard...");
-
-            if (verifyResponse.data?.clinic?.id) {
-              setFormData(prev => ({ ...prev, clinicId: verifyResponse.data.clinic.id }));
+            // Verify payment with retry logic
+            let verifyResponse: any;
+            const verifyMaxRetries = 3;
+            let verifyRetryCount = 0;
+            
+            while (verifyRetryCount <= verifyMaxRetries) {
+              try {
+                console.log(`🔍 Verifying payment (attempt ${verifyRetryCount + 1}/${verifyMaxRetries + 1})...`);
+                
+                verifyResponse = await apiService.post("/doctors/subscription/verify", {
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                  clinicDetails: clinicData,
+                  plan: formData.subscriptionPlan
+                });
+                
+                console.log("✅ Payment verified successfully");
+                break; // Success
+                
+              } catch (verifyError: any) {
+                console.error(`❌ Verification error (attempt ${verifyRetryCount + 1}):`, verifyError);
+                
+                if (verifyError?.response?.status === 401) {
+                  // Refresh token and retry
+                  if (verifyRetryCount < verifyMaxRetries) {
+                    console.log("🔄 Refreshing token for verification...");
+                    try {
+                      const { getCurrentUser } = await import("@/lib/firebaseAuth");
+                      const firebaseUser = getCurrentUser();
+                      if (firebaseUser) {
+                        await firebaseUser.getIdToken(true);
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        verifyRetryCount++;
+                        continue;
+                      }
+                    } catch (err) {
+                      console.error("❌ Token refresh failed during verification:", err);
+                    }
+                  }
+                }
+                
+                if (verifyRetryCount < verifyMaxRetries) {
+                  verifyRetryCount++;
+                  await new Promise(resolve => setTimeout(resolve, 2000));
+                  continue;
+                }
+                
+                // Max retries reached
+                throw verifyError;
+              }
             }
 
-            // Optimistically update Redux state immediately to prevent race conditions
+            toast.dismiss();
+            toast.success("Payment successful! Setting up your clinic...");
+
+            // Update clinic ID
+            if (verifyResponse?.data?.clinic?.id || verifyResponse?.clinic?.id) {
+              const clinicId = verifyResponse.data?.clinic?.id || verifyResponse.clinic?.id;
+              setFormData(prev => ({ ...prev, clinicId }));
+              console.log("✅ Clinic ID set:", clinicId);
+            }
+
+            // Update Redux state
             if (user) {
               dispatch(setUser({
                 ...user,
                 role: 'doctor',
                 onboardingCompleted: true,
-                clinicId: verifyResponse.data?.clinic?.id || user.clinicId
+                clinicId: verifyResponse?.data?.clinic?.id || verifyResponse?.clinic?.id || user.clinicId
               }));
+              console.log("✅ Redux state updated");
             }
 
             setLoading(false);
 
+            // Refresh token and profile
             try {
-              // CRITICAL: Force Firebase token refresh to get updated custom claims (DOCTOR role)
-              console.log("Forcing token refresh to get updated role...");
-              const { getIdToken } = await import("@/lib/firebaseAuth");
-              await getIdToken(true); // Force refresh to get new custom claims
-              
-              // Add a delay to ensure token and database are fully propagated
-              console.log("Waiting for role propagation...");
-              await new Promise(resolve => setTimeout(resolve, 1500));
+              console.log("🔄 Refreshing token to get DOCTOR role...");
+              const { getCurrentUser } = await import("@/lib/firebaseAuth");
+              const firebaseUser = getCurrentUser();
+              if (firebaseUser) {
+                await firebaseUser.getIdToken(true);
+                await new Promise(resolve => setTimeout(resolve, 1500));
+              }
 
-              // Force refresh user profile from backend to ensure role is updated to DOCTOR
-              console.log("Refreshing profile after payment...");
+              console.log("📥 Fetching updated profile...");
               const profileResponse: any = await apiService.get("/api/v1/auth/profile");
               const userProfile = profileResponse?.data || profileResponse;
 
-              if (userProfile && userProfile.id) {
+              if (userProfile?.id) {
                 const userData = {
                   id: userProfile.id,
                   email: userProfile.email,
@@ -384,31 +509,27 @@ export default function DoctorOnboarding() {
                   isActive: userProfile.isActive !== false,
                   isEmailVerified: userProfile.isEmailVerified || false,
                   profileImage: userProfile.profileImage,
-                  onboardingCompleted: true, // Force true
+                  onboardingCompleted: true,
                   clinicId: userProfile.clinicId,
                 };
                 dispatch(setUser(userData));
-
-                console.log("User profile updated successfully. Redirecting to dashboard...");
-                // Allow state to update before redirect
-                setTimeout(() => {
-                  router.push('/dashboard');
-                }, 500);
-              } else {
-                console.log("Profile response incomplete, redirecting anyway...");
-                // Fallback redirect
-                router.push('/dashboard');
+                console.log("✅ Profile updated");
               }
-            } catch (refreshError) {
-              console.error("Failed to refresh profile after payment:", refreshError);
-              // Still redirect to dashboard - the user should be able to access it
-              router.push('/dashboard');
+            } catch (profileError) {
+              console.warn("⚠️ Profile refresh warning:", profileError);
             }
 
-          } catch (verifyError: any) {
-            console.error("Payment verification failed", verifyError);
+            console.log("✅ Payment complete, redirecting...");
+            toast.success("Welcome to PulseCal! Redirecting...");
+            
+            setTimeout(() => {
+              router.push('/dashboard');
+            }, 800);
+
+          } catch (error: any) {
+            console.error("❌ Payment verification failed:", error);
             toast.dismiss();
-            toast.error(verifyError?.response?.data?.message || "Payment verification failed. Please contact support.");
+            toast.error(error?.response?.data?.message || error?.message || "Payment verification failed. Contact support with payment ID: " + response.razorpay_payment_id);
             setLoading(false);
           }
         },
@@ -418,34 +539,37 @@ export default function DoctorOnboarding() {
           contact: formData.phone
         },
         theme: {
-          color: "#0F172A"
+          color: "#3b82f6"
         },
         modal: {
-          ondismiss: function () {
+          ondismiss: () => {
+            console.log("⚠️ Payment modal dismissed by user");
+            toast.dismiss();
+            toast.info("Payment cancelled");
             setLoading(false);
           }
         }
       };
 
+      console.log("🚀 Opening Razorpay payment modal...");
       const paymentObject = new (window as any).Razorpay(options);
       paymentObject.open();
 
       paymentObject.on('payment.failed', function (response: any) {
+        console.error("❌ Payment failed:", response.error);
         toast.dismiss();
-        toast.error(response.error.description);
+        toast.error(response.error.description || "Payment failed. Please try again.");
         setLoading(false);
       });
 
     } catch (error: any) {
-      console.error("Payment initialization error", error)
-      toast.dismiss()
-      if (error?.response?.status === 401) {
-        toast.error("Session expired. Please refresh the page and try again.");
-      } else {
-        toast.error(error?.response?.data?.message || error?.message || "Failed to initialize payment");
-      }
-      setLoading(false)
+      console.error("❌ Payment initialization error:", error);
+      toast.dismiss();
+      toast.error(error?.message || "Failed to initialize payment. Please try again.");
+      setLoading(false);
     }
+    
+    console.log("=== PAYMENT FLOW COMPLETE ===");
   }
 
   const handleSubmit = async () => {
