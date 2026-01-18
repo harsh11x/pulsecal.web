@@ -281,6 +281,11 @@ export default function DoctorOnboarding() {
           return;
         }
         console.log("Token refreshed successfully");
+        
+        // CRITICAL: Wait for token to propagate through Firebase SDK
+        // This ensures the API interceptor picks up the fresh token
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log("Token propagation complete, proceeding with payment...");
       } catch (tokenError) {
         console.error("Failed to refresh token before payment:", tokenError);
         // If we can't get a token, we definitely shouldn't proceed
