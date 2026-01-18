@@ -353,6 +353,15 @@ export default function DoctorOnboarding() {
             setLoading(false);
 
             try {
+              // CRITICAL: Force Firebase token refresh to get updated custom claims (DOCTOR role)
+              console.log("Forcing token refresh to get updated role...");
+              const { getIdToken } = await import("@/lib/firebaseAuth");
+              await getIdToken(true); // Force refresh to get new custom claims
+              
+              // Add a delay to ensure token and database are fully propagated
+              console.log("Waiting for role propagation...");
+              await new Promise(resolve => setTimeout(resolve, 1500));
+
               // Force refresh user profile from backend to ensure role is updated to DOCTOR
               console.log("Refreshing profile after payment...");
               const profileResponse: any = await apiService.get("/api/v1/auth/profile");
@@ -375,16 +384,19 @@ export default function DoctorOnboarding() {
                 };
                 dispatch(setUser(userData));
 
+                console.log("User profile updated successfully. Redirecting to dashboard...");
                 // Allow state to update before redirect
                 setTimeout(() => {
                   router.push('/dashboard');
                 }, 500);
               } else {
+                console.log("Profile response incomplete, redirecting anyway...");
                 // Fallback redirect
                 router.push('/dashboard');
               }
             } catch (refreshError) {
               console.error("Failed to refresh profile after payment:", refreshError);
+              // Still redirect to dashboard - the user should be able to access it
               router.push('/dashboard');
             }
 

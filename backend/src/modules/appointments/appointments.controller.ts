@@ -147,6 +147,17 @@ export const rescheduleAppointmentController = async (
       req.params.id,
       value.scheduledAt
     );
+    
+    // Emit real-time update
+    const { emitAppointmentUpdate } = await import('../../utils/socketEmitter');
+    emitAppointmentUpdate({
+      id: appointment.id,
+      doctorId: appointment.doctorId,
+      patientId: appointment.patientId,
+      status: appointment.status,
+      scheduledAt: appointment.scheduledAt,
+    });
+    
     sendSuccess(res, appointment, 'Appointment rescheduled successfully');
   } catch (err) {
     next(err);
@@ -167,6 +178,17 @@ export const cancelAppointmentController = async (
       req.params.id,
       value.cancellationReason
     );
+    
+    // Emit real-time update
+    const { emitAppointmentUpdate } = await import('../../utils/socketEmitter');
+    emitAppointmentUpdate({
+      id: appointment.id,
+      doctorId: appointment.doctorId,
+      patientId: appointment.patientId,
+      status: appointment.status,
+      scheduledAt: appointment.scheduledAt,
+    });
+    
     sendSuccess(res, appointment, 'Appointment cancelled successfully');
   } catch (err) {
     next(err);

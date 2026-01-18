@@ -55,8 +55,9 @@ export const getAppointments = async (req: {
     status?: string;
     startDate?: string;
     endDate?: string;
+    date?: string;
   };
-  user?: { id: string; role: string };
+  user?: { id: string; role: string; clinicId?: string | null };
 }) => {
   const { page, limit, skip } = getPaginationParams(req as never);
   const { orderBy, order } = getSortParams(req as never);
@@ -67,14 +68,19 @@ export const getAppointments = async (req: {
     status?: string;
     scheduledAt?: { gte?: Date; lte?: Date };
     deletedAt?: null;
+    doctor?: { clinicId?: string };
   } = {
     deletedAt: null,
   };
 
+  // Role-based filtering
   if (req.user?.role === 'PATIENT') {
     where.patientId = req.user.id;
   } else if (req.user?.role === 'DOCTOR') {
     where.doctorId = req.user.id;
+  } else if (req.user?.role === 'RECEPTIONIST' && req.user.clinicId) {
+    // Receptionist can see all appointments for their clinic
+    where.doctor = { clinicId: req.user.clinicId };
   }
 
   if (req.query.patientId) {
@@ -89,7 +95,14 @@ export const getAppointments = async (req: {
     where.status = req.query.status;
   }
 
-  if (req.query.startDate || req.query.endDate) {
+  // Handle 'date=today' query for dashboard
+  if (req.query.date === 'today') {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    where.scheduledAt = { gte: today, lte: tomorrow };
+  } else if (req.query.startDate || req.query.endDate) {
     where.scheduledAt = {};
     if (req.query.startDate) {
       where.scheduledAt.gte = new Date(req.query.startDate);
@@ -121,6 +134,16 @@ export const getAppointments = async (req: {
             firstName: true,
             lastName: true,
             email: true,
+            clinicId: true,
+          },
+        },
+        clinic: {
+          select: {
+            id: true,
+            name: true,
+            address: true,
+            city: true,
+            phone: true,
           },
         },
       },

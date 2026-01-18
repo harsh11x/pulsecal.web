@@ -2,18 +2,39 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { StatsCard } from "@/components/dashboard/StatsCard"
-import { UpcomingAppointmentsCard } from "@/components/dashboard/UpcomingAppointmentsCard"
-import { RecentActivityCard } from "@/components/dashboard/RecentActivityCard"
 import { Button } from "@/components/ui/button"
-import { Calendar, MapPin, Search, Stethoscope } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Calendar, MapPin, Stethoscope, FileText, Clock, User, Plus, Heart, Activity } from "lucide-react"
 import Link from "next/link"
 import { DoctorDiscoveryMap } from "@/components/doctors/DoctorDiscoveryMap"
 import { useEffect, useState } from "react"
 import { apiService } from "@/services/api"
 import { toast } from "sonner"
+import { socketService } from "@/services/socket"
+import { format } from "date-fns"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 interface PatientDashboardPageProps {
   user: any
+}
+
+interface Appointment {
+  id: string
+  doctor?: { firstName: string; lastName: string; specialization?: string }
+  scheduledAt: string
+  status: string
+  reason?: string
+  clinic?: { name: string; address: string; city: string }
+}
+
+interface Prescription {
+  id: string
+  medication: string
+  dosage?: string
+  frequency?: string
+  status: string
+  prescribedAt: string
+  doctor?: { firstName: string; lastName: string }
 }
 
 export default function PatientDashboardPage({ user }: PatientDashboardPageProps) {
@@ -22,25 +43,93 @@ export default function PatientDashboardPage({ user }: PatientDashboardPageProps
     activePrescriptions: 0,
     medicalRecords: 0
   })
+  const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([])
+  const [activePrescriptions, setActivePrescriptions] = useState<Prescription[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const response: any = await apiService.get("/api/v1/patients/stats")
-        setStatsData(response.data || { upcomingAppointments: 0, activePrescriptions: 0, medicalRecords: 0 })
-      } catch (error) {
-        console.error("Failed to fetch patient stats:", error)
-        // toast.error("Failed to load dashboard data") // Optional: silent fail is sometimes better for dashboard widgets
-      } finally {
-        setLoading(false)
-      }
+    fetchDashboardData()
+
+    // Socket connection for real-time updates
+    const connectSocket = async () => {
+      await socketService.connect()
+
+      socketService.on("appointment:new", (data: any) => {
+        toast.success("New appointment booked!")
+        fetchDashboardData()
+      })
+
+      socketService.on("appointment:update", (data: any) => {
+        toast.info("Appointment updated")
+        fetchDashboardData()
+      })
     }
 
-    if (user) {
-      fetchStats()
+    connectSocket()
+
+    return () => {
+      socketService.off("appointment:new")
+      socketService.off("appointment:update")
     }
   }, [user])
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true)
+
+      // Fetch patient stats
+      const statsResponse: any = await apiService.get("/api/v1/patients/stats")
+      setStatsData(statsResponse.data || { upcomingAppointments: 0, activePrescriptions: 0, medicalRecords: 0 })
+
+      // Fetch upcoming appointments
+      const appointmentsResponse: any = await apiService.get("/api/v1/appointments")
+      const allAppointments = appointmentsResponse?.data || []
+      const appointments = Array.isArray(allAppointments) ? allAppointments : allAppointments.appointments || []
+      
+      // Filter for upcoming appointments only
+      const upcoming = appointments
+        .filter((apt: Appointment) => 
+          ["SCHEDULED", "CONFIRMED", "CHECKED_IN"].includes(apt.status) &&
+          new Date(apt.scheduledAt) >= new Date()
+        )
+        .sort((a: Appointment, b: Appointment) => 
+          new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
+        )
+        .slice(0, 5)
+      
+      setUpcomingAppointments(upcoming)
+
+      // Fetch active prescriptions
+      try {
+        const prescriptionsResponse: any = await apiService.get("/api/v1/prescriptions?status=ACTIVE")
+        const prescriptions = prescriptionsResponse?.data || []
+        setActivePrescriptions(Array.isArray(prescriptions) ? prescriptions.slice(0, 5) : [])
+      } catch (error) {
+        console.error("Failed to fetch prescriptions:", error)
+        setActivePrescriptions([])
+      }
+    } catch (error: any) {
+      console.error("Failed to fetch dashboard data:", error)
+      if (error.response?.status !== 403) {
+        toast.error("Failed to load dashboard data")
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getStatusBadge = (status: string) => {
+    const statusMap: Record<string, { variant: any; label: string }> = {
+      SCHEDULED: { variant: "default", label: "Scheduled" },
+      CONFIRMED: { variant: "default", label: "Confirmed" },
+      CHECKED_IN: { variant: "secondary", label: "Checked In" },
+      IN_PROGRESS: { variant: "secondary", label: "In Progress" },
+      COMPLETED: { variant: "outline", label: "Completed" },
+      CANCELLED: { variant: "destructive", label: "Cancelled" },
+    }
+    const config = statusMap[status] || { variant: "outline", label: status }
+    return <Badge variant={config.variant}>{config.label}</Badge>
+  }
 
   const stats = [
     {
@@ -59,16 +148,49 @@ export default function PatientDashboardPage({ user }: PatientDashboardPageProps
       color: "green" as const,
       description: "Active treatments",
     },
+    {
+      title: "Medical Records",
+      value: statsData.medicalRecords,
+      trend: { value: 0, label: "Documents available", isPositive: true },
+      icon: FileText,
+      color: "purple" as const,
+      description: "Your health records",
+    },
+    {
+      title: "Health Score",
+      value: "Good",
+      trend: { value: 0, label: "Based on recent visits", isPositive: true },
+      icon: Heart,
+      color: "pink" as const,
+      description: "Overall health status",
+    },
   ]
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Welcome back, {user?.firstName}!</h1>
-        <p className="text-muted-foreground">Here's what's happening with your health</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Welcome back, {user?.firstName}!</h1>
+          <p className="text-muted-foreground">Here's what's happening with your health</p>
+        </div>
+        <Button asChild size="lg">
+          <Link href="/appointments/create">
+            <Plus className="mr-2 h-5 w-5" />
+            Book Appointment
+          </Link>
+        </Button>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      {/* Stats Cards */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
           <StatsCard
             key={stat.title}
@@ -82,46 +204,238 @@ export default function PatientDashboardPage({ user }: PatientDashboardPageProps
         ))}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <UpcomingAppointmentsCard appointments={[]} />
-        <RecentActivityCard activities={[]} />
-      </div>
+      {/* Main Content Tabs */}
+      <Tabs defaultValue="appointments" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="appointments">Appointments</TabsTrigger>
+          <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
+          <TabsTrigger value="doctors">Find Doctors</TabsTrigger>
+        </TabsList>
 
-      <Card className="col-span-2">
-        <CardHeader>
-          <CardTitle>Find Doctors Near You</CardTitle>
-          <CardDescription>Discover and book appointments with doctors in your area</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[600px] rounded-lg overflow-hidden border">
-            <DoctorDiscoveryMap />
+        {/* Upcoming Appointments Tab */}
+        <TabsContent value="appointments" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Upcoming Appointments</CardTitle>
+                  <CardDescription>Your scheduled visits with doctors</CardDescription>
+                </div>
+                <Button asChild variant="outline" size="sm">
+                  <Link href="/appointments/list">View All</Link>
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {upcomingAppointments.length === 0 ? (
+                <div className="text-center py-12">
+                  <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground mb-4">No upcoming appointments</p>
+                  <Button asChild>
+                    <Link href="/appointments/create">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Book Your First Appointment
+                    </Link>
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {upcomingAppointments.map((apt) => (
+                    <Card key={apt.id} className="hover:shadow-md transition-shadow">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                <User className="h-5 w-5 text-primary" />
+                              </div>
+                              <div>
+                                <p className="font-semibold">
+                                  Dr. {apt.doctor ? `${apt.doctor.firstName} ${apt.doctor.lastName}` : "N/A"}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {apt.doctor?.specialization || "General Physician"}
+                                </p>
+                              </div>
+                              {getStatusBadge(apt.status)}
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground mt-3">
+                              <div className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {format(new Date(apt.scheduledAt), "MMM d, yyyy")}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {format(new Date(apt.scheduledAt), "h:mm a")}
+                              </div>
+                              {apt.clinic && (
+                                <div className="col-span-2 flex items-center gap-1">
+                                  <MapPin className="h-3 w-3" />
+                                  {apt.clinic.name}, {apt.clinic.city}
+                                </div>
+                              )}
+                              {apt.reason && (
+                                <div className="col-span-2">Reason: {apt.reason}</div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <Button variant="outline" size="sm" asChild>
+                              <Link href={`/appointments/${apt.id}`}>View Details</Link>
+                            </Button>
+                            {apt.status === "SCHEDULED" && (
+                              <Button variant="ghost" size="sm" asChild>
+                                <Link href={`/appointments/${apt.id}/reschedule`}>Reschedule</Link>
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Quick Actions</CardTitle>
+                <CardDescription>Manage your healthcare</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Button asChild className="w-full justify-start">
+                  <Link href="/appointments/create">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    Book New Appointment
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="w-full justify-start">
+                  <Link href="/appointments/list">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    View All Appointments
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="w-full justify-start">
+                  <Link href="/health/records">
+                    <FileText className="mr-2 h-4 w-4" />
+                    Medical Records
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="w-full justify-start">
+                  <Link href="/prescriptions">
+                    <Stethoscope className="mr-2 h-4 w-4" />
+                    My Prescriptions
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Health Tips</CardTitle>
+                <CardDescription>Daily wellness reminders</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
+                  <Activity className="h-5 w-5 text-blue-600 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-sm">Stay Hydrated</p>
+                    <p className="text-xs text-muted-foreground">Drink at least 8 glasses of water daily</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-3 bg-green-50 dark:bg-green-950 rounded-lg">
+                  <Heart className="h-5 w-5 text-green-600 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-sm">Regular Exercise</p>
+                    <p className="text-xs text-muted-foreground">30 minutes of activity keeps you healthy</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-3 bg-purple-50 dark:bg-purple-950 rounded-lg">
+                  <Stethoscope className="h-5 w-5 text-purple-600 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-sm">Regular Checkups</p>
+                    <p className="text-xs text-muted-foreground">Schedule annual health screenings</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
+        </TabsContent>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Common tasks</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Button asChild className="w-full">
-              <Link href="/appointments/create">
-                <Calendar className="mr-2 h-4 w-4" />
-                Book Appointment
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="w-full">
-              <Link href="/health/records">
-                <Stethoscope className="mr-2 h-4 w-4" />
-                View Medical Records
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+        {/* Active Prescriptions Tab */}
+        <TabsContent value="prescriptions" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Active Prescriptions</CardTitle>
+                  <CardDescription>Your current medications</CardDescription>
+                </div>
+                <Button asChild variant="outline" size="sm">
+                  <Link href="/prescriptions">View All</Link>
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {activePrescriptions.length === 0 ? (
+                <div className="text-center py-12">
+                  <Stethoscope className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">No active prescriptions</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {activePrescriptions.map((prescription) => (
+                    <Card key={prescription.id} className="hover:shadow-sm transition-shadow">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Stethoscope className="h-4 w-4 text-primary" />
+                              <p className="font-semibold">{prescription.medication}</p>
+                              <Badge variant="default" className="text-xs">Active</Badge>
+                            </div>
+                            {prescription.dosage && (
+                              <p className="text-sm text-muted-foreground">Dosage: {prescription.dosage}</p>
+                            )}
+                            {prescription.frequency && (
+                              <p className="text-sm text-muted-foreground">Frequency: {prescription.frequency}</p>
+                            )}
+                            {prescription.doctor && (
+                              <p className="text-xs text-muted-foreground mt-2">
+                                Prescribed by Dr. {prescription.doctor.firstName} {prescription.doctor.lastName}
+                              </p>
+                            )}
+                          </div>
+                          <Button variant="outline" size="sm" asChild>
+                            <Link href={`/prescriptions/${prescription.id}`}>View</Link>
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Find Doctors Tab */}
+        <TabsContent value="doctors" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Find Doctors Near You</CardTitle>
+              <CardDescription>Discover and book appointments with doctors in your area</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[600px] rounded-lg overflow-hidden border">
+                <DoctorDiscoveryMap />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
-

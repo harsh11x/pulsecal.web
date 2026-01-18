@@ -47,23 +47,44 @@ class ApiService {
               originalRequest.headers.Authorization = `Bearer ${token}`
               // Update the default header for future requests as well
               this.api.defaults.headers.common["Authorization"] = `Bearer ${token}`
+              
+              // Add a small delay to ensure the token is fully propagated
+              await new Promise(resolve => setTimeout(resolve, 500))
+              
               // Retry the original request
               return this.api(originalRequest)
+            } else {
+              // No token available, redirect to login
+              console.error("No token available after refresh attempt")
+              if (typeof window !== "undefined" && !window.location.pathname.includes("/auth")) {
+                window.location.href = `/auth/login?redirect=${encodeURIComponent(window.location.pathname)}`
+              }
             }
           } catch (refreshError) {
             console.error("Token refresh failed:", refreshError)
-            // Fall through to error handling/redirect
+            // Redirect to login on failed refresh
+            if (typeof window !== "undefined" && !window.location.pathname.includes("/auth")) {
+              window.location.href = `/auth/login?redirect=${encodeURIComponent(window.location.pathname)}`
+            }
           }
         }
 
-        // Only redirect on 401 if we have a response (not network errors) and refresh failed
-        if (error.response?.status === 401) {
-          // Redirect to login on unauthorized
-          if (typeof window !== "undefined" && !window.location.pathname.includes("/auth")) {
-            // Store current path to redirect back after login
-            // window.location.href = `/auth/login?redirect=${encodeURIComponent(window.location.pathname)}`
-            // For now, just keep existing behavior but consider user experience
-            // console.warn("Authentication required. Please log in again.")
+        // Handle 403 Forbidden (insufficient permissions)
+        if (error.response?.status === 403) {
+          console.error("Insufficient permissions for this action")
+          // Try refreshing token once in case role was just updated
+          if (!originalRequest._permissionRetry) {
+            originalRequest._permissionRetry = true
+            try {
+              const token = await getIdToken(true)
+              if (token) {
+                originalRequest.headers.Authorization = `Bearer ${token}`
+                await new Promise(resolve => setTimeout(resolve, 500))
+                return this.api(originalRequest)
+              }
+            } catch (refreshError) {
+              console.error("Permission refresh failed:", refreshError)
+            }
           }
         }
 

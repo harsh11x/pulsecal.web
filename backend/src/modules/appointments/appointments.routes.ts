@@ -20,9 +20,9 @@ router.post('/', authenticate, checkSubscriptionStatus as any, requireDoctorOrRe
 router.get('/', authenticate, checkSubscriptionStatus as any, getAppointmentsController);
 router.get('/:id', authenticate, checkSubscriptionStatus as any, getAppointmentByIdController);
 router.put('/:id', authenticate, checkSubscriptionStatus as any, requireDoctorOrReceptionist, updateAppointmentController);
-router.post('/:id/reschedule', authenticate, checkSubscriptionStatus as any, rescheduleAppointmentController);
-router.post('/:id/cancel', authenticate, checkSubscriptionStatus as any, cancelAppointmentController);
-router.post('/:id/checkin', authenticate, checkSubscriptionStatus as any, requireReceptionist, checkInAppointmentController);
+router.post('/:id/reschedule', authenticate, checkSubscriptionStatus as any, rescheduleAppointmentController); // Allow all roles
+router.post('/:id/cancel', authenticate, checkSubscriptionStatus as any, cancelAppointmentController); // Allow all roles
+router.post('/:id/checkin', authenticate, checkSubscriptionStatus as any, requireDoctorOrReceptionist, checkInAppointmentController);
 router.delete('/:id', authenticate, checkSubscriptionStatus as any, requireDoctorOrReceptionist, deleteAppointmentController);
 
 export default router;

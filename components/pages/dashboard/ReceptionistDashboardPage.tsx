@@ -4,13 +4,35 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { StatsCard } from "@/components/dashboard/StatsCard"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Calendar, Users, Clock, CheckCircle, XCircle, AlertCircle, Plus, Phone, Mail, MapPin, Building2 } from "lucide-react"
+import { Calendar, Users, Clock, CheckCircle, XCircle, AlertCircle, Plus, Phone, Mail, MapPin, Building2, Edit, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { apiService } from "@/services/api"
 import { toast } from "sonner"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { socketService } from "@/services/socket"
+import { format } from "date-fns"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 interface ReceptionistDashboardPageProps {
   user: any
@@ -28,17 +50,14 @@ interface QueueEntry {
 
 interface Appointment {
   id: string
-  patientName: string
-  time: string
+  patientName?: string
+  patient?: { firstName: string; lastName: string; phone?: string; email?: string }
+  doctor?: { firstName: string; lastName: string }
+  scheduledAt: string
   status: string
-  reason: string
-  phone?: string
-  email?: string
+  reason?: string
+  clinic?: { name: string; address: string }
 }
-
-import { socketService } from "@/services/socket"
-
-// ... imports
 
 export default function ReceptionistDashboardPage({ user }: ReceptionistDashboardPageProps) {
   const [todayStats, setTodayStats] = useState({
@@ -50,6 +69,7 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
   })
   const [queue, setQueue] = useState<QueueEntry[]>([])
   const [todayAppointments, setTodayAppointments] = useState<Appointment[]>([])
+  const [allAppointments, setAllAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
   const [clinicInfo, setClinicInfo] = useState<{
     name: string
@@ -58,12 +78,16 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
     phone: string
     email: string
   } | null>(null)
-
+  
+  const [cancelId, setCancelId] = useState<string | null>(null)
+  const [rescheduleId, setRescheduleId] = useState<string | null>(null)
+  const [newScheduleDate, setNewScheduleDate] = useState("")
+  const [newScheduleTime, setNewScheduleTime] = useState("")
 
   useEffect(() => {
     fetchDashboardData()
 
-    // Socket connection
+    // Socket connection for real-time updates
     const connectSocket = async () => {
       await socketService.connect()
 
@@ -73,6 +97,7 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
       })
 
       socketService.on("appointment:update", (data: any) => {
+        toast.info("Appointment updated")
         fetchDashboardData()
       })
 
@@ -83,8 +108,8 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
 
     connectSocket()
 
-    // Poll for queue updates every 60 seconds as fallback
-    const interval = setInterval(fetchDashboardData, 60000)
+    // Poll for updates every 30 seconds as fallback
+    const interval = setInterval(fetchDashboardData, 30000)
 
     return () => {
       clearInterval(interval)
@@ -113,12 +138,19 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
       setQueue(queueResponse?.data || [])
 
       // Fetch today's appointments
-      const appointmentsResponse: any = await apiService.get("/api/v1/appointments?date=today")
-      const appointments = appointmentsResponse?.data || []
-      setTodayAppointments(Array.isArray(appointments) ? appointments : appointments.appointments || [])
-    } catch (error) {
+      const todayResponse: any = await apiService.get("/api/v1/appointments?date=today")
+      const todayApts = todayResponse?.data || []
+      setTodayAppointments(Array.isArray(todayApts) ? todayApts : todayApts.appointments || [])
+
+      // Fetch all appointments for the clinic
+      const allResponse: any = await apiService.get("/api/v1/appointments")
+      const allApts = allResponse?.data || []
+      setAllAppointments(Array.isArray(allApts) ? allApts : allApts.appointments || [])
+    } catch (error: any) {
       console.error("Failed to fetch dashboard data:", error)
-      toast.error("Failed to update dashboard")
+      if (error.response?.status !== 403) {
+        toast.error("Failed to update dashboard")
+      }
     } finally {
       setLoading(false)
     }
@@ -142,6 +174,55 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
     } catch (error: any) {
       toast.error(error.message || "Failed to update queue")
     }
+  }
+
+  const handleCancelAppointment = async () => {
+    if (!cancelId) return
+    try {
+      await apiService.post(`/api/v1/appointments/${cancelId}/cancel`, {
+        cancellationReason: "Cancelled by receptionist"
+      })
+      toast.success("Appointment cancelled successfully")
+      setCancelId(null)
+      fetchDashboardData()
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Failed to cancel appointment")
+    }
+  }
+
+  const handleRescheduleAppointment = async () => {
+    if (!rescheduleId || !newScheduleDate || !newScheduleTime) {
+      toast.error("Please select both date and time")
+      return
+    }
+    
+    try {
+      const scheduledAt = new Date(`${newScheduleDate}T${newScheduleTime}`)
+      await apiService.post(`/api/v1/appointments/${rescheduleId}/reschedule`, {
+        scheduledAt: scheduledAt.toISOString()
+      })
+      toast.success("Appointment rescheduled successfully")
+      setRescheduleId(null)
+      setNewScheduleDate("")
+      setNewScheduleTime("")
+      fetchDashboardData()
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Failed to reschedule appointment")
+    }
+  }
+
+  const getStatusBadge = (status: string) => {
+    const statusMap: Record<string, { variant: any; label: string }> = {
+      SCHEDULED: { variant: "default", label: "Scheduled" },
+      CONFIRMED: { variant: "default", label: "Confirmed" },
+      CHECKED_IN: { variant: "secondary", label: "Checked In" },
+      IN_PROGRESS: { variant: "secondary", label: "In Progress" },
+      COMPLETED: { variant: "outline", label: "Completed" },
+      CANCELLED: { variant: "destructive", label: "Cancelled" },
+      RESCHEDULED: { variant: "secondary", label: "Rescheduled" },
+    }
+    const config = statusMap[status] || { variant: "outline", label: status }
+    return <Badge variant={config.variant}>{config.label}</Badge>
   }
 
   const stats = [
@@ -243,9 +324,10 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="queue" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="queue">Patient Queue</TabsTrigger>
-          <TabsTrigger value="appointments">Today's Schedule</TabsTrigger>
+          <TabsTrigger value="today">Today's Schedule</TabsTrigger>
+          <TabsTrigger value="all">All Appointments</TabsTrigger>
           <TabsTrigger value="overview">Overview</TabsTrigger>
         </TabsList>
 
@@ -274,17 +356,17 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
                   {queue.map((entry, index) => (
                     <Card
                       key={entry.id}
-                      className={`transition-all hover:shadow-md ${entry.priority === "urgent" ? "border-red-300 bg-red-50/50" : ""
-                        }`}
+                      className={`transition-all hover:shadow-md ${entry.priority === "urgent" ? "border-red-300 bg-red-50/50" : ""}`}
                     >
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4 flex-1">
-                            <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg ${entry.status === "completed" ? "bg-green-100 text-green-700" :
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg ${
+                              entry.status === "completed" ? "bg-green-100 text-green-700" :
                               entry.status === "in_progress" ? "bg-blue-100 text-blue-700" :
-                                entry.status === "checked_in" ? "bg-purple-100 text-purple-700" :
-                                  "bg-orange-100 text-orange-700"
-                              }`}>
+                              entry.status === "checked_in" ? "bg-purple-100 text-purple-700" :
+                              "bg-orange-100 text-orange-700"
+                            }`}>
                               {index + 1}
                             </div>
                             <div className="flex-1">
@@ -293,18 +375,7 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
                                 {entry.priority === "urgent" && (
                                   <Badge variant="destructive" className="text-xs">Urgent</Badge>
                                 )}
-                                <Badge
-                                  variant={
-                                    entry.status === "completed"
-                                      ? "default"
-                                      : entry.status === "in_progress"
-                                        ? "secondary"
-                                        : entry.status === "checked_in"
-                                          ? "outline"
-                                          : "outline"
-                                  }
-                                  className="text-xs"
-                                >
+                                <Badge variant={entry.status === "completed" ? "default" : "outline"} className="text-xs">
                                   {entry.status.replace("_", " ").toUpperCase()}
                                 </Badge>
                               </div>
@@ -327,28 +398,17 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
                           </div>
                           <div className="flex items-center gap-2">
                             {entry.status === "waiting" && (
-                              <Button
-                                size="sm"
-                                onClick={() => handleQueueUpdate(entry.id, "checked_in")}
-                              >
+                              <Button size="sm" onClick={() => handleQueueUpdate(entry.id, "checked_in")}>
                                 Check In
                               </Button>
                             )}
                             {entry.status === "checked_in" && (
-                              <Button
-                                size="sm"
-                                variant="default"
-                                onClick={() => handleQueueUpdate(entry.id, "in_progress")}
-                              >
+                              <Button size="sm" variant="default" onClick={() => handleQueueUpdate(entry.id, "in_progress")}>
                                 Start Consultation
                               </Button>
                             )}
                             {entry.status === "in_progress" && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleQueueUpdate(entry.id, "completed")}
-                              >
+                              <Button size="sm" variant="outline" onClick={() => handleQueueUpdate(entry.id, "completed")}>
                                 Mark Complete
                               </Button>
                             )}
@@ -364,7 +424,7 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
         </TabsContent>
 
         {/* Today's Appointments Tab */}
-        <TabsContent value="appointments" className="space-y-4">
+        <TabsContent value="today" className="space-y-4">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -389,6 +449,7 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
                     <TableRow>
                       <TableHead>Time</TableHead>
                       <TableHead>Patient</TableHead>
+                      <TableHead>Doctor</TableHead>
                       <TableHead>Reason</TableHead>
                       <TableHead>Contact</TableHead>
                       <TableHead>Status</TableHead>
@@ -398,28 +459,52 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
                   <TableBody>
                     {todayAppointments.map((apt) => (
                       <TableRow key={apt.id}>
-                        <TableCell className="font-medium">{apt.time}</TableCell>
-                        <TableCell>{apt.patientName}</TableCell>
-                        <TableCell className="text-muted-foreground">{apt.reason}</TableCell>
+                        <TableCell className="font-medium">
+                          {format(new Date(apt.scheduledAt), "h:mm a")}
+                        </TableCell>
                         <TableCell>
-                          {apt.phone && (
+                          {apt.patient ? `${apt.patient.firstName} ${apt.patient.lastName}` : apt.patientName || "N/A"}
+                        </TableCell>
+                        <TableCell>
+                          {apt.doctor ? `Dr. ${apt.doctor.firstName} ${apt.doctor.lastName}` : "N/A"}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{apt.reason || "General"}</TableCell>
+                        <TableCell>
+                          {apt.patient?.phone && (
                             <div className="flex items-center gap-1 text-xs text-muted-foreground">
                               <Phone className="h-3 w-3" />
-                              {apt.phone}
+                              {apt.patient.phone}
                             </div>
                           )}
                         </TableCell>
-                        <TableCell>
-                          <Badge variant={apt.status === "confirmed" ? "default" : "secondary"}>
-                            {apt.status}
-                          </Badge>
-                        </TableCell>
+                        <TableCell>{getStatusBadge(apt.status)}</TableCell>
                         <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            {apt.status === "confirmed" && (
-                              <Button size="sm" onClick={() => handleCheckIn(apt.id)}>
-                                Check In
-                              </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            {(apt.status === "SCHEDULED" || apt.status === "CONFIRMED") && (
+                              <>
+                                <Button size="sm" variant="ghost" onClick={() => handleCheckIn(apt.id)}>
+                                  Check In
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost"
+                                  onClick={() => {
+                                    setRescheduleId(apt.id)
+                                    setNewScheduleDate(format(new Date(apt.scheduledAt), "yyyy-MM-dd"))
+                                    setNewScheduleTime(format(new Date(apt.scheduledAt), "HH:mm"))
+                                  }}
+                                >
+                                  <Edit className="h-3 w-3" />
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost"
+                                  className="text-destructive"
+                                  onClick={() => setCancelId(apt.id)}
+                                >
+                                  <XCircle className="h-3 w-3" />
+                                </Button>
+                              </>
                             )}
                             <Button variant="outline" size="sm" asChild>
                               <Link href={`/appointments/${apt.id}`}>View</Link>
@@ -430,6 +515,94 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
                     ))}
                   </TableBody>
                 </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* All Appointments Tab */}
+        <TabsContent value="all" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>All Clinic Appointments</CardTitle>
+                  <CardDescription>View and manage all appointments for your clinic</CardDescription>
+                </div>
+                <Badge variant="outline" className="text-lg px-3 py-1">
+                  {allAppointments.length} Total
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {allAppointments.length === 0 ? (
+                <div className="text-center py-12">
+                  <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">No appointments found</p>
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-[600px] overflow-y-auto">
+                  {allAppointments.map((apt) => (
+                    <Card key={apt.id} className="hover:shadow-md transition-shadow">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <p className="font-semibold">
+                                {apt.patient ? `${apt.patient.firstName} ${apt.patient.lastName}` : apt.patientName || "N/A"}
+                              </p>
+                              {getStatusBadge(apt.status)}
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
+                              <div className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {format(new Date(apt.scheduledAt), "MMM d, yyyy")}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {format(new Date(apt.scheduledAt), "h:mm a")}
+                              </div>
+                              <div className="col-span-2">
+                                Dr. {apt.doctor ? `${apt.doctor.firstName} ${apt.doctor.lastName}` : "N/A"}
+                              </div>
+                              {apt.reason && (
+                                <div className="col-span-2">Reason: {apt.reason}</div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {(apt.status === "SCHEDULED" || apt.status === "CONFIRMED") && (
+                              <>
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost"
+                                  onClick={() => {
+                                    setRescheduleId(apt.id)
+                                    setNewScheduleDate(format(new Date(apt.scheduledAt), "yyyy-MM-dd"))
+                                    setNewScheduleTime(format(new Date(apt.scheduledAt), "HH:mm"))
+                                  }}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost"
+                                  className="text-destructive"
+                                  onClick={() => setCancelId(apt.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                            <Button variant="outline" size="sm" asChild>
+                              <Link href={`/appointments/${apt.id}`}>View</Link>
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               )}
             </CardContent>
           </Card>
@@ -457,9 +630,9 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
                   </Link>
                 </Button>
                 <Button asChild variant="outline" className="w-full justify-start">
-                  <Link href="/queue/status">
-                    <Users className="mr-2 h-4 w-4" />
-                    Manage Queue
+                  <Link href="/appointments/list">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    All Appointments
                   </Link>
                 </Button>
                 <Button asChild variant="outline" className="w-full justify-start">
@@ -499,10 +672,6 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
                         <span>{clinicInfo.email}</span>
                       </div>
                     )}
-                    <Button variant="outline" size="sm" className="w-full">
-                      <MapPin className="mr-2 h-4 w-4" />
-                      View on Map
-                    </Button>
                   </div>
                 ) : (
                   <div className="flex items-center justify-center p-6 text-muted-foreground">
@@ -541,6 +710,61 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Cancel Appointment Dialog */}
+      <AlertDialog open={!!cancelId} onOpenChange={(open) => !open && setCancelId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Appointment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to cancel this appointment? The patient will be notified.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Appointment</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCancelAppointment} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Yes, Cancel It
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Reschedule Appointment Dialog */}
+      <Dialog open={!!rescheduleId} onOpenChange={(open) => !open && setRescheduleId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reschedule Appointment</DialogTitle>
+            <DialogDescription>
+              Select a new date and time for this appointment
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="newDate">New Date</Label>
+              <Input
+                id="newDate"
+                type="date"
+                value={newScheduleDate}
+                onChange={(e) => setNewScheduleDate(e.target.value)}
+                min={format(new Date(), "yyyy-MM-dd")}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="newTime">New Time</Label>
+              <Input
+                id="newTime"
+                type="time"
+                value={newScheduleTime}
+                onChange={(e) => setNewScheduleTime(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRescheduleId(null)}>Cancel</Button>
+            <Button onClick={handleRescheduleAppointment}>Reschedule</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

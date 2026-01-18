@@ -334,6 +334,23 @@ export const verifyRazorpayPaymentController = async (
           } : {})
         },
       });
+    } else {
+      // Create doctor profile if it doesn't exist
+      await prisma.doctorProfile.create({
+        data: {
+          userId: req.user.id,
+          licenseNumber: `LIC-${req.user.id.substring(0, 8)}`,
+          specialization: 'General',
+          subscriptionPlan: subscriptionPlan,
+          subscriptionStatus: 'ACTIVE',
+          subscriptionExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+          razorpaySubscriptionId: razorpay_payment_id,
+          ...(clinicDetails ? {
+            clinicName: clinicDetails.name,
+            clinicAddress: `${clinicDetails.address}, ${clinicDetails.city}, ${clinicDetails.state} ${clinicDetails.zipCode}`,
+          } : {})
+        },
+      });
     }
 
     // Calculate the actual amount paid based on the plan

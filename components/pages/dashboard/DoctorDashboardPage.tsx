@@ -58,9 +58,12 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
   const [todayAppointments, setTodayAppointments] = useState<any[]>([])
 
   useEffect(() => {
-    fetchDashboardData()
+    // Add a small delay before fetching to ensure token is ready
+    const timer = setTimeout(() => {
+      fetchDashboardData()
+    }, 300)
 
-    // Socket connection
+    // Socket connection for real-time updates
     const connectSocket = async () => {
       await socketService.connect()
 
@@ -71,6 +74,7 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
       })
 
       socketService.on("appointment:update", (updatedAppointment: any) => {
+        toast.info("Appointment updated")
         // Refresh data
         fetchDashboardData()
       })
@@ -78,7 +82,12 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
 
     connectSocket()
 
+    // Poll for updates every 60 seconds as fallback
+    const interval = setInterval(fetchDashboardData, 60000)
+
     return () => {
+      clearTimeout(timer)
+      clearInterval(interval)
       socketService.off("appointment:new")
       socketService.off("appointment:update")
     }
@@ -86,6 +95,8 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
 
   const fetchDashboardData = async () => {
     try {
+      setLoading(true)
+      
       // Fetch analytics data
       const analyticsResponse: any = await apiService.get("/api/v1/doctors/analytics")
       setStats(analyticsResponse.data || {
@@ -101,9 +112,28 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
       // Fetch today's appointments
       const appointmentsResponse: any = await apiService.get("/api/v1/appointments?date=today")
       setTodayAppointments(appointmentsResponse?.data || [])
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch dashboard data:", error)
-      toast.error("Failed to update dashboard data")
+      
+      // Provide more specific error messages
+      if (error.response?.status === 401) {
+        toast.error("Session expired. Please refresh the page.")
+      } else if (error.response?.status === 403) {
+        toast.error("You don't have permission to access this data. Please complete your onboarding.")
+      } else {
+        toast.error("Failed to load dashboard data. Please try again.")
+      }
+      
+      // Set empty stats to prevent loading forever
+      setStats({
+        today: { appointments: 0, revenue: 0, patients: 0, cancellations: 0 },
+        yesterday: { appointments: 0, revenue: 0, patients: 0, cancellations: 0 },
+        thisWeek: { appointments: 0, revenue: 0, patients: 0, cancellations: 0 },
+        thisMonth: { appointments: 0, revenue: 0, patients: 0, cancellations: 0 },
+        revenueData: [],
+        patientGrowth: [],
+        cancellationRate: 0,
+      })
     } finally {
       setLoading(false)
     }

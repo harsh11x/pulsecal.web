@@ -52,55 +52,49 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
 
     try {
       if (mode === "login") {
+        // Just sign in with Firebase - backend middleware will handle user lookup/creation
         await signIn(email, password)
         
         // Wait for Firebase to initialize
-        await new Promise(resolve => setTimeout(resolve, 500))
+        await new Promise(resolve => setTimeout(resolve, 800))
         
-        // Fetch user profile and update Redux
+        // Fetch user profile from backend (middleware creates if missing)
         try {
-          const token = await getIdToken()
-          if (token) {
-            // Wait a bit for backend to be ready
-            await new Promise(resolve => setTimeout(resolve, 500))
+          const profileResponse: any = await apiService.get("/api/v1/auth/profile")
+          const userProfile = profileResponse?.data || profileResponse
+          
+          if (userProfile && userProfile.id) {
+            const userData = {
+              id: userProfile.id,
+              email: userProfile.email,
+              firstName: userProfile.firstName,
+              lastName: userProfile.lastName,
+              phone: userProfile.phone,
+              dateOfBirth: userProfile.dateOfBirth,
+              role: (userProfile.role || "PATIENT").toLowerCase() as "patient" | "doctor" | "receptionist" | "admin",
+              isActive: userProfile.isActive !== false,
+              isEmailVerified: userProfile.isEmailVerified || false,
+              profileImage: userProfile.profileImage,
+              onboardingCompleted: userProfile.onboardingCompleted || false,
+              clinicId: userProfile.clinicId,
+            }
+            dispatch(setUser(userData))
             
-            try {
-              const profilePromise = apiService.get("/api/v1/auth/profile")
-              const timeoutPromise = new Promise<never>((_, reject) => 
-                setTimeout(() => reject(new Error("Request timeout")), 5000)
-              )
-              
-              const profileResponse: any = await Promise.race([profilePromise, timeoutPromise])
-              const userProfile = profileResponse?.data || profileResponse
-              
-              if (userProfile && userProfile.id) {
-                const userData = {
-                  id: userProfile.id,
-                  email: userProfile.email,
-                  firstName: userProfile.firstName,
-                  lastName: userProfile.lastName,
-                  phone: userProfile.phone,
-                  dateOfBirth: userProfile.dateOfBirth,
-                  role: (userProfile.role || "PATIENT").toLowerCase() as "patient" | "doctor" | "receptionist" | "admin",
-                  isActive: userProfile.isActive !== false,
-                  isEmailVerified: userProfile.isEmailVerified || false,
-                  profileImage: userProfile.profileImage,
-                  onboardingCompleted: userProfile.onboardingCompleted || false,
-                }
-                dispatch(setUser(userData))
-              }
-            } catch (apiError: any) {
-              console.warn("Failed to fetch user profile:", apiError)
-              // Don't block - user can still proceed
+            // Redirect based on onboarding status
+            toast.success("Signed in successfully!")
+            if (!userProfile.onboardingCompleted && userProfile.role === 'DOCTOR') {
+              router.push(`/onboarding?role=doctor`)
+            } else {
+              router.push("/dashboard")
             }
           }
-        } catch (tokenError: any) {
-          console.warn("Failed to get token:", tokenError)
-          // Don't block - user can still proceed
+        } catch (apiError: any) {
+          console.warn("Failed to fetch user profile on login:", apiError)
+          // Even if profile fetch fails, let user proceed - they're authenticated
+          toast.success("Signed in successfully!")
+          router.push("/dashboard")
         }
         
-        toast.success("Signed in successfully!")
-        router.push("/dashboard")
         onClose()
       } else {
         // Signup flow
@@ -114,76 +108,41 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
           return
         }
         
-        const userCredential = await signUp(
-          email,
-          password,
-          name.trim()
-        )
+        const userCredential = await signUp(email, password, name.trim())
         
         // Wait for Firebase to initialize
-        await new Promise(resolve => setTimeout(resolve, 500))
+        await new Promise(resolve => setTimeout(resolve, 800))
         
         // Normalize role to uppercase for backend
         const normalizedRole = role.toUpperCase() as "PATIENT" | "DOCTOR" | "RECEPTIONIST"
         
-        // Sync profile with role
+        // Sync profile with backend - middleware will create user on first API call
         try {
           await syncUserProfile(firstName, lastName, undefined, undefined, undefined, normalizedRole)
+          
+          // Fetch the created profile
+          const profileResponse: any = await apiService.get("/api/v1/auth/profile")
+          const userProfile = profileResponse?.data || profileResponse
+          
+          if (userProfile && userProfile.id) {
+            const userData = {
+              id: userProfile.id,
+              email: userProfile.email,
+              firstName: userProfile.firstName || firstName,
+              lastName: userProfile.lastName || lastName,
+              phone: userProfile.phone,
+              dateOfBirth: userProfile.dateOfBirth,
+              role: (userProfile.role || normalizedRole).toLowerCase() as "patient" | "doctor" | "receptionist" | "admin",
+              isActive: userProfile.isActive !== false,
+              isEmailVerified: userProfile.isEmailVerified || false,
+              profileImage: userProfile.profileImage,
+              onboardingCompleted: userProfile.onboardingCompleted || false,
+              clinicId: userProfile.clinicId,
+            }
+            dispatch(setUser(userData))
+          }
         } catch (syncError: any) {
           console.warn("Profile sync warning:", syncError)
-          // Don't block - user can complete onboarding
-        }
-        
-        // Fetch user profile and update Redux
-        try {
-          const token = await getIdToken()
-          if (token) {
-            await new Promise(resolve => setTimeout(resolve, 500))
-            
-            try {
-              const profilePromise = apiService.get("/api/v1/auth/profile")
-              const timeoutPromise = new Promise<never>((_, reject) => 
-                setTimeout(() => reject(new Error("Request timeout")), 5000)
-              )
-              
-              const profileResponse: any = await Promise.race([profilePromise, timeoutPromise])
-              const userProfile = profileResponse?.data || profileResponse
-              
-              if (userProfile && userProfile.id) {
-                const userData = {
-                  id: userProfile.id,
-                  email: userProfile.email,
-                  firstName: userProfile.firstName || firstName,
-                  lastName: userProfile.lastName || lastName,
-                  phone: userProfile.phone,
-                  dateOfBirth: userProfile.dateOfBirth,
-                  role: (userProfile.role || normalizedRole).toLowerCase() as "patient" | "doctor" | "receptionist" | "admin",
-                  isActive: userProfile.isActive !== false,
-                  isEmailVerified: userProfile.isEmailVerified || false,
-                  profileImage: userProfile.profileImage,
-                  onboardingCompleted: userProfile.onboardingCompleted || false,
-                }
-                dispatch(setUser(userData))
-              }
-            } catch (apiError: any) {
-              console.warn("Failed to fetch user profile:", apiError)
-              // Create minimal user data for onboarding
-              const userData = {
-                id: userCredential.user.uid,
-                email: userCredential.user.email || email,
-                firstName: firstName,
-                lastName: lastName,
-                role: role.toLowerCase() as "patient" | "doctor" | "receptionist" | "admin",
-                isActive: true,
-                isEmailVerified: userCredential.user.emailVerified || false,
-                profileImage: userCredential.user.photoURL,
-                onboardingCompleted: false,
-              }
-              dispatch(setUser(userData))
-            }
-          }
-        } catch (tokenError: any) {
-          console.warn("Failed to get token:", tokenError)
           // Create minimal user data for onboarding
           const userData = {
             id: userCredential.user.uid,
@@ -208,7 +167,7 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
       
       let errorMessage = "An error occurred"
       if (error.code === "auth/user-not-found") {
-        errorMessage = "No account found with this email"
+        errorMessage = "No account found with this email. Please sign up first."
       } else if (error.code === "auth/wrong-password") {
         errorMessage = "Incorrect password"
       } else if (error.code === "auth/email-already-in-use") {
@@ -217,6 +176,8 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
         errorMessage = "Password should be at least 6 characters"
       } else if (error.code === "auth/invalid-email") {
         errorMessage = "Invalid email address"
+      } else if (error.code === "auth/invalid-credential") {
+        errorMessage = "Invalid email or password"
       } else if (error.message) {
         errorMessage = error.message
       }
