@@ -317,7 +317,7 @@ export const syncUserProfile = async (
       }
     }
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+    const apiUrl = "/api/v1";
 
     // Remove trailing slash if present to avoid double slashes
     const baseUrl = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
