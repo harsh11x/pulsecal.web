@@ -101,8 +101,9 @@ export function Sidebar({ className }: SidebarProps) {
   const { user } = useAppSelector((state) => state.auth)
 
   const filteredNavItems = navItems.filter((item) => {
-    // Hide non-admin specific items for ADMIN role
-    if (user?.role === 'admin') {
+    // Hide non-admin specific items for ADMIN role (case-insensitive)
+    const userRole = user?.role?.toLowerCase();
+    if (userRole === 'admin') {
       const adminAllowed = [
         "/admin/dashboard",
         "/admin/clinics",

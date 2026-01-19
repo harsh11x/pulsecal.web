@@ -78,7 +78,9 @@ export default function ClinicsListPage() {
             setLoading(true)
             const response: any = await apiService.get("/api/v1/admin/clinics")
             // Handle both paginated and regular response structures
-            const clinicsData = response.data?.clinics || response.clinics || []
+            // apiService returns response.data directly
+            // If backend returns { data: [...], pagination: ... }, then response.data is the array
+            const clinicsData = Array.isArray(response.data) ? response.data : (response.clinics || [])
             setClinics(clinicsData)
 
             // Calculate aggregations for the summary cards
