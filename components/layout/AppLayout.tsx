@@ -43,13 +43,13 @@ export function AppLayout({ children }: AppLayoutProps) {
                 <div className="grid gap-2">
                   <button
                     onClick={() => router.push('/appointments/create')}
-                    className="text-sm text-left p-2 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    className="text-sm text-left p-2 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors cursor-pointer w-full"
                   >
                     + New Appointment
                   </button>
                   <button
-                    onClick={() => router.push('/health/medical-records')}
-                    className="text-sm text-left p-2 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    onClick={() => router.push('/health/medical-records?action=new')}
+                    className="text-sm text-left p-2 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors cursor-pointer w-full"
                   >
                     + Add Patient record
                   </button>

@@ -9,6 +9,7 @@ import { apiService } from "@/services/api"
 import { useAppSelector } from "@/app/hooks"
 import { format } from "date-fns"
 import { Badge } from "@/components/ui/badge"
+import { useSearchParams } from "next/navigation"
 
 export default function MedicalRecordsPage() {
   const { user } = useAppSelector((state) => state.auth)
@@ -16,6 +17,13 @@ export default function MedicalRecordsPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [records, setRecords] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    if (searchParams.get("action") === "new" && isDoctor) {
+      setDialogOpen(true)
+    }
+  }, [searchParams, isDoctor])
 
   const fetchRecords = async () => {
     try {
