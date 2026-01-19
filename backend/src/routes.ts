@@ -24,7 +24,12 @@ import { config } from './config/env';
 
 const router = Router();
 
+import paymentGatewayRoutes from './modules/payment-gateway/payment-gateway.routes';
+
 const apiPrefix = `/api/${config.apiVersion}`;
+
+// New Clean Route for Payments
+router.use(`${apiPrefix}/payment-gateway`, paymentGatewayRoutes);
 
 // Auth routes (Firebase-based)
 router.use(`${apiPrefix}/auth`, authRoutes);

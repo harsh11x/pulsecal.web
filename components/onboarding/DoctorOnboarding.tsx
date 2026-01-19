@@ -272,7 +272,7 @@ export default function DoctorOnboarding() {
 
       // Create Razorpay order
       console.log("🛒 Creating payment order...");
-      const orderResponse: any = await apiService.post("/api/v1/doctors/subscription/create", {
+      const orderResponse: any = await apiService.post("/api/v1/payment-gateway/create-order", {
         plan: formData.subscriptionPlan
       });
 
@@ -316,7 +316,7 @@ export default function DoctorOnboarding() {
 
             // Verify payment
             console.log("🔍 Verifying payment with backend...");
-            const verifyResponse: any = await apiService.post("/api/v1/doctors/subscription/verify", {
+            const verifyResponse: any = await apiService.post("/api/v1/payment-gateway/verify", {
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
