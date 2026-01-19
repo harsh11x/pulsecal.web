@@ -14,7 +14,6 @@ import {
   LayoutDashboard,
   Heart,
   BarChart,
-  BarChart,
   Shield,
   Building2,
 } from "lucide-react"
