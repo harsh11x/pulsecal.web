@@ -12,6 +12,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Lock, Shield, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
+import { signInWithEmailAndPassword } from "firebase/auth"
+import { getAuthInstance } from "@/lib/firebase"
+
 export default function AdminLoginPage() {
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
@@ -24,24 +27,53 @@ export default function AdminLoginPage() {
         setLoading(true)
 
         try {
-            const response: any = await apiService.post("/api/v1/auth/login", {
-                email,
-                password,
-            })
+            const auth = getAuthInstance()
+            const userCredential = await signInWithEmailAndPassword(auth, email, password)
+            const idToken = await userCredential.user.getIdToken()
 
-            const { user, token } = response.data
+            // Sync user with backend to get role and details
+            const response: any = await apiService.post(
+                "/api/v1/auth/sync-profile",
+                {
+                    // We can pass empty body or specific fields if needed
+                    // mainly we need the backend to creating/fetching the user based on token
+                    email: userCredential.user.email
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${idToken}`,
+                    },
+                }
+            )
+
+            const user = response.data
 
             if (user.role !== "ADMIN") {
                 toast.error("Access Denied: You must be an administrator to log in here.")
+                // Optionally sign out from firebase if not admin
+                await auth.signOut()
                 return
             }
 
-            dispatch(setCredentials({ user, token }))
+            dispatch(setCredentials({ user, token: idToken }))
             toast.success(`Welcome back, Admin ${user.firstName}!`)
             router.push("/admin/dashboard")
         } catch (error: any) {
             console.error("Login failed:", error)
-            toast.error(error.response?.data?.message || "Invalid credentials")
+            const errorCode = error.code
+            let errorMessage = "Invalid credentials"
+
+            if (errorCode === 'auth/user-not-found') {
+                errorMessage = "No admin account found with this email"
+            } else if (errorCode === 'auth/wrong-password') {
+                errorMessage = "Incorrect password"
+            } else if (errorCode === 'auth/too-many-requests') {
+                errorMessage = "Too many failed attempts. Try again later."
+            } else if (error.response?.data?.message) {
+                errorMessage = error.response.data.message
+            }
+
+            toast.error(errorMessage)
         } finally {
             setLoading(false)
         }
