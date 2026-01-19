@@ -10,7 +10,7 @@ import {
   deleteAppointmentController,
 } from './appointments.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
-import { requireDoctorOrReceptionist, requireReceptionist } from '../../middlewares/role.middleware';
+import { requireDoctorOrReceptionist } from '../../middlewares/role.middleware';
 
 import { checkSubscriptionStatus } from '../../middlewares/subscription.middleware';
 

@@ -4,7 +4,7 @@ import {
     createPatientProfileController,
     getPatientProfileController,
 } from './patient-profiles.controller';
-import { requirePatient, requireStaff } from '../../middlewares/role.middleware';
+import { requireStaff } from '../../middlewares/role.middleware';
 
 const router = Router();
 

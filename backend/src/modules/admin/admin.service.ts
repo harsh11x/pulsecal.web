@@ -326,21 +326,6 @@ export const getClinicDetails = async (clinicId: string) => {
 
   const totalRevenue = payments.reduce((sum, p) => sum + Number(p.amount), 0);
 
-  // Calculate monthly revenue for last 6 months
-  const sixMonthsAgo = new Date();
-  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-
-  const monthlyRevenue = await prisma.payment.groupBy({
-    by: ['createdAt'],
-    where: {
-      doctorId: { in: doctorIds },
-      status: 'COMPLETED',
-      deletedAt: null,
-      createdAt: { gte: sixMonthsAgo },
-    },
-    _sum: { amount: true },
-  });
-
   return {
     ...clinic,
     doctors: clinic.staff.filter((s) => s.role === 'DOCTOR'),

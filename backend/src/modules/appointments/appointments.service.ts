@@ -135,15 +135,15 @@ export const getAppointments = async (req: {
             lastName: true,
             email: true,
             clinicId: true,
-          },
-        },
-        clinic: {
-          select: {
-            id: true,
-            name: true,
-            address: true,
-            city: true,
-            phone: true,
+            clinic: {
+              select: {
+                id: true,
+                name: true,
+                address: true,
+                city: true,
+                phone: true,
+              },
+            },
           },
         },
       },
