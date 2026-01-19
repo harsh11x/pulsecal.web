@@ -8,6 +8,7 @@ import { useEffect } from "react"
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     useAutoLogout()
+    const router = useRouter()
     const pathname = usePathname()
     const { isAuthenticated, user, isLoading } = useAppSelector((state) => state.auth)
 
