@@ -41,6 +41,7 @@ const verifyPaymentSchema = Joi.object({
         longitude: Joi.number().allow(null).optional(),
         subscriptionPlan: Joi.string().valid('STARTER', 'BASIC', 'PROFESSIONAL', 'ENTERPRISE').required(),
     }).optional(),
+    plan: Joi.string().valid('STARTER', 'BASIC', 'PROFESSIONAL', 'ENTERPRISE').optional(),
 });
 
 export const createOrder = async (req: AuthRequest, res: Response, _next: NextFunction) => {
