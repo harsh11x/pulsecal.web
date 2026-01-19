@@ -14,7 +14,9 @@ import {
   LayoutDashboard,
   Heart,
   BarChart,
+  BarChart,
   Shield,
+  Building2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAppSelector } from "@/app/hooks"
@@ -81,6 +83,12 @@ const navItems: NavItem[] = [
     title: "Admin Panel",
     href: "/admin/dashboard",
     icon: Shield,
+    permission: "VIEW_ADMIN_DASHBOARD",
+  },
+  {
+    title: "Clinics",
+    href: "/admin/clinics",
+    icon: Building2,
     permission: "VIEW_ADMIN_DASHBOARD",
   },
 ]
