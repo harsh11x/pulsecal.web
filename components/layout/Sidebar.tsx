@@ -101,6 +101,32 @@ export function Sidebar({ className }: SidebarProps) {
   const { user } = useAppSelector((state) => state.auth)
 
   const filteredNavItems = navItems.filter((item) => {
+    // Hide non-admin specific items for ADMIN role
+    if (user?.role === 'admin') {
+      const adminAllowed = [
+        "/admin/dashboard",
+        "/admin/clinics",
+        "/admin/users",
+        "/admin/reports",
+        "/dashboard/analytics",
+        "/dashboard" // Optional, maybe remove generic dashboard too?
+      ];
+      // Allow strictly admin paths + analytics
+      if (adminAllowed.includes(item.href)) return true;
+
+      // Hide patient/doctor specific modules
+      const hiddenForAdmin = [
+        "/appointments/calendar",
+        "/health/medical-records",
+        "/health/prescriptions",
+        "/services/insurance",
+        "/services/payments",
+        "/chat/rooms",
+        "/queue/status"
+      ];
+      if (hiddenForAdmin.includes(item.href)) return false;
+    }
+
     if (!item.permission) return true
     return user?.role && hasPermission(user.role as UserRole, item.permission)
   })
