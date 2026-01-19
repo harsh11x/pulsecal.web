@@ -3,150 +3,81 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { apiService } from "@/services/api"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+    CardDescription
+} from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
-    ArrowLeft,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table"
+import {
     Building2,
+    MapPin,
+    Phone,
+    Mail,
     Users,
     Calendar,
     IndianRupee,
-    Mail,
-    Phone,
-    MapPin,
-    User,
-    Stethoscope,
     Clock,
+    Activity,
+    CreditCard,
+    ArrowLeft,
+    Loader2
 } from "lucide-react"
+import { formatCurrency, formatDate } from "@/utils/helpers"
 import { toast } from "sonner"
-import { format } from "date-fns"
-
-interface StaffMember {
-    id: string
-    firstName: string
-    lastName: string
-    email: string
-    phone?: string
-    role: string
-    profileImage?: string
-    createdAt: string
-    doctorProfile?: {
-        specialization: string
-        consultationFee: number
-        subscriptionStatus: string
-    }
-}
-
-interface Appointment {
-    id: string
-    scheduledAt: string
-    status: string
-    reason?: string
-    duration: number
-    patient: {
-        id: string
-        firstName: string
-        lastName: string
-        email: string
-    }
-    doctor: {
-        id: string
-        firstName: string
-        lastName: string
-    }
-}
-
-interface Payment {
-    id: string
-    amount: number
-    currency: string
-    method?: string
-    description?: string
-    createdAt: string
-}
-
-interface ClinicDetails {
-    id: string
-    name: string
-    address: string
-    city: string
-    state: string
-    zipCode: string
-    phone: string
-    email?: string
-    subscriptionPlan: string
-    subscriptionStatus: string
-    isActive: boolean
-    createdAt: string
-    doctors: StaffMember[]
-    receptionists: StaffMember[]
-    stats: {
-        totalDoctors: number
-        totalReceptionists: number
-        totalPastAppointments: number
-        totalFutureAppointments: number
-        totalRevenue: number
-    }
-    pastAppointments: Appointment[]
-    futureAppointments: Appointment[]
-    recentPayments: Payment[]
-}
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 export default function ClinicDetailsPage() {
-    const params = useParams()
+    const { id } = useParams()
     const router = useRouter()
-    const [clinic, setClinic] = useState<ClinicDetails | null>(null)
+    const [clinic, setClinic] = useState<any>(null)
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        if (params.id) {
-            loadClinic(params.id as string)
+        if (id) {
+            fetchClinicDetails()
         }
-    }, [params.id])
+    }, [id])
 
-    const loadClinic = async (id: string) => {
+    const fetchClinicDetails = async () => {
         try {
             setLoading(true)
             const response: any = await apiService.get(`/api/v1/admin/clinics/${id}`)
-            setClinic(response?.data || response)
-        } catch (error: any) {
-            console.error("Failed to load clinic details:", error)
-            toast.error(error?.response?.data?.message || "Failed to load clinic details")
+            setClinic(response.data || response)
+        } catch (error) {
+            console.error("Failed to fetch clinic details:", error)
+            toast.error("Failed to load clinic details")
         } finally {
             setLoading(false)
         }
     }
 
-    const getStatusBadge = (status: string) => {
-        const colors: Record<string, string> = {
-            ACTIVE: "bg-green-100 text-green-800",
-            PENDING: "bg-yellow-100 text-yellow-800",
-            EXPIRED: "bg-red-100 text-red-800",
-            SCHEDULED: "bg-blue-100 text-blue-800",
-            CONFIRMED: "bg-green-100 text-green-800",
-            COMPLETED: "bg-gray-100 text-gray-800",
-            CANCELLED: "bg-red-100 text-red-800",
-        }
-        return colors[status] || "bg-gray-100 text-gray-800"
-    }
-
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-[60vh]">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                <p className="text-muted-foreground">Loading clinic details...</p>
             </div>
         )
     }
 
     if (!clinic) {
         return (
-            <div className="text-center py-12">
-                <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">Clinic not found</p>
-                <Button onClick={() => router.back()} className="mt-4">
-                    Go Back
-                </Button>
+            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+                <h2 className="text-2xl font-bold">Clinic not found</h2>
+                <Button onClick={() => router.push("/admin/clinics")}>Back to Clinics</Button>
             </div>
         )
     }
@@ -154,298 +85,392 @@ export default function ClinicDetailsPage() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon" onClick={() => router.back()}>
-                    <ArrowLeft className="h-5 w-5" />
-                </Button>
-                <div className="flex-1">
-                    <h1 className="text-3xl font-bold">{clinic.name}</h1>
-                    <div className="flex items-center gap-4 mt-2 text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                            <MapPin className="h-4 w-4" />
-                            {clinic.city}, {clinic.state}
-                        </span>
-                        {clinic.phone && (
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                <div className="flex gap-4">
+                    <Button variant="ghost" size="icon" onClick={() => router.push("/admin/clinics")}>
+                        <ArrowLeft className="h-5 w-5" />
+                    </Button>
+                    <div>
+                        <div className="flex items-center gap-3">
+                            <h1 className="text-3xl font-bold tracking-tight">{clinic.name}</h1>
+                            <Badge variant={clinic.isActive ? "default" : "secondary"}>
+                                {clinic.isActive ? "Active" : "Inactive"}
+                            </Badge>
+                            <Badge variant="outline">{clinic.subscriptionPlan}</Badge>
+                        </div>
+                        <div className="flex items-center gap-4 mt-2 text-muted-foreground text-sm">
+                            <span className="flex items-center gap-1">
+                                <MapPin className="h-4 w-4" />
+                                {clinic.address}, {clinic.city}, {clinic.state}
+                            </span>
                             <span className="flex items-center gap-1">
                                 <Phone className="h-4 w-4" />
                                 {clinic.phone}
                             </span>
-                        )}
-                        {clinic.email && (
                             <span className="flex items-center gap-1">
                                 <Mail className="h-4 w-4" />
-                                {clinic.email}
+                                {clinic.email || "No email provided"}
                             </span>
-                        )}
+                        </div>
                     </div>
                 </div>
-                <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusBadge(clinic.subscriptionStatus)}`}>
-                    {clinic.subscriptionStatus}
-                </span>
+                <div className="flex gap-2">
+                    <Button variant="outline">Edit Details</Button>
+                    <Button variant="destructive">Suspend Clinic</Button>
+                </div>
             </div>
 
-            {/* Stats Cards */}
-            <div className="grid gap-4 md:grid-cols-4">
+            {/* Stats Overview */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium">Doctors</CardTitle>
-                        <Stethoscope className="h-4 w-4 text-blue-500" />
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+                        <IndianRupee className="h-4 w-4 text-green-600" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{clinic.stats.totalDoctors}</div>
+                        <div className="text-2xl font-bold">{formatCurrency(clinic.stats.totalRevenue)}</div>
+                        <p className="text-xs text-muted-foreground">Lifetime earnings</p>
                     </CardContent>
                 </Card>
                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium">Receptionists</CardTitle>
-                        <Users className="h-4 w-4 text-green-500" />
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Appointments</CardTitle>
+                        <Calendar className="h-4 w-4 text-blue-600" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{clinic.stats.totalReceptionists}</div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium">Total Bookings</CardTitle>
-                        <Calendar className="h-4 w-4 text-purple-500" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">
-                            {clinic.stats.totalPastAppointments + clinic.stats.totalFutureAppointments}
-                        </div>
+                        <div className="text-2xl font-bold">{clinic.stats.totalPastAppointments + clinic.stats.totalFutureAppointments}</div>
                         <p className="text-xs text-muted-foreground">
                             {clinic.stats.totalFutureAppointments} upcoming
                         </p>
                     </CardContent>
                 </Card>
                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-                        <IndianRupee className="h-4 w-4 text-orange-500" />
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Doctors</CardTitle>
+                        <Users className="h-4 w-4 text-purple-600" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">
-                            ₹{clinic.stats.totalRevenue.toLocaleString("en-IN")}
-                        </div>
+                        <div className="text-2xl font-bold">{clinic.stats.totalDoctors}</div>
+                        <p className="text-xs text-muted-foreground">Active specialists</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Receptionists</CardTitle>
+                        <UserCheckIcon className="h-4 w-4 text-orange-600" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{clinic.stats.totalReceptionists}</div>
+                        <p className="text-xs text-muted-foreground">Support staff</p>
                     </CardContent>
                 </Card>
             </div>
 
-            {/* Tabs */}
-            <Tabs defaultValue="staff" className="space-y-4">
+            {/* Tabs Content */}
+            <Tabs defaultValue="overview" className="space-y-4">
                 <TabsList>
-                    <TabsTrigger value="staff">Staff</TabsTrigger>
+                    <TabsTrigger value="overview">Overview</TabsTrigger>
+                    <TabsTrigger value="staff">Staff Members</TabsTrigger>
                     <TabsTrigger value="appointments">Appointments</TabsTrigger>
-                    <TabsTrigger value="revenue">Revenue</TabsTrigger>
+                    <TabsTrigger value="financials">Financials</TabsTrigger>
                 </TabsList>
 
-                {/* Staff Tab */}
-                <TabsContent value="staff">
-                    <div className="grid gap-6 md:grid-cols-2">
-                        {/* Doctors */}
-                        <Card>
+                {/* OVERVIEW TAB */}
+                <TabsContent value="overview" className="space-y-4">
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+                        <Card className="col-span-4">
                             <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Stethoscope className="h-5 w-5 text-blue-500" />
-                                    Doctors ({clinic.doctors.length})
-                                </CardTitle>
+                                <CardTitle>Recent Activity</CardTitle>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="pl-2">
+                                {/* Placeholder for chart or activity feed using real data if available in future */}
                                 <div className="space-y-4">
-                                    {clinic.doctors.length === 0 ? (
-                                        <p className="text-muted-foreground text-center py-4">No doctors registered</p>
-                                    ) : (
-                                        clinic.doctors.map((doctor) => (
-                                            <div key={doctor.id} className="flex items-center gap-4 p-3 bg-accent/50 rounded-lg">
-                                                <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                                    <User className="h-5 w-5 text-blue-600" />
-                                                </div>
-                                                <div className="flex-1">
-                                                    <div className="font-medium">
-                                                        Dr. {doctor.firstName} {doctor.lastName}
-                                                    </div>
-                                                    <div className="text-sm text-muted-foreground">
-                                                        {doctor.doctorProfile?.specialization || "General"}
-                                                    </div>
-                                                </div>
-                                                {doctor.doctorProfile?.consultationFee && (
-                                                    <div className="text-sm font-medium text-green-600">
-                                                        ₹{Number(doctor.doctorProfile.consultationFee).toLocaleString("en-IN")}/visit
-                                                    </div>
-                                                )}
+                                    {clinic.recentPayments.slice(0, 3).map((payment: any) => (
+                                        <div key={payment.id} className="flex items-center">
+                                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-green-100">
+                                                <IndianRupee className="h-4 w-4 text-green-600" />
                                             </div>
-                                        ))
+                                            <div className="ml-4 space-y-1">
+                                                <p className="text-sm font-medium leading-none">Payment Received</p>
+                                                <p className="text-xs text-muted-foreground">{payment.description || "Consultation Fee"}</p>
+                                            </div>
+                                            <div className="ml-auto font-medium">{formatCurrency(payment.amount)}</div>
+                                        </div>
+                                    ))}
+                                    {clinic.futureAppointments.slice(0, 3).map((apt: any) => (
+                                        <div key={apt.id} className="flex items-center">
+                                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100">
+                                                <Calendar className="h-4 w-4 text-blue-600" />
+                                            </div>
+                                            <div className="ml-4 space-y-1">
+                                                <p className="text-sm font-medium leading-none">Appointment Scheduled</p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {apt.patient?.firstName} with Dr. {apt.doctor?.firstName}
+                                                </p>
+                                            </div>
+                                            <div className="ml-auto font-medium text-muted-foreground text-sm">
+                                                {new Date(apt.scheduledAt).toLocaleDateString()}
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {clinic.recentPayments.length === 0 && clinic.futureAppointments.length === 0 && (
+                                        <p className="text-muted-foreground text-sm">No recent activity found.</p>
                                     )}
                                 </div>
                             </CardContent>
                         </Card>
-
-                        {/* Receptionists */}
-                        <Card>
+                        <Card className="col-span-3">
                             <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Users className="h-5 w-5 text-green-500" />
-                                    Receptionists ({clinic.receptionists.length})
-                                </CardTitle>
+                                <CardTitle>Clinic Information</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="space-y-4">
-                                    {clinic.receptionists.length === 0 ? (
-                                        <p className="text-muted-foreground text-center py-4">No receptionists registered</p>
-                                    ) : (
-                                        clinic.receptionists.map((receptionist) => (
-                                            <div key={receptionist.id} className="flex items-center gap-4 p-3 bg-accent/50 rounded-lg">
-                                                <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
-                                                    <User className="h-5 w-5 text-green-600" />
-                                                </div>
-                                                <div className="flex-1">
-                                                    <div className="font-medium">
-                                                        {receptionist.firstName} {receptionist.lastName}
-                                                    </div>
-                                                    <div className="text-sm text-muted-foreground">{receptionist.email}</div>
-                                                </div>
-                                            </div>
-                                        ))
-                                    )}
+                                <div className="space-y-4 text-sm">
+                                    <div className="flex justify-between border-b pb-2">
+                                        <span className="text-muted-foreground">Founded</span>
+                                        <span className="font-medium">{new Date(clinic.createdAt).toLocaleDateString()}</span>
+                                    </div>
+                                    <div className="flex justify-between border-b pb-2">
+                                        <span className="text-muted-foreground">Max Doctors</span>
+                                        <span className="font-medium">{clinic.maxDoctors}</span>
+                                    </div>
+                                    <div className="flex justify-between border-b pb-2">
+                                        <span className="text-muted-foreground">Subscription</span>
+                                        <Badge variant="outline" className="capitalize">{clinic.subscriptionStatus}</Badge>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Country</span>
+                                        <span className="font-medium">{clinic.country}</span>
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>
                     </div>
                 </TabsContent>
 
-                {/* Appointments Tab */}
-                <TabsContent value="appointments">
-                    <div className="grid gap-6 md:grid-cols-2">
-                        {/* Upcoming Appointments */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Calendar className="h-5 w-5 text-blue-500" />
-                                    Upcoming Appointments ({clinic.futureAppointments.length})
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="space-y-3 max-h-96 overflow-y-auto">
-                                    {clinic.futureAppointments.length === 0 ? (
-                                        <p className="text-muted-foreground text-center py-4">No upcoming appointments</p>
-                                    ) : (
-                                        clinic.futureAppointments.map((apt) => (
-                                            <div key={apt.id} className="p-3 border rounded-lg">
-                                                <div className="flex items-center justify-between">
-                                                    <div className="font-medium">
-                                                        {apt.patient.firstName} {apt.patient.lastName}
-                                                    </div>
-                                                    <span className={`px-2 py-0.5 rounded-full text-xs ${getStatusBadge(apt.status)}`}>
-                                                        {apt.status}
-                                                    </span>
-                                                </div>
-                                                <div className="text-sm text-muted-foreground mt-1">
-                                                    with Dr. {apt.doctor.firstName} {apt.doctor.lastName}
-                                                </div>
-                                                <div className="flex items-center gap-2 text-sm mt-2">
-                                                    <Clock className="h-3 w-3" />
-                                                    {format(new Date(apt.scheduledAt), "PPp")}
-                                                </div>
-                                            </div>
-                                        ))
-                                    )}
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        {/* Past Appointments */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Calendar className="h-5 w-5 text-gray-500" />
-                                    Past Appointments ({clinic.pastAppointments.length})
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="space-y-3 max-h-96 overflow-y-auto">
-                                    {clinic.pastAppointments.length === 0 ? (
-                                        <p className="text-muted-foreground text-center py-4">No past appointments</p>
-                                    ) : (
-                                        clinic.pastAppointments.map((apt) => (
-                                            <div key={apt.id} className="p-3 border rounded-lg opacity-75">
-                                                <div className="flex items-center justify-between">
-                                                    <div className="font-medium">
-                                                        {apt.patient.firstName} {apt.patient.lastName}
-                                                    </div>
-                                                    <span className={`px-2 py-0.5 rounded-full text-xs ${getStatusBadge(apt.status)}`}>
-                                                        {apt.status}
-                                                    </span>
-                                                </div>
-                                                <div className="text-sm text-muted-foreground mt-1">
-                                                    with Dr. {apt.doctor.firstName} {apt.doctor.lastName}
-                                                </div>
-                                                <div className="flex items-center gap-2 text-sm mt-2">
-                                                    <Clock className="h-3 w-3" />
-                                                    {format(new Date(apt.scheduledAt), "PPp")}
-                                                </div>
-                                            </div>
-                                        ))
-                                    )}
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-                </TabsContent>
-
-                {/* Revenue Tab */}
-                <TabsContent value="revenue">
+                {/* STAFF TAB */}
+                <TabsContent value="staff" className="space-y-4">
                     <Card>
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <IndianRupee className="h-5 w-5 text-orange-500" />
-                                Recent Payments ({clinic.recentPayments.length})
-                            </CardTitle>
+                            <CardTitle>Doctors</CardTitle>
+                            <CardDescription>Medical professionals associated with this clinic</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="overflow-x-auto">
-                                <table className="w-full">
-                                    <thead>
-                                        <tr className="border-b">
-                                            <th className="text-left py-3 px-4">Date</th>
-                                            <th className="text-left py-3 px-4">Description</th>
-                                            <th className="text-left py-3 px-4">Method</th>
-                                            <th className="text-right py-3 px-4">Amount</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {clinic.recentPayments.length === 0 ? (
-                                            <tr>
-                                                <td colSpan={4} className="text-center py-8 text-muted-foreground">
-                                                    No payments recorded
-                                                </td>
-                                            </tr>
-                                        ) : (
-                                            clinic.recentPayments.map((payment) => (
-                                                <tr key={payment.id} className="border-b hover:bg-accent/50">
-                                                    <td className="py-3 px-4">
-                                                        {format(new Date(payment.createdAt), "PP")}
-                                                    </td>
-                                                    <td className="py-3 px-4">
-                                                        {payment.description || "Consultation"}
-                                                    </td>
-                                                    <td className="py-3 px-4">
-                                                        <span className="px-2 py-1 bg-accent rounded text-xs">
-                                                            {payment.method || "Online"}
-                                                        </span>
-                                                    </td>
-                                                    <td className="py-3 px-4 text-right font-medium">
-                                                        ₹{Number(payment.amount).toLocaleString("en-IN")}
-                                                    </td>
-                                                </tr>
-                                            ))
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Doctor</TableHead>
+                                        <TableHead>Specialization</TableHead>
+                                        <TableHead>Email</TableHead>
+                                        <TableHead>Fee</TableHead>
+                                        <TableHead>Joined</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {clinic.doctors.map((doc: any) => (
+                                        <TableRow key={doc.id}>
+                                            <TableCell className="font-medium">
+                                                <div className="flex items-center gap-2">
+                                                    <Avatar className="h-8 w-8">
+                                                        <AvatarImage src={doc.profileImage} />
+                                                        <AvatarFallback>{doc.firstName?.[0]}{doc.lastName?.[0]}</AvatarFallback>
+                                                    </Avatar>
+                                                    <span>Dr. {doc.firstName} {doc.lastName}</span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>{doc.doctorProfile?.specialization || "General"}</TableCell>
+                                            <TableCell>{doc.email}</TableCell>
+                                            <TableCell>{formatCurrency(doc.doctorProfile?.consultationFee || 0)}</TableCell>
+                                            <TableCell>{new Date(doc.createdAt).toLocaleDateString()}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                    {clinic.doctors.length === 0 && (
+                                        <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No doctors found.</TableCell></TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Receptionists</CardTitle>
+                            <CardDescription>Data entry and support staff</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Name</TableHead>
+                                        <TableHead>Email</TableHead>
+                                        <TableHead>Phone</TableHead>
+                                        <TableHead>Joined</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {clinic.receptionists.map((rec: any) => (
+                                        <TableRow key={rec.id}>
+                                            <TableCell className="font-medium">
+                                                <div className="flex items-center gap-2">
+                                                    <Avatar className="h-8 w-8">
+                                                        <AvatarImage src={rec.profileImage} />
+                                                        <AvatarFallback>{rec.firstName?.[0]}{rec.lastName?.[0]}</AvatarFallback>
+                                                    </Avatar>
+                                                    <span>{rec.firstName} {rec.lastName}</span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>{rec.email}</TableCell>
+                                            <TableCell>{rec.phone || "N/A"}</TableCell>
+                                            <TableCell>{new Date(rec.createdAt).toLocaleDateString()}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                    {clinic.receptionists.length === 0 && (
+                                        <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">No receptionists found.</TableCell></TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                {/* APPOINTMENTS TAB */}
+                <TabsContent value="appointments" className="space-y-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Upcoming Appointments</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Date & Time</TableHead>
+                                        <TableHead>Patient</TableHead>
+                                        <TableHead>Doctor</TableHead>
+                                        <TableHead>Status</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {clinic.futureAppointments.map((apt: any) => (
+                                        <TableRow key={apt.id}>
+                                            <TableCell>
+                                                <div className="flex flex-col">
+                                                    <span className="font-medium">{new Date(apt.scheduledAt).toLocaleDateString()}</span>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {new Date(apt.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    </span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>{apt.patient?.firstName} {apt.patient?.lastName}</TableCell>
+                                            <TableCell>Dr. {apt.doctor?.firstName}</TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline">{apt.status}</Badge>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                    {clinic.futureAppointments.length === 0 && (
+                                        <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">No upcoming appointments.</TableCell></TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Past Appointments</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Date & Time</TableHead>
+                                        <TableHead>Patient</TableHead>
+                                        <TableHead>Doctor</TableHead>
+                                        <TableHead>Status</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {clinic.pastAppointments.map((apt: any) => (
+                                        <TableRow key={apt.id}>
+                                            <TableCell>
+                                                <div className="flex flex-col">
+                                                    <span className="font-medium">{new Date(apt.scheduledAt).toLocaleDateString()}</span>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {new Date(apt.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    </span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>{apt.patient?.firstName} {apt.patient?.lastName}</TableCell>
+                                            <TableCell>Dr. {apt.doctor?.firstName}</TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline">{apt.status}</Badge>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                    {clinic.pastAppointments.length === 0 && (
+                                        <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">No past history.</TableCell></TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                {/* FINANCIALS TAB */}
+                <TabsContent value="financials" className="space-y-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Recent Payments</CardTitle>
+                            <CardDescription>Transaction history for this clinic</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Date</TableHead>
+                                        <TableHead>Description</TableHead>
+                                        <TableHead>Method</TableHead>
+                                        <TableHead className="text-right">Amount</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {clinic.recentPayments.map((payment: any) => (
+                                        <TableRow key={payment.id}>
+                                            <TableCell>{new Date(payment.createdAt).toLocaleDateString()}</TableCell>
+                                            <TableCell>{payment.description}</TableCell>
+                                            <TableCell className="capitalize">{payment.method?.replace('_', ' ')}</TableCell>
+                                            <TableCell className="text-right font-medium">{formatCurrency(payment.amount)}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                    {clinic.recentPayments.length === 0 && (
+                                        <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">No payment records found.</TableCell></TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
                         </CardContent>
                     </Card>
                 </TabsContent>
             </Tabs>
         </div>
+    )
+}
+
+function UserCheckIcon(props: any) {
+    return (
+        <svg
+            {...props}
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        >
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <polyline points="16 11 18 13 22 9" />
+        </svg>
     )
 }
