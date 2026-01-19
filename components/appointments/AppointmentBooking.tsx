@@ -14,6 +14,7 @@ import { Clock, Calendar as CalendarIcon, DollarSign, CheckCircle } from "lucide
 import { toast } from "sonner"
 import { apiService } from "@/services/api"
 import { format } from "date-fns"
+import { formatCurrency } from "@/utils/helpers"
 
 interface Doctor {
   id: string
@@ -110,7 +111,7 @@ export function AppointmentBooking({ doctorId, doctor: initialDoctor }: Appointm
       }
 
       const response: any = await apiService.post("/api/v1/appointments", appointmentData)
-      
+
       toast.success("Appointment booked successfully!")
       router.push(`/appointments/${response?.data?.id || response?.id}`)
     } catch (error: any) {
@@ -156,7 +157,7 @@ export function AppointmentBooking({ doctorId, doctor: initialDoctor }: Appointm
               )}
             </div>
             <div className="text-right">
-              <p className="text-2xl font-bold">${doctor.consultationFee}</p>
+              <p className="text-2xl font-bold">{formatCurrency(doctor.consultationFee)}</p>
               <p className="text-xs text-muted-foreground">Consultation Fee</p>
             </div>
           </div>
@@ -242,7 +243,7 @@ export function AppointmentBooking({ doctorId, doctor: initialDoctor }: Appointm
           <div className="p-4 bg-muted rounded-lg space-y-2">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Consultation Fee</span>
-              <span className="font-semibold">${doctor.consultationFee}</span>
+              <span className="font-semibold">{formatCurrency(doctor.consultationFee)}</span>
             </div>
             {selectedDate && selectedTime && (
               <>
@@ -256,7 +257,7 @@ export function AppointmentBooking({ doctorId, doctor: initialDoctor }: Appointm
             )}
             <div className="border-t pt-2 flex justify-between text-lg font-bold">
               <span>Total</span>
-              <span>${doctor.consultationFee}</span>
+              <span>{formatCurrency(doctor.consultationFee)}</span>
             </div>
           </div>
 

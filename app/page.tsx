@@ -131,7 +131,7 @@ export default function Home() {
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-xs font-medium text-purple-600">Revenue</p>
-                            <p className="text-2xl font-bold text-purple-700">$8,050</p>
+                            <p className="text-2xl font-bold text-purple-700">₹6,45,000</p>
                           </div>
                           <div className="h-12 w-12 rounded-full bg-purple-500 flex items-center justify-center">
                             <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -165,7 +165,7 @@ export default function Home() {
                 <ul className="space-y-3">
                   <li className="flex items-start gap-3">
                     <div className="mt-1 h-1.5 w-1.5 rounded-full bg-destructive" />
-                    <span>Missed appointments cost clinics $150 billion annually</span>
+                    <span>Missed appointments cost clinics ₹12,000 Crore annually</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <div className="mt-1 h-1.5 w-1.5 rounded-full bg-destructive" />

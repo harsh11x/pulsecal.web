@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Calendar, DollarSign, TrendingUp, TrendingDown, Users, Clock, XCircle, Download } from "lucide-react"
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
+import { formatCurrency } from "@/utils/helpers"
 
 interface AnalyticsData {
   today: {
@@ -61,7 +62,7 @@ export function DoctorAnalytics({ data }: { data: AnalyticsData }) {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${data.today.revenue.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{formatCurrency(data.today.revenue)}</div>
             <div className={`text-xs flex items-center ${revenueChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               {revenueChange >= 0 ? (
                 <TrendingUp className="h-3 w-3 mr-1" />
@@ -136,7 +137,7 @@ export function DoctorAnalytics({ data }: { data: AnalyticsData }) {
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Line type="monotone" dataKey="revenue" stroke="#8884d8" name="Revenue ($)" />
+                  <Line type="monotone" dataKey="revenue" stroke="#8884d8" name="Revenue (₹)" />
                   <Line type="monotone" dataKey="appointments" stroke="#82ca9d" name="Appointments" />
                 </LineChart>
               </ResponsiveContainer>
@@ -196,7 +197,7 @@ export function DoctorAnalytics({ data }: { data: AnalyticsData }) {
           <CardContent className="space-y-2">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Revenue</span>
-              <span className="font-semibold">${data.thisWeek.revenue.toLocaleString()}</span>
+              <span className="font-semibold">{formatCurrency(data.thisWeek.revenue)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Appointments</span>
@@ -216,7 +217,7 @@ export function DoctorAnalytics({ data }: { data: AnalyticsData }) {
           <CardContent className="space-y-2">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Revenue</span>
-              <span className="font-semibold">${data.thisMonth.revenue.toLocaleString()}</span>
+              <span className="font-semibold">{formatCurrency(data.thisMonth.revenue)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Appointments</span>
@@ -236,11 +237,11 @@ export function DoctorAnalytics({ data }: { data: AnalyticsData }) {
           <CardContent className="space-y-2">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Per Appointment</span>
-              <span className="font-semibold">${(data.thisMonth.revenue / data.thisMonth.appointments || 0).toFixed(2)}</span>
+              <span className="font-semibold">{formatCurrency(data.thisMonth.revenue / data.thisMonth.appointments || 0)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Daily Average</span>
-              <span className="font-semibold">${(data.thisMonth.revenue / 30).toFixed(2)}</span>
+              <span className="font-semibold">{formatCurrency(data.thisMonth.revenue / 30)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Cancellation Rate</span>

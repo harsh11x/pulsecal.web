@@ -11,7 +11,9 @@ import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { apiService } from "@/services/api"
+import { formatCurrency } from "@/utils/helpers"
 
 interface DoctorDashboardPageProps {
   user: any
@@ -96,7 +98,7 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
   const fetchDashboardData = async () => {
     try {
       setLoading(true)
-      
+
       // Fetch analytics data
       const analyticsResponse: any = await apiService.get("/api/v1/doctors/analytics")
       setStats(analyticsResponse.data || {
@@ -114,7 +116,7 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
       setTodayAppointments(appointmentsResponse?.data || [])
     } catch (error: any) {
       console.error("Failed to fetch dashboard data:", error)
-      
+
       // Provide more specific error messages
       if (error.response?.status === 401) {
         toast.error("Session expired. Please refresh the page.")
@@ -123,7 +125,7 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
       } else {
         toast.error("Failed to load dashboard data. Please try again.")
       }
-      
+
       // Set empty stats to prevent loading forever
       setStats({
         today: { appointments: 0, revenue: 0, patients: 0, cancellations: 0 },
@@ -162,7 +164,7 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
     },
     {
       title: "Today's Revenue",
-      value: `$${stats.today.revenue.toLocaleString()}`,
+      value: formatCurrency(stats.today.revenue),
       trend: {
         value: Math.round(((stats.today.revenue - stats.yesterday.revenue) / stats.yesterday.revenue) * 100),
         isPositive: stats.today.revenue >= stats.yesterday.revenue,
@@ -186,7 +188,7 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
     },
     {
       title: "Monthly Revenue",
-      value: `$${stats.thisMonth.revenue.toLocaleString()}`,
+      value: formatCurrency(stats.thisMonth.revenue),
       trend: {
         value: 0,
         label: "This month",
@@ -328,7 +330,7 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
               <div className="grid gap-4 md:grid-cols-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Total Revenue</p>
-                  <p className="text-2xl font-bold">${stats.thisMonth.revenue.toLocaleString()}</p>
+                  <p className="text-2xl font-bold">{formatCurrency(stats.thisMonth.revenue)}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Appointments</p>
@@ -337,7 +339,7 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
                 <div>
                   <p className="text-sm text-muted-foreground">Average per Visit</p>
                   <p className="text-2xl font-bold">
-                    ${(stats.thisMonth.revenue / stats.thisMonth.appointments || 0).toFixed(2)}
+                    {formatCurrency(stats.thisMonth.revenue / stats.thisMonth.appointments || 0)}
                   </p>
                 </div>
                 <div>

@@ -15,7 +15,7 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatsCard
           title="Total Revenue"
-          value="$125.4k"
+          value="₹10.5L"
           icon={DollarSign}
           color="purple"
           trend={{ value: 15, isPositive: true, label: "from last month" }}

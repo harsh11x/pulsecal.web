@@ -9,6 +9,7 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, L
 import { apiService } from "@/services/api"
 import { format, subDays, subMonths, subYears } from "date-fns"
 import { toast } from "sonner"
+import { formatCurrency } from "@/utils/helpers"
 
 interface FinancialReport {
   period: string
@@ -125,7 +126,7 @@ export default function DoctorFinancialReports() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Total Revenue</p>
-                    <p className="text-2xl font-bold">${reportData.totalRevenue.toLocaleString()}</p>
+                    <p className="text-2xl font-bold">{formatCurrency(reportData.totalRevenue)}</p>
                   </div>
                   <DollarSign className="h-8 w-8 text-muted-foreground" />
                 </div>
@@ -182,7 +183,7 @@ export default function DoctorFinancialReports() {
                       <YAxis />
                       <Tooltip />
                       <Legend />
-                      <Line type="monotone" dataKey="revenue" stroke="#8884d8" name="Revenue ($)" />
+                      <Line type="monotone" dataKey="revenue" stroke="#8884d8" name="Revenue (₹)" />
                     </LineChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -218,7 +219,7 @@ export default function DoctorFinancialReports() {
               <div className="grid gap-4 md:grid-cols-3">
                 <div>
                   <p className="text-sm text-muted-foreground">Average Revenue per Visit</p>
-                  <p className="text-2xl font-bold">${reportData.averageRevenuePerVisit}</p>
+                  <p className="text-2xl font-bold">{formatCurrency(reportData.averageRevenuePerVisit)}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Confirmation Rate</p>
