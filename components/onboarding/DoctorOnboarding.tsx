@@ -27,6 +27,7 @@ export default function DoctorOnboarding() {
   const [searchingClinics, setSearchingClinics] = useState(false)
   const [availableClinics, setAvailableClinics] = useState<any[]>([])
   const [selectedClinicId, setSelectedClinicId] = useState("")
+  const [termsAccepted, setTermsAccepted] = useState(false)
   const [formData, setFormData] = useState({
     // Personal Info
     phone: "",
@@ -1291,12 +1292,25 @@ export default function DoctorOnboarding() {
                 ))}
               </div>
 
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(5)} className="flex-1">
+              <div className="flex items-start space-x-2 my-4">
+                <input
+                  type="checkbox"
+                  id="terms"
+                  checked={termsAccepted}
+                  onChange={(e) => setTermsAccepted(e.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                />
+                <Label htmlFor="terms" className="text-sm font-normal leading-tight">
+                  I agree to the <a href="/terms" target="_blank" className="text-primary hover:underline">Terms and Conditions</a> and <a href="/privacy" target="_blank" className="text-primary hover:underline">Privacy Policy</a>.
+                </Label>
+              </div>
+
+              <div className="flex justify-end gap-4">
+                <Button variant="outline" onClick={() => setStep(step - 1)}>
                   Back
                 </Button>
-                <Button onClick={handlePayment} disabled={loading} className="flex-1">
-                  {loading ? "Processing..." : "Pay & Create Clinic"}
+                <Button onClick={handleSubmit} disabled={loading || !termsAccepted}>
+                  {loading ? "Processing..." : "Complete Registration"}
                 </Button>
               </div>
             </div>

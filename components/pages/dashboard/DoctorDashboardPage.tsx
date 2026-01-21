@@ -214,7 +214,7 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
             </Link>
           </Button>
           <Button asChild>
-            <Link href="/dashboard/profile">
+            <Link href="/profile">
               Update Profile
             </Link>
           </Button>
@@ -293,7 +293,7 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
               </CardHeader>
               <CardContent className="space-y-2">
                 <Button asChild className="w-full justify-start">
-                  <Link href="/dashboard/profile">
+                  <Link href="/profile">
                     <Users className="mr-2 h-4 w-4" />
                     Update Profile & Services
                   </Link>

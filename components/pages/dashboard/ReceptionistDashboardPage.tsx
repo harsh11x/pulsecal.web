@@ -78,7 +78,7 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
     phone: string
     email: string
   } | null>(null)
-  
+
   const [cancelId, setCancelId] = useState<string | null>(null)
   const [rescheduleId, setRescheduleId] = useState<string | null>(null)
   const [newScheduleDate, setNewScheduleDate] = useState("")
@@ -166,6 +166,18 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
     }
   }
 
+  const handleAcceptAppointment = async (appointmentId: string) => {
+    try {
+      await apiService.put(`/api/v1/appointments/${appointmentId}`, {
+        status: "CONFIRMED"
+      })
+      toast.success("Appointment accepted successfully")
+      fetchDashboardData()
+    } catch (error: any) {
+      toast.error(error.message || "Failed to accept appointment")
+    }
+  }
+
   const handleQueueUpdate = async (queueId: string, status: string) => {
     try {
       await apiService.put(`/api/v1/queue/${queueId}`, { status })
@@ -195,7 +207,7 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
       toast.error("Please select both date and time")
       return
     }
-    
+
     try {
       const scheduledAt = new Date(`${newScheduleDate}T${newScheduleTime}`)
       await apiService.post(`/api/v1/appointments/${rescheduleId}/reschedule`, {
@@ -239,16 +251,16 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
       description: "Total appointments today",
     },
     {
-      title: "Waiting",
+      title: "Pending & Waiting",
       value: todayStats.waiting,
       trend: {
         value: 0,
-        label: "In queue",
+        label: "In queue or pending",
         isPositive: false
       },
       icon: Clock,
       color: "orange" as const,
-      description: "Patients waiting",
+      description: "Patients waiting or pending",
     },
     {
       title: "In Progress",
@@ -361,12 +373,11 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4 flex-1">
-                            <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg ${
-                              entry.status === "completed" ? "bg-green-100 text-green-700" :
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg ${entry.status === "completed" ? "bg-green-100 text-green-700" :
                               entry.status === "in_progress" ? "bg-blue-100 text-blue-700" :
-                              entry.status === "checked_in" ? "bg-purple-100 text-purple-700" :
-                              "bg-orange-100 text-orange-700"
-                            }`}>
+                                entry.status === "checked_in" ? "bg-purple-100 text-purple-700" :
+                                  "bg-orange-100 text-orange-700"
+                              }`}>
                               {index + 1}
                             </div>
                             <div className="flex-1">
@@ -480,13 +491,22 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
                         <TableCell>{getStatusBadge(apt.status)}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
+                            {(apt.status === "PENDING" || apt.status === "REQUESTED") && (
+                              <Button
+                                size="sm"
+                                className="bg-green-600 hover:bg-green-700 text-white"
+                                onClick={() => handleAcceptAppointment(apt.id)}
+                              >
+                                <CheckCircle className="h-3 w-3 mr-1" /> Accept
+                              </Button>
+                            )}
                             {(apt.status === "SCHEDULED" || apt.status === "CONFIRMED") && (
                               <>
                                 <Button size="sm" variant="ghost" onClick={() => handleCheckIn(apt.id)}>
                                   Check In
                                 </Button>
-                                <Button 
-                                  size="sm" 
+                                <Button
+                                  size="sm"
                                   variant="ghost"
                                   onClick={() => {
                                     setRescheduleId(apt.id)
@@ -496,8 +516,8 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
                                 >
                                   <Edit className="h-3 w-3" />
                                 </Button>
-                                <Button 
-                                  size="sm" 
+                                <Button
+                                  size="sm"
                                   variant="ghost"
                                   className="text-destructive"
                                   onClick={() => setCancelId(apt.id)}
@@ -571,10 +591,19 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
                             </div>
                           </div>
                           <div className="flex items-center gap-1">
+                            {(apt.status === "PENDING" || apt.status === "REQUESTED") && (
+                              <Button
+                                size="sm"
+                                className="bg-green-600 hover:bg-green-700 text-white"
+                                onClick={() => handleAcceptAppointment(apt.id)}
+                              >
+                                <CheckCircle className="h-3 w-3 mr-1" /> Accept
+                              </Button>
+                            )}
                             {(apt.status === "SCHEDULED" || apt.status === "CONFIRMED") && (
                               <>
-                                <Button 
-                                  size="sm" 
+                                <Button
+                                  size="sm"
                                   variant="ghost"
                                   onClick={() => {
                                     setRescheduleId(apt.id)
@@ -584,8 +613,8 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
                                 >
                                   <Edit className="h-4 w-4" />
                                 </Button>
-                                <Button 
-                                  size="sm" 
+                                <Button
+                                  size="sm"
                                   variant="ghost"
                                   className="text-destructive"
                                   onClick={() => setCancelId(apt.id)}

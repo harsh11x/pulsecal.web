@@ -23,6 +23,7 @@ export default function PatientOnboarding() {
   const [loading, setLoading] = useState(false)
   const [locationPermission, setLocationPermission] = useState<"granted" | "denied" | "pending">("pending")
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [termsAccepted, setTermsAccepted] = useState(false)
   const [formData, setFormData] = useState({
     phone: "",
     dateOfBirth: "",
@@ -476,11 +477,28 @@ export default function PatientOnboarding() {
                 </div>
               </div>
 
+              <div className="flex items-start space-x-2 my-4">
+                <input
+                  type="checkbox"
+                  id="terms"
+                  checked={termsAccepted}
+                  onChange={(e) => setTermsAccepted(e.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                />
+                <Label htmlFor="terms" className="text-sm font-normal leading-tight">
+                  I agree to the <a href="/terms" target="_blank" className="text-primary hover:underline">Terms and Conditions</a> and <a href="/privacy" target="_blank" className="text-primary hover:underline">Privacy Policy</a>.
+                </Label>
+              </div>
+
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep(2)} className="flex-1">
                   Back
                 </Button>
-                <Button onClick={handleSubmit} disabled={loading} className="flex-1">
+                <Button
+                  onClick={handleSubmit}
+                  disabled={loading || !termsAccepted}
+                  className="flex-1"
+                >
                   {loading ? "Completing Setup..." : "Complete Setup"}
                 </Button>
               </div>
