@@ -72,11 +72,16 @@ export const checkFeatureAccess = (featureName: FeatureName) => {
     };
 };
 
-export const checkLimit = (limitName: 'maxDoctors' | 'clinicLocations') => {
+
+export const checkLimit = (limitName: 'maxDoctors' | 'clinicLocations' | 'maxAppointments') => {
     return async (req: AuthRequest, _res: Response, next: NextFunction) => {
         try {
             const clinic = (req as any).clinic;
             if (!clinic) {
+                // If it's a patient, they might not have a clinic context in the same way, 
+                // but usually this middleware is for clinic staff actions. 
+                // If patient is booking, we might handle limits differently or not at all (pay per use).
+                // Assuming this is for Admin/Dr actions.
                 throw new AppError('Clinic context missing', 500);
             }
 
@@ -88,16 +93,35 @@ export const checkLimit = (limitName: 'maxDoctors' | 'clinicLocations') => {
 
             const limit = config[limitName];
 
-            // Count current usage
+            // If limit is Infinity, skip check
+            if (limit === Infinity) return next();
+
             let currentUsage = 0;
+
             if (limitName === 'maxDoctors') {
-                // Count active doctors linked to this clinic
-                // Assuming we can count users with role DOCTOR and clinicId
                 currentUsage = await prisma.user.count({
                     where: {
                         clinicId: clinic.id,
                         role: 'DOCTOR',
                         isActive: true
+                    }
+                });
+            } else if (limitName === 'maxAppointments') {
+                // Count appointments for the current month
+                const now = new Date();
+                const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+                const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+                currentUsage = await prisma.appointment.count({
+                    where: {
+                        // Assuming appointments are linked to clinic via doctor
+                        doctor: {
+                            clinicId: clinic.id
+                        },
+                        scheduledAt: {
+                            gte: startOfMonth,
+                            lte: endOfMonth
+                        }
                     }
                 });
             }

@@ -9,9 +9,10 @@ import { Loader2 } from "lucide-react"
 
 interface ProtectedRouteProps {
   children: React.ReactNode
+  allowedRoles?: string[]
 }
 
-export function ProtectedRoute({ children }: ProtectedRouteProps) {
+export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
   const router = useRouter()
   const { isAuthenticated, user, isLoading } = useAppSelector((state) => state.auth)
 
@@ -19,8 +20,16 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     // Only redirect if done loading and not authenticated
     if (!isLoading && (!isAuthenticated || !user)) {
       window.location.href = "https://pulsecal.com"
+      return
     }
-  }, [isLoading, isAuthenticated, user, router])
+
+    // Role check
+    if (!isLoading && user && allowedRoles) {
+      if (!allowedRoles.includes(user.role)) {
+        router.push('/dashboard') // Or unauthorized page
+      }
+    }
+  }, [isLoading, isAuthenticated, user, router, allowedRoles])
 
   // Show loading state while checking auth
   if (isLoading) {
@@ -33,6 +42,11 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   // If not authenticated after loading, don't render (redirect will happen)
   if (!isAuthenticated || !user) {
+    return null
+  }
+
+  // Role restriction render check
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
     return null
   }
 

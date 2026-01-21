@@ -23,7 +23,12 @@ export default function CreateAppointmentPage() {
   const [loadingPatients, setLoadingPatients] = useState(true)
 
   const [formData, setFormData] = useState({
-    patientId: "",
+    patientDetails: {
+      firstName: "",
+      lastName: "",
+      phone: "",
+      email: ""
+    },
     date: undefined as Date | undefined,
     time: "",
     reason: "",
@@ -31,23 +36,7 @@ export default function CreateAppointmentPage() {
     type: "in-person"
   })
 
-  useEffect(() => {
-    fetchPatients()
-  }, [])
-
-  const fetchPatients = async () => {
-    try {
-      setLoadingPatients(true)
-      // Since doctors are staff, they can access users list. Filter by role=patient
-      const response: any = await apiService.get("/api/v1/users?role=PATIENT&limit=100")
-      setPatients(response.data?.users || [])
-    } catch (error) {
-      console.error("Failed to fetch patients:", error)
-      toast.error("Failed to load patient list")
-    } finally {
-      setLoadingPatients(false)
-    }
-  }
+  // Removed fetchPatients as we do manual entry now
 
   const generateTimeSlots = () => {
     const slots = []
@@ -61,8 +50,8 @@ export default function CreateAppointmentPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!formData.patientId || !formData.date || !formData.time) {
-      toast.error("Please fill in all required fields")
+    if (!formData.patientDetails.firstName || !formData.patientDetails.phone || !formData.date || !formData.time) {
+      toast.error("Please fill in required fields (Name, Phone, Date, Time)")
       return
     }
 
@@ -74,19 +63,21 @@ export default function CreateAppointmentPage() {
       scheduledAt.setHours(parseInt(hours), parseInt(minutes))
 
       const appointmentData = {
-        patientId: formData.patientId,
-        doctorId: user?.id, // Determine automatically from backend or pass explicitly if needed
+        patientDetails: formData.patientDetails,
+        doctorId: user?.id,
         scheduledAt: scheduledAt.toISOString(),
         reason: formData.reason,
         notes: formData.notes,
-        status: "confirmed", // Auto-confirm doctor-created appointments
+        status: "confirmed",
         type: formData.type
       }
 
       const response: any = await apiService.post("/api/v1/appointments", appointmentData)
 
       toast.success("Appointment created successfully")
-      router.push(`/appointments/${response.data?.id || response.id}`)
+      router.push(`/appointments/list`)
+      // Redirect to list or view. response format changed slightly in controller maybe? 
+      // Controller returns appointment object. 
 
     } catch (error: any) {
       console.error("Failed to create appointment:", error)
@@ -108,27 +99,49 @@ export default function CreateAppointmentPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
 
-            {/* Patient Selection */}
-            <div className="space-y-2">
-              <Label>Select Patient</Label>
-              <Select
-                value={formData.patientId}
-                onValueChange={(val) => setFormData({ ...formData, patientId: val })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={loadingPatients ? "Loading patients..." : "Select a patient"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {patients.map((patient) => (
-                    <SelectItem key={patient.id} value={patient.id}>
-                      {patient.firstName} {patient.lastName} ({patient.email})
-                    </SelectItem>
-                  ))}
-                  {patients.length === 0 && !loadingPatients && (
-                    <div className="p-2 text-sm text-muted-foreground text-center">No patients found</div>
-                  )}
-                </SelectContent>
-              </Select>
+
+            {/* Patient Details (Manual Entry) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20">
+              <div className="col-span-2">
+                <h3 className="font-semibold mb-2">Patient Details</h3>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First Name</Label>
+                <Input
+                  id="firstName"
+                  placeholder="John"
+                  value={formData.patientDetails.firstName}
+                  onChange={(e) => setFormData({ ...formData, patientDetails: { ...formData.patientDetails, firstName: e.target.value } })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last Name</Label>
+                <Input
+                  id="lastName"
+                  placeholder="Doe"
+                  value={formData.patientDetails.lastName}
+                  onChange={(e) => setFormData({ ...formData, patientDetails: { ...formData.patientDetails, lastName: e.target.value } })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone Number</Label>
+                <Input
+                  id="phone"
+                  placeholder="+91 9876543210"
+                  value={formData.patientDetails.phone}
+                  onChange={(e) => setFormData({ ...formData, patientDetails: { ...formData.patientDetails, phone: e.target.value } })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email (Optional)</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="john@example.com"
+                  value={formData.patientDetails.email}
+                  onChange={(e) => setFormData({ ...formData, patientDetails: { ...formData.patientDetails, email: e.target.value } })}
+                />
+              </div>
             </div>
 
             {/* Date & Time */}
@@ -170,15 +183,16 @@ export default function CreateAppointmentPage() {
                   <Select
                     value={formData.type}
                     onValueChange={(val) => setFormData({ ...formData, type: val })}
+                    disabled
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="in-person">In Person</SelectItem>
-                      <SelectItem value="video">Video Consultation</SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground">In-person consultations only.</p>
                 </div>
               </div>
             </div>

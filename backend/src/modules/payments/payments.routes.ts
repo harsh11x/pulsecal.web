@@ -5,15 +5,24 @@ import {
   getPaymentByIdController,
   updatePaymentStatusController,
   deletePaymentController,
+  createRazorpaySubscriptionController,
+  verifyRazorpaySubscriptionController,
+  cancelSubscriptionController,
   createRazorpayOrderController,
-  verifyRazorpayPaymentController,
+  verifyRazorpayPaymentController
 } from './payments.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
 import { requireReceptionist, requireStaff } from '../../middlewares/role.middleware';
 
 const router = Router();
 
-// Razorpay routes
+
+// Razorpay Subscription routes
+router.post('/create-subscription', authenticate, createRazorpaySubscriptionController);
+router.post('/verify-subscription', authenticate, verifyRazorpaySubscriptionController);
+router.post('/cancel-subscription/:id', authenticate, cancelSubscriptionController);
+
+// Razorpay One-Time routes
 router.post('/create-order', authenticate, createRazorpayOrderController);
 router.post('/verify', authenticate, verifyRazorpayPaymentController);
 

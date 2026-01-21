@@ -90,6 +90,12 @@ const navItems: NavItem[] = [
     icon: Building2,
     permission: "VIEW_ADMIN_DASHBOARD",
   },
+  {
+    title: "Subscription",
+    href: "/subscription",
+    icon: CreditCard,
+    permission: "MANAGE_SUBSCRIPTION", // Need to ensure this permission exists or use role check in filter
+  },
 ]
 
 interface SidebarProps {

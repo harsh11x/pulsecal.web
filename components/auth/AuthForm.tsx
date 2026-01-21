@@ -302,6 +302,25 @@ export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
             />
           </div>
 
+          {mode === "signup" && (
+            <div className="flex items-top space-x-2">
+              <input
+                type="checkbox"
+                id="terms"
+                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary mt-1"
+                required
+              />
+              <div className="grid gap-1.5 leading-none">
+                <label
+                  htmlFor="terms"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-muted-foreground"
+                >
+                  I agree to the <a href="/terms" target="_blank" className="text-primary hover:underline">Terms and Conditions</a>, <a href="/privacy" target="_blank" className="text-primary hover:underline">Privacy Policy</a>, and acknowledge the <strong className="text-destructive">Strict Liability Disclaimer</strong>.
+                </label>
+              </div>
+            </div>
+          )}
+
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? (
               <>

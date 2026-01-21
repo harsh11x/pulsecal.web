@@ -13,14 +13,25 @@ import { sendSuccess, sendPaginated } from '../../utils/apiResponse';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { AppError } from '../../middlewares/error.middleware';
 import Joi from 'joi';
+import prisma from '../../config/database';
 
 const createAppointmentSchema = Joi.object({
-  patientId: Joi.string().required(),
+  patientId: Joi.string().optional(),
+  patientDetails: Joi.object({
+    firstName: Joi.string().required(),
+    lastName: Joi.string().required(),
+    phone: Joi.string().required(),
+    email: Joi.string().email().optional(),
+    dob: Joi.date().optional(),
+    gender: Joi.string().optional(),
+  }).optional(),
   doctorId: Joi.string().required(),
   scheduledAt: Joi.date().required(),
   duration: Joi.number().optional(),
   reason: Joi.string().optional(),
-});
+  paymentId: Joi.string().optional(),
+})
+  .xor('patientId', 'patientDetails');
 
 const updateAppointmentSchema = Joi.object({
   scheduledAt: Joi.date().optional(),
@@ -48,8 +59,61 @@ export const createAppointmentController = async (
     if (error) {
       throw new AppError(error.details[0].message, 400);
     }
-    const appointment = await createAppointment(value);
-    
+
+    let patientId = value.patientId;
+
+    // Handle Manual Patient Entry (Find or Create)
+    if (value.patientDetails) {
+      const { firstName, lastName, phone, email, dob } = value.patientDetails;
+
+      // Check if patient exists
+      const whereClause: any = { OR: [{ phone }] };
+      if (email) whereClause.OR.push({ email });
+
+      let patient = await prisma.user.findFirst({
+        where: whereClause
+      });
+
+      if (!patient) {
+        // Create new Shadow Patient
+        // Ideally imported bcrypt
+        const bcrypt = await import('bcrypt');
+        patient = await prisma.user.create({
+          data: {
+            firstName,
+            lastName,
+            phone,
+            email: email || undefined,
+            role: 'PATIENT',
+            password: await bcrypt.hash('Pulsecal@123', 10), // Default password
+            isActive: true,
+            dateOfBirth: dob,
+          }
+        });
+        // Also create patient profile
+        await prisma.patientProfile.create({
+          data: { userId: patient.id }
+        });
+      }
+      patientId = patient.id;
+    }
+
+    // Role-based Payment Logic
+    // Role-based Payment Logic
+    if (req.user?.role === 'PATIENT') {
+      // Payment is handled post-creation or via separate flow. 
+      // Status defaults to PENDING (paymentStatus: PENDING) until paid.
+    }
+
+    // Doctor/Receptionist bookings are confirmed by default
+
+    const appointment = await createAppointment({
+      ...value,
+      patientId,
+      status: (req.user?.role === 'DOCTOR' || req.user?.role === 'RECEPTIONIST') ? 'CONFIRMED' : 'PENDING',
+      paymentStatus: (req.user?.role === 'DOCTOR' || req.user?.role === 'RECEPTIONIST') ? 'WAIVED' : 'PENDING'
+    });
+
     // Emit real-time notification
     const { emitNewAppointment } = await import('../../utils/socketEmitter');
     emitNewAppointment({
@@ -60,7 +124,7 @@ export const createAppointmentController = async (
       scheduledAt: appointment.scheduledAt,
       reason: appointment.reason || undefined,
     });
-    
+
     sendSuccess(res, appointment, 'Appointment created successfully', 201);
   } catch (err) {
     next(err);
@@ -116,7 +180,7 @@ export const updateAppointmentController = async (
       throw new AppError(error.details[0].message, 400);
     }
     const appointment = await updateAppointment(req.params.id, value);
-    
+
     // Emit real-time update
     const { emitAppointmentUpdate } = await import('../../utils/socketEmitter');
     emitAppointmentUpdate({
@@ -126,7 +190,7 @@ export const updateAppointmentController = async (
       status: appointment.status,
       scheduledAt: appointment.scheduledAt,
     });
-    
+
     sendSuccess(res, appointment, 'Appointment updated successfully');
   } catch (err) {
     next(err);
@@ -147,7 +211,7 @@ export const rescheduleAppointmentController = async (
       req.params.id,
       value.scheduledAt
     );
-    
+
     // Emit real-time update
     const { emitAppointmentUpdate } = await import('../../utils/socketEmitter');
     emitAppointmentUpdate({
@@ -157,7 +221,7 @@ export const rescheduleAppointmentController = async (
       status: appointment.status,
       scheduledAt: appointment.scheduledAt,
     });
-    
+
     sendSuccess(res, appointment, 'Appointment rescheduled successfully');
   } catch (err) {
     next(err);
@@ -178,7 +242,7 @@ export const cancelAppointmentController = async (
       req.params.id,
       value.cancellationReason
     );
-    
+
     // Emit real-time update
     const { emitAppointmentUpdate } = await import('../../utils/socketEmitter');
     emitAppointmentUpdate({
@@ -188,7 +252,7 @@ export const cancelAppointmentController = async (
       status: appointment.status,
       scheduledAt: appointment.scheduledAt,
     });
-    
+
     sendSuccess(res, appointment, 'Appointment cancelled successfully');
   } catch (err) {
     next(err);
