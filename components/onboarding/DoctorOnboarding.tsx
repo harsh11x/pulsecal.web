@@ -112,16 +112,23 @@ export default function DoctorOnboarding() {
   }, [clinicMode])
 
   const handleClinicSearch = async (searchTerm: string) => {
-    if (!searchTerm) {
-      setAvailableClinics([])
-      return
-    }
     setSearchingClinics(true)
     try {
-      const response: any = await apiService.get(`/api/v1/clinics/search`, {
-        params: { q: searchTerm },
-      })
-      setAvailableClinics(response?.data?.clinics || response?.data || [])
+      // Always fetch all to ensure we have the full list to filter from
+      // This avoids backend search implementation issues
+      const response: any = await apiService.get("/api/v1/clinics")
+      const allClinics = response?.data?.clinics || response?.data || []
+
+      if (!searchTerm) {
+        setAvailableClinics(allClinics)
+      } else {
+        const lowerTerm = searchTerm.toLowerCase()
+        const filtered = allClinics.filter((c: any) =>
+          c.name?.toLowerCase().includes(lowerTerm) ||
+          c.city?.toLowerCase().includes(lowerTerm)
+        )
+        setAvailableClinics(filtered)
+      }
     } catch (error) {
       console.error("Clinic search error:", error)
     } finally {

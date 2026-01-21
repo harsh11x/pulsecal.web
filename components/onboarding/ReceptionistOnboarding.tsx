@@ -57,20 +57,22 @@ export default function ReceptionistOnboarding() {
   }, [])
 
   const handleClinicSearch = async () => {
-    if (!formData.clinicName) {
-      toast.error("Please enter clinic name")
-      return
-    }
-
     setSearching(true)
     try {
-      const response: any = await apiService.get(`/api/v1/clinics`, {
-        params: { search: formData.clinicName },
-      })
+      // Fetch all active clinics to ensure we have the latest list
+      const response: any = await apiService.get("/api/v1/clinics")
+      const allClinics = response?.data || response || []
 
-      // Handle paginated response structure
-      const clinicsData = response?.data?.clinics || response?.clinics || response?.data || []
-      setClinics(Array.isArray(clinicsData) ? clinicsData : [])
+      if (!formData.clinicName) {
+        setClinics(allClinics)
+      } else {
+        const searchTerm = formData.clinicName.toLowerCase()
+        const filtered = allClinics.filter((c: Clinic) =>
+          c.name.toLowerCase().includes(searchTerm) ||
+          c.city.toLowerCase().includes(searchTerm)
+        )
+        setClinics(filtered)
+      }
     } catch (error) {
       console.error("Clinic search error:", error)
       toast.error("Failed to search clinics")

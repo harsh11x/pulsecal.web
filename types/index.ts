@@ -66,12 +66,19 @@ export interface Clinic {
   id: string
   name: string
   address: string
+  city?: string
+  state?: string
+  zipCode?: string
+  country?: string
   latitude: number
   longitude: number
   phone?: string
   email?: string
+  website?: string
+  description?: string
   doctorId: string
   createdAt: string
+  updatedAt?: string
 }
 
 export interface Payment {

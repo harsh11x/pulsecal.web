@@ -5,6 +5,8 @@ import { StatsCard } from "@/components/dashboard/StatsCard"
 import { DoctorAnalytics } from "@/components/dashboard/DoctorAnalytics"
 import DoctorScheduleManager from "@/components/dashboard/DoctorScheduleManager"
 import DoctorFinancialReports from "@/components/dashboard/DoctorFinancialReports"
+import DoctorServicesManager from "@/components/dashboard/DoctorServicesManager"
+import ClinicManager from "@/components/dashboard/ClinicManager"
 import { Button } from "@/components/ui/button"
 import { Calendar, DollarSign, Users, TrendingUp, Clock, Settings, FileText } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -13,6 +15,8 @@ import { useEffect, useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { apiService } from "@/services/api"
 import { formatCurrency } from "@/utils/helpers"
+import { socketService } from "@/services/socket"
+import { toast } from "sonner"
 
 interface DoctorDashboardPageProps {
   user: any
@@ -47,11 +51,6 @@ interface DashboardStats {
   patientGrowth: Array<{ month: string; patients: number }>
   cancellationRate: number
 }
-
-import { socketService } from "@/services/socket"
-import { toast } from "sonner"
-
-// ... imports
 
 export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) {
   const [stats, setStats] = useState<DashboardStats | null>(null)
@@ -240,6 +239,8 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="schedule">Schedule</TabsTrigger>
+          <TabsTrigger value="services">Services</TabsTrigger>
+          <TabsTrigger value="clinic">Clinic</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="reports">Financial Reports</TabsTrigger>
         </TabsList>
@@ -352,6 +353,14 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
 
         <TabsContent value="schedule">
           <DoctorScheduleManager />
+        </TabsContent>
+
+        <TabsContent value="services">
+          <DoctorServicesManager userId={user.id} />
+        </TabsContent>
+
+        <TabsContent value="clinic">
+          <ClinicManager clinicId={user.clinicId} />
         </TabsContent>
 
         <TabsContent value="analytics">
