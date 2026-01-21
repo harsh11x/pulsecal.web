@@ -22,11 +22,16 @@ export default function ProfilePage() {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
-    name: user?.name || "",
+    firstName: user?.firstName || "",
+    lastName: user?.lastName || "",
     email: user?.email || "",
     phone: user?.phone || "",
     dateOfBirth: user?.dateOfBirth || "",
     address: user?.address || "",
+    city: user?.city || "",
+    state: user?.state || "",
+    zipCode: user?.zipCode || "",
+    country: user?.country || "",
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -57,7 +62,7 @@ export default function ProfilePage() {
     try {
       setLoading(true)
       const { url } = await userService.uploadProfilePicture(file)
-      const updatedUser = await userService.updateProfile({ profilePicture: url })
+      const updatedUser = await userService.updateProfile({ profileImage: url })
       dispatch(setUser(updatedUser))
       toast({
         title: "Success",
@@ -90,14 +95,14 @@ export default function ProfilePage() {
         <div className="flex items-center gap-6 mb-6">
           <div className="relative">
             <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
-              {user?.profilePicture ? (
+              {user?.profileImage ? (
                 <img
-                  src={user.profilePicture || "/placeholder.svg"}
-                  alt={user.name}
+                  src={user.profileImage || "/placeholder.svg"}
+                  alt={`${user.firstName} ${user.lastName}`}
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <span className="text-3xl font-semibold text-primary">{user?.name?.charAt(0)}</span>
+                <span className="text-3xl font-semibold text-primary">{user?.firstName?.charAt(0)}</span>
               )}
             </div>
             <label
@@ -116,7 +121,7 @@ export default function ProfilePage() {
             </label>
           </div>
           <div>
-            <h2 className="text-xl font-semibold">{user?.name}</h2>
+            <h2 className="text-xl font-semibold">{user?.firstName} {user?.lastName}</h2>
             <p className="text-sm text-muted-foreground capitalize">{user?.role}</p>
           </div>
         </div>
@@ -124,11 +129,20 @@ export default function ProfilePage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
+              <Label htmlFor="firstName">First Name</Label>
               <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                id="firstName"
+                value={formData.firstName}
+                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lastName">Last Name</Label>
+              <Input
+                id="lastName"
+                value={formData.lastName}
+                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                 required
               />
             </div>
@@ -154,13 +168,50 @@ export default function ProfilePage() {
               />
             </div>
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="address">Address</Label>
             <Input
               id="address"
               value={formData.address}
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              placeholder="Full Address"
             />
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="city">City</Label>
+              <Input
+                id="city"
+                value={formData.city}
+                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="state">State</Label>
+              <Input
+                id="state"
+                value={formData.state}
+                onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="zipCode">Zip Code</Label>
+              <Input
+                id="zipCode"
+                value={formData.zipCode}
+                onChange={(e) => setFormData({ ...formData, zipCode: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="country">Country</Label>
+              <Input
+                id="country"
+                value={formData.country}
+                onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+              />
+            </div>
           </div>
           <Button type="submit" disabled={loading}>
             <Save className="mr-2 h-4 w-4" />

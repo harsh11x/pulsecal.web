@@ -176,23 +176,48 @@ export function AppointmentBooking({ doctorId, doctor: initialDoctor }: Appointm
 
           {/* Time Selection */}
           {selectedDate && (
-            <div className="space-y-2">
-              <Label>Select Time</Label>
-              <div className="grid grid-cols-4 gap-2">
-                {availableSlots.map((slot) => (
-                  <Button
-                    key={slot}
-                    variant={selectedTime === slot ? "default" : "outline"}
-                    onClick={() => setSelectedTime(slot)}
-                    className="w-full"
-                  >
-                    {slot}
-                  </Button>
-                ))}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Select Time</Label>
+                <div className="grid grid-cols-4 gap-2">
+                  {availableSlots.map((slot) => (
+                    <Button
+                      key={slot}
+                      variant={selectedTime === slot ? "default" : "outline"}
+                      onClick={() => setSelectedTime(slot)}
+                      className="w-full"
+                    >
+                      {slot}
+                    </Button>
+                  ))}
+                </div>
+                {availableSlots.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No available slots for this date</p>
+                )}
               </div>
-              {availableSlots.length === 0 && (
-                <p className="text-sm text-muted-foreground">No available slots for this date</p>
-              )}
+
+              <div className="flex items-center gap-4">
+                <div className="h-[1px] bg-border flex-1" />
+                <span className="text-sm text-muted-foreground">OR</span>
+                <div className="h-[1px] bg-border flex-1" />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="manual-time">Enter Time Manually</Label>
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="manual-time"
+                    type="time"
+                    value={selectedTime}
+                    onChange={(e) => setSelectedTime(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Select a specific time if your preferred slot is not listed above.
+                </p>
+              </div>
             </div>
           )}
 
