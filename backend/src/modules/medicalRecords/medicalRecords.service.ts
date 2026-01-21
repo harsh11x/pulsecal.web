@@ -167,20 +167,8 @@ export const updateMedicalRecord = async (
     sensitiveData?: string;
     fileUrl?: string;
     fileName?: string;
-  },
-  user?: { id: string; role: string }
+  }
 ) => {
-  // Check permission
-  const existingRecord = await prisma.medicalRecord.findUnique({ where: { id: recordId } });
-
-  if (!existingRecord) {
-    throw new AppError('Medical record not found', 404);
-  }
-
-  if (user && user.role !== 'ADMIN' && existingRecord.doctorId !== user.id) {
-    throw new AppError('Unauthorized to update this record', 403);
-  }
-
   const { sensitiveData, ...rest } = data;
 
   const updateData: {
@@ -214,21 +202,7 @@ export const updateMedicalRecord = async (
   return record;
 };
 
-export const deleteMedicalRecord = async (
-  recordId: string,
-  user?: { id: string; role: string }
-) => {
-  // Check permission
-  const existingRecord = await prisma.medicalRecord.findUnique({ where: { id: recordId } });
-
-  if (!existingRecord) {
-    throw new AppError('Medical record not found', 404);
-  }
-
-  if (user && user.role !== 'ADMIN' && existingRecord.doctorId !== user.id) {
-    throw new AppError('Unauthorized to delete this record', 403);
-  }
-
+export const deleteMedicalRecord = async (recordId: string) => {
   await prisma.medicalRecord.update({
     where: { id: recordId },
     data: { deletedAt: new Date() },

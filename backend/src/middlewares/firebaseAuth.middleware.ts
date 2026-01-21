@@ -26,9 +26,9 @@ export const authenticate = async (
 
     // DEBUG LOG
     if (authHeader) {
-      logger.info(`Auth Middleware: Received auth header`);
+      logger.info(`Auth Middleware: Received header: ${authHeader.substring(0, 20)}...`);
     } else {
-      logger.warn(`Auth Middleware: No Authorization header received.`);
+      logger.warn(`Auth Middleware: No Authorization header received. Headers: ${JSON.stringify(req.headers)}`);
     }
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -76,8 +76,7 @@ export const authenticate = async (
     // If user doesn't exist, create them
     if (!user && decodedToken.email) {
       // Determine role from custom claims or default to PATIENT
-      // SECURITY: Force PATIENT role for auto-created users to prevent privilege escalation via token claims
-      const role = 'PATIENT';
+      const role = (decodedToken.role as string) || 'PATIENT';
 
       user = await prisma.user.create({
         data: {

@@ -36,6 +36,12 @@ export const syncProfileController = async (
         const userUpdateData: any = {};
         if (firstName) userUpdateData.firstName = firstName;
         if (lastName) userUpdateData.lastName = lastName;
+        // Only allow role update if it's being set (during signup)
+        // Security note: In a real app we might want to restrict this more
+        if (role && ['PATIENT', 'DOCTOR', 'RECEPTIONIST'].includes(role)) {
+            userUpdateData.role = role;
+        }
+
         // Explicitly handle onboardingCompleted
         if (typeof onboardingCompleted === 'boolean') {
             userUpdateData.onboardingCompleted = onboardingCompleted;
@@ -62,8 +68,8 @@ export const syncProfileController = async (
 
         await updateProfile(req.user.id, profileData);
 
-        // If user is DOCTOR, ensure DoctorProfile exists
-        if (req.user.role === 'DOCTOR') {
+        // If role changed to DOCTOR, ensure DoctorProfile exists
+        if (role === 'DOCTOR') {
             const doctorProfile = await prisma.doctorProfile.findUnique({ where: { userId: req.user.id } });
             if (!doctorProfile) {
                 await prisma.doctorProfile.create({
