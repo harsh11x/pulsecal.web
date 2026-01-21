@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
 import { apiService } from "@/services/api"
 import { MapPin, Clock, DollarSign, Upload, CheckCircle, Building2, FileText, User, Search } from "lucide-react"
@@ -73,6 +74,7 @@ export default function DoctorOnboarding() {
 
     // Subscription
     subscriptionPlan: "STARTER" as "STARTER" | "BASIC" | "PROFESSIONAL" | "ENTERPRISE",
+    billingCycle: "MONTHLY" as "MONTHLY" | "YEARLY",
   })
 
   // Helper validation function
@@ -281,7 +283,8 @@ export default function DoctorOnboarding() {
       // Create Razorpay order
       console.log("🛒 Creating payment order...");
       const orderResponse: any = await apiService.post("/api/v1/payment-gateway/create-order", {
-        plan: formData.subscriptionPlan
+        plan: formData.subscriptionPlan,
+        billingCycle: formData.billingCycle
       });
 
       const orderData = orderResponse.data || orderResponse;
@@ -329,7 +332,8 @@ export default function DoctorOnboarding() {
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
               clinicDetails: clinicData,
-              plan: formData.subscriptionPlan
+              plan: formData.subscriptionPlan,
+              billingCycle: formData.billingCycle
             });
 
             console.log("✅ Payment verified successfully");
@@ -1277,26 +1281,47 @@ export default function DoctorOnboarding() {
                 Select Subscription Plan
               </div>
 
+              <div className="flex items-center justify-center gap-4 mb-4 bg-muted/20 p-4 rounded-lg">
+                <Label htmlFor="billing-cycle" className={`cursor-pointer ${formData.billingCycle === 'MONTHLY' ? 'font-bold' : ''}`}>Monthly</Label>
+                <Switch
+                  id="billing-cycle"
+                  checked={formData.billingCycle === 'YEARLY'}
+                  onCheckedChange={(checked) => setFormData({ ...formData, billingCycle: checked ? 'YEARLY' : 'MONTHLY' })}
+                />
+                <Label htmlFor="billing-cycle" className={`cursor-pointer ${formData.billingCycle === 'YEARLY' ? 'font-bold' : ''}`}>
+                  Yearly <span className="text-xs text-green-600 ml-1">(2 Months Free)</span>
+                </Label>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 {[
-                  { id: 'STARTER', name: 'Starter', price: '₹1/mo', limit: 'Solo Practitioner (1 Doctor)', highlight: true },
-                  { id: 'BASIC', name: 'Basic', price: '₹1499/mo', limit: 'Max 5 Doctors', highlight: false },
-                  { id: 'PROFESSIONAL', name: 'Professional', price: '₹2999/mo', limit: 'Max 10 Doctors', highlight: false },
-                  { id: 'ENTERPRISE', name: 'Enterprise', price: '₹4999/mo', limit: 'Unlimited Doctors', highlight: false }
-                ].map((plan) => (
-                  <Card key={plan.id}
-                    className={`cursor-pointer transition-all hover:border-primary ${formData.subscriptionPlan === plan.id ? 'border-primary border-2 bg-primary/5' : ''}`}
-                    onClick={() => setFormData({ ...formData, subscriptionPlan: plan.id as any })}
-                  >
-                    <CardHeader>
-                      <CardTitle>{plan.name}</CardTitle>
-                      <CardDescription>{plan.price}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="font-semibold">{plan.limit}</p>
-                    </CardContent>
-                  </Card>
-                ))}
+                  { id: 'STARTER', name: 'Starter', price: 1, limit: 'Solo Practitioner (1 Doctor)', highlight: true },
+                  { id: 'BASIC', name: 'Basic', price: 1499, limit: 'Max 5 Doctors', highlight: false },
+                  { id: 'PROFESSIONAL', name: 'Professional', price: 2999, limit: 'Max 10 Doctors', highlight: false },
+                  { id: 'ENTERPRISE', name: 'Enterprise', price: 4999, limit: 'Unlimited Doctors', highlight: false }
+                ].map((plan) => {
+                  const displayPrice = formData.billingCycle === 'YEARLY'
+                    ? `₹${(plan.price * 10).toLocaleString()}/yr`
+                    : `₹${plan.price}/mo`;
+
+                  return (
+                    <Card key={plan.id}
+                      className={`cursor-pointer transition-all hover:border-primary ${formData.subscriptionPlan === plan.id ? 'border-primary border-2 bg-primary/5' : ''}`}
+                      onClick={() => setFormData({ ...formData, subscriptionPlan: plan.id as any })}
+                    >
+                      <CardHeader>
+                        <CardTitle>{plan.name}</CardTitle>
+                        <CardDescription>{displayPrice}</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="font-semibold">{plan.limit}</p>
+                        {formData.billingCycle === 'YEARLY' && (
+                          <p className="text-xs text-green-600 mt-2 font-medium">Autopay enabled (12 months)</p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )
+                })}
               </div>
 
               <div className="flex items-start space-x-2 my-4">
@@ -1316,8 +1341,8 @@ export default function DoctorOnboarding() {
                 <Button variant="outline" onClick={() => setStep(step - 1)}>
                   Back
                 </Button>
-                <Button onClick={handleSubmit} disabled={loading || !termsAccepted}>
-                  {loading ? "Processing..." : "Complete Registration"}
+                <Button onClick={handlePayment} disabled={loading || !termsAccepted}>
+                  {loading ? "Processing..." : "Pay & Complete Registration"}
                 </Button>
               </div>
             </div>
