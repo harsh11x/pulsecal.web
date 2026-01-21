@@ -50,7 +50,7 @@ export const createMedicalRecordController = async (
     }
     const record = await createMedicalRecord({
       ...value,
-      doctorId: value.doctorId || req.user.id,
+      doctorId: req.user.id, // Enforce current user as doctor
     });
     sendSuccess(res, record, 'Medical record created successfully', 201);
   } catch (err) {
@@ -106,7 +106,7 @@ export const updateMedicalRecordController = async (
     if (error) {
       throw new AppError(error.details[0].message, 400);
     }
-    const record = await updateMedicalRecord(req.params.id, value);
+    const record = await updateMedicalRecord(req.params.id, value, req.user);
     sendSuccess(res, record, 'Medical record updated successfully');
   } catch (err) {
     next(err);
@@ -119,7 +119,7 @@ export const deleteMedicalRecordController = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const result = await deleteMedicalRecord(req.params.id);
+    const result = await deleteMedicalRecord(req.params.id, req.user);
     sendSuccess(res, result, 'Medical record deleted successfully');
   } catch (err) {
     next(err);
