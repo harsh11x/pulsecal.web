@@ -152,6 +152,68 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Trusted By Section */}
+      <section className="border-b border-border bg-background py-10">
+        <div className="mx-auto max-w-7xl px-4">
+          <p className="text-center text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-8">
+            Trusted by leading healthcare institutions
+          </p>
+          <div className="flex flex-wrap justify-center items-center gap-12 opacity-70 grayscale transition-all duration-500 hover:grayscale-0 hover:opacity-100">
+            {["City Hospital", "Medicare Plus", "HealthFirst", "Global Care", "Doctors United"].map((brand) => (
+              <div key={brand} className="flex items-center gap-2 text-xl font-bold text-muted-foreground">
+                <div className="h-8 w-8 rounded bg-muted-foreground/20" />
+                {brand}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works Section */}
+      <section className="border-b border-border bg-white px-4 py-20">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-16 text-center">
+            <h2 className="mb-4 text-3xl font-bold tracking-tight text-foreground lg:text-4xl">
+              How PulseCal Works
+            </h2>
+            <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
+              Streamline your practice in three simple steps
+            </p>
+          </div>
+
+          <div className="grid gap-8 md:grid-cols-3 relative">
+            {/* Connecting Line (Desktop) */}
+            <div className="hidden md:block absolute top-12 left-[16%] right-[16%] h-0.5 bg-gradient-to-r from-muted via-primary/30 to-muted z-0" />
+
+            {[
+              {
+                step: "01",
+                title: "Register Clinic",
+                desc: "Create your profile, set working hours, and configure your services.",
+              },
+              {
+                step: "02",
+                title: "Manage Schedule",
+                desc: "Patients book online. You manage appointments via the real-time dashboard.",
+              },
+              {
+                step: "03",
+                title: "Treat & Grow",
+                desc: "Focus on patient care while PulseCal handles billing, records, and reminders.",
+              },
+            ].map((item, i) => (
+              <div key={i} className="relative z-10 flex flex-col items-center text-center">
+                <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-white border-4 border-primary/10 shadow-lg transition-transform hover:scale-110">
+                  <span className="text-3xl font-bold text-primary">{item.step}</span>
+                </div>
+                <h3 className="mb-2 text-xl font-semibold">{item.title}</h3>
+                <p className="text-muted-foreground max-w-xs">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Problem Section */}
       <section className="border-b border-border bg-destructive/5 px-4 py-20">
         <div className="mx-auto max-w-7xl">
