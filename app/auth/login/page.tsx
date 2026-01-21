@@ -4,6 +4,8 @@
 import { AuthForm } from "@/components/auth/AuthForm"
 import { useRouter } from "next/navigation"
 
+import { Suspense } from "react"
+
 export default function LoginPage() {
     const router = useRouter()
 
@@ -39,7 +41,9 @@ export default function LoginPage() {
             </div>
             <div className="lg:p-8">
                 <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
-                    <AuthForm mode="signin" />
+                    <Suspense fallback={<div className="flex justify-center p-8">Loading form...</div>}>
+                        <AuthForm mode="signin" />
+                    </Suspense>
                     <p className="px-8 text-center text-sm text-muted-foreground">
                         By clicking continue, you agree to our{" "}
                         <a
