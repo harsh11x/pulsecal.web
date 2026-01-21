@@ -532,18 +532,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="mt-16 rounded-2xl border border-border bg-card p-8 text-center">
-            <h3 className="mb-4 text-2xl font-bold text-foreground">Ready to get started?</h3>
-            <p className="mb-6 text-muted-foreground">
-              Join us in transforming healthcare management. Start your free trial today.
-            </p>
-            <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
-              <GetStartedAction className="text-base" />
-              <Button size="lg" variant="outline" className="text-base bg-transparent">
-                Contact sales
-              </Button>
-            </div>
-          </div>
+
         </div>
       </section>
 
