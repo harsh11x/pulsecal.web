@@ -1,0 +1,276 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Plus, Search, Trash2, Mail, Phone, User as UserIcon } from "lucide-react"
+import { useAppSelector } from "@/app/hooks"
+import { userService } from "@/services/user.service"
+import { toast } from "sonner"
+import type { User } from "@/types"
+import { Badge } from "@/components/ui/badge"
+
+export default function StaffManager() {
+    const currentUser = useAppSelector((state: any) => state.auth.user)
+    const [staff, setStaff] = useState<User[]>([])
+    const [loading, setLoading] = useState(true)
+    const [searchTerm, setSearchTerm] = useState("")
+    const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+    const [newStaff, setNewStaff] = useState({
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+        password: "", // Temporary password
+        role: "receptionist",
+        clinicId: currentUser?.clinicId || ""
+    })
+    const [actionLoading, setActionLoading] = useState(false)
+
+    useEffect(() => {
+        if (currentUser?.clinicId) {
+            fetchStaff()
+        } else {
+            setLoading(false)
+        }
+    }, [currentUser])
+
+    const fetchStaff = async () => {
+        try {
+            setLoading(true)
+            // Attempt to fetch receptionists. 
+            // Note: This API implementation depends on backend support for filtering by clinicId
+            // If direct filtering isn't supported, we might need to filter client-side or use a different endpoint
+            const users = await userService.getAllUsers("receptionist")
+
+            // Filter by clinicId if the API returns all receptionists
+            const myStaff = users.filter(u => u.clinicId === currentUser.clinicId)
+            setStaff(myStaff)
+        } catch (error) {
+            console.error("Failed to fetch staff:", error)
+            // Fallback/Mock for demonstration if API fails/is restricted
+            setStaff([])
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const handleAddStaff = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setActionLoading(true)
+        try {
+            const payload = {
+                ...newStaff,
+                clinicId: currentUser.clinicId,
+                role: "receptionist" as const,
+                isActive: true,
+                isEmailVerified: true // Auto-verify for simplicity
+            }
+
+            await userService.createUser(payload)
+            toast.success("Staff member added successfully")
+            setIsAddDialogOpen(false)
+            setNewStaff({
+                firstName: "",
+                lastName: "",
+                email: "",
+                phone: "",
+                password: "",
+                role: "receptionist",
+                clinicId: currentUser?.clinicId || ""
+            })
+            fetchStaff()
+        } catch (error: any) {
+            console.error("Add staff error:", error)
+            toast.error(error.message || "Failed to add staff member")
+        } finally {
+            setActionLoading(false)
+        }
+    }
+
+    const handleDeleteStaff = async (userId: string) => {
+        if (!confirm("Are you sure you want to remove this staff member?")) return
+
+        try {
+            await userService.deleteUser(userId)
+            toast.success("Staff member removed")
+            setStaff(prev => prev.filter(s => s.id !== userId))
+        } catch (error) {
+            toast.error("Failed to remove staff member")
+        }
+    }
+
+    const filteredStaff = staff.filter(s =>
+        s.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        s.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        s.email.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+
+    return (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <div className="relative w-full max-w-sm">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Search staff..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-8"
+                    />
+                </div>
+                <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                    <DialogTrigger asChild>
+                        <Button>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add Receptionist
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Add New Staff Member</DialogTitle>
+                            <DialogDescription>
+                                Create an account for a new receptionist at your clinic.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <form onSubmit={handleAddStaff} className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="firstName">First Name</Label>
+                                    <Input
+                                        id="firstName"
+                                        value={newStaff.firstName}
+                                        onChange={(e) => setNewStaff({ ...newStaff, firstName: e.target.value })}
+                                        required
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="lastName">Last Name</Label>
+                                    <Input
+                                        id="lastName"
+                                        value={newStaff.lastName}
+                                        onChange={(e) => setNewStaff({ ...newStaff, lastName: e.target.value })}
+                                        required
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="email">Email</Label>
+                                <Input
+                                    id="email"
+                                    type="email"
+                                    value={newStaff.email}
+                                    onChange={(e) => setNewStaff({ ...newStaff, email: e.target.value })}
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="phone">Phone</Label>
+                                <Input
+                                    id="phone"
+                                    value={newStaff.phone}
+                                    onChange={(e) => setNewStaff({ ...newStaff, phone: e.target.value })}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="password">Temporary Password</Label>
+                                <Input
+                                    id="password"
+                                    type="password"
+                                    value={newStaff.password}
+                                    onChange={(e) => setNewStaff({ ...newStaff, password: e.target.value })}
+                                    required
+                                    minLength={6}
+                                />
+                            </div>
+                            <DialogFooter>
+                                <Button type="submit" disabled={actionLoading}>
+                                    {actionLoading ? "Adding..." : "Add Member"}
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </DialogContent>
+                </Dialog>
+            </div>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Receptionists</CardTitle>
+                    <CardDescription>Manage your front desk staff</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Name</TableHead>
+                                <TableHead>Contact</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Joined</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {loading ? (
+                                <TableRow>
+                                    <TableCell colSpan={5} className="text-center py-8">
+                                        Loading staff...
+                                    </TableCell>
+                                </TableRow>
+                            ) : filteredStaff.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                        No staff members found. Add a receptionist to get started.
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                filteredStaff.map((member) => (
+                                    <TableRow key={member.id}>
+                                        <TableCell className="font-medium">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                                                    {member.profileImage ? (
+                                                        <img src={member.profileImage} alt="" className="w-8 h-8 rounded-full" />
+                                                    ) : (
+                                                        <UserIcon className="h-4 w-4" />
+                                                    )}
+                                                </div>
+                                                {member.firstName} {member.lastName}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex flex-col text-sm">
+                                                <span className="flex items-center gap-1"><Mail className="h-3 w-3" /> {member.email}</span>
+                                                {member.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {member.phone}</span>}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge variant={member.isActive ? "default" : "secondary"}>
+                                                {member.isActive ? "Active" : "Inactive"}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                            {member.createdAt ? new Date(member.createdAt).toLocaleDateString() : "-"}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => handleDeleteStaff(member.id)}
+                                                className="text-destructive hover:text-destructive/90"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+        </div>
+    )
+}

@@ -66,15 +66,21 @@ export default function ClinicManager({ clinicId }: ClinicManagerProps) {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+        if (!clinicId) {
+            toast.error("Clinic ID is missing")
+            return
+        }
         setLoading(true)
 
         try {
-            await apiService.put(`/api/v1/clinics/${clinicId}`, formData)
+            console.log("Updating clinic details:", formData)
+            const response = await apiService.put(`/api/v1/clinics/${clinicId}`, formData)
+            console.log("Update response:", response)
             toast.success("Clinic details updated successfully")
-            // Trigger real-time update via socket if possible, or assume optimstic UI
         } catch (error: any) {
             console.error("Failed to update clinic:", error)
-            toast.error(error.message || "Failed to update clinic details")
+            const errorMessage = error.response?.data?.message || error.message || "Failed to update clinic details"
+            toast.error(errorMessage)
         } finally {
             setLoading(false)
         }

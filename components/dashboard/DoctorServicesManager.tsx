@@ -62,14 +62,18 @@ export default function DoctorServicesManager({ userId }: DoctorServicesManagerP
     const handleSave = async () => {
         setLoading(true)
         try {
-            await apiService.put("/api/v1/doctor-profiles/me", {
+            console.log("Saving services:", { services, consultationFee })
+            const response = await apiService.put("/api/v1/doctor-profiles/me", {
                 services,
                 consultationFee
             })
+            console.log("Save response:", response)
             toast.success("Services and fees updated successfully")
         } catch (error: any) {
             console.error("Failed to save services:", error)
-            toast.error(error.message || "Failed to save changes")
+            // Show detailed error if available
+            const errorMessage = error.response?.data?.message || error.message || "Failed to save changes"
+            toast.error(errorMessage)
         } finally {
             setLoading(false)
         }

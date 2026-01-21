@@ -55,21 +55,21 @@ export default function DoctorScheduleManager() {
     const slots: TimeSlot[] = []
     const [startHour, startMin] = start.split(":").map(Number)
     const [endHour, endMin] = end.split(":").map(Number)
-    
+
     let currentHour = startHour
     let currentMin = startMin
-    
+
     while (currentHour < endHour || (currentHour === endHour && currentMin < endMin)) {
       const slotStart = `${String(currentHour).padStart(2, "0")}:${String(currentMin).padStart(2, "0")}`
-      
+
       currentMin += duration
       if (currentMin >= 60) {
         currentMin -= 60
         currentHour += 1
       }
-      
+
       const slotEnd = `${String(currentHour).padStart(2, "0")}:${String(currentMin).padStart(2, "0")}`
-      
+
       slots.push({
         startTime: slotStart,
         endTime: slotEnd,
@@ -77,7 +77,7 @@ export default function DoctorScheduleManager() {
         isBlocked: false,
       })
     }
-    
+
     return slots
   }
 
@@ -93,6 +93,12 @@ export default function DoctorScheduleManager() {
 
   const handleSaveSchedule = async () => {
     try {
+      console.log("Saving schedule:", {
+        date: format(selectedDate, "yyyy-MM-dd"),
+        workingHours,
+        slotDuration,
+        blockedSlots,
+      })
       await apiService.post("/api/v1/doctors/schedule", {
         date: format(selectedDate, "yyyy-MM-dd"),
         workingHours,
@@ -101,7 +107,9 @@ export default function DoctorScheduleManager() {
       })
       toast.success("Schedule saved successfully")
     } catch (error: any) {
-      toast.error(error.message || "Failed to save schedule")
+      console.error("Failed to save schedule:", error)
+      const errorMessage = error.response?.data?.message || error.message || "Failed to save schedule"
+      toast.error(errorMessage)
     }
   }
 
@@ -174,9 +182,8 @@ export default function DoctorScheduleManager() {
                 return (
                   <div
                     key={index}
-                    className={`p-3 border rounded-lg flex items-center justify-between ${
-                      isBlocked ? "bg-muted" : "bg-background"
-                    }`}
+                    className={`p-3 border rounded-lg flex items-center justify-between ${isBlocked ? "bg-muted" : "bg-background"
+                      }`}
                   >
                     <div className="flex items-center gap-2">
                       <Clock className="h-4 w-4 text-muted-foreground" />

@@ -1,21 +1,16 @@
 
 "use client"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import StaffManager from "@/components/dashboard/StaffManager"
 
 export default function StaffManagementPage() {
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-bold">Staff Management</h1>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Clinic Staff</CardTitle>
-                    <CardDescription>Manage doctors and receptionists</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-muted-foreground">Staff management features coming soon...</p>
-                </CardContent>
-            </Card>
+            <div>
+                <h1 className="text-3xl font-bold">Staff Management</h1>
+                <p className="text-muted-foreground">Manage your clinic's team members</p>
+            </div>
+            <StaffManager />
         </div>
     )
 }

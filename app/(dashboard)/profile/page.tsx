@@ -38,16 +38,46 @@ export default function ProfilePage() {
     e.preventDefault()
     try {
       setLoading(true)
-      const updatedUser = await userService.updateProfile(formData)
-      dispatch(setUser(updatedUser))
+      console.log("Submitting profile update:", formData)
+
+      // Update profile via API
+      let updatedUser = await userService.updateProfile(formData)
+
+      console.log("Profile update response:", updatedUser)
+
+      // If the backend returns the old user or partial data, we should trust our form data for the UI update
+      // provided the API call didn't throw an error.
+      // We merge the response with our current formData to ensure the UI reflects changes immediately.
+      const optimisticUser = {
+        ...user,
+        ...updatedUser,
+        ...formData, // Overlay form data to ensure new values are shown
+        id: user?.id || updatedUser.id,
+        role: user?.role || updatedUser.role
+      }
+
+      dispatch(setUser(optimisticUser))
+
       toast({
         title: "Success",
         description: "Profile updated successfully",
       })
-    } catch (error) {
+
+      // Optionally trigger a background refresh to get the true server state
+      try {
+        const freshProfile = await userService.getProfile()
+        if (freshProfile) {
+          dispatch(setUser(freshProfile))
+        }
+      } catch (refreshError) {
+        console.warn("Failed to refresh profile after update:", refreshError)
+      }
+
+    } catch (error: any) {
+      console.error("Profile update error:", error)
       toast({
         title: "Error",
-        description: "Failed to update profile",
+        description: error.message || "Failed to update profile",
         variant: "destructive",
       })
     } finally {
