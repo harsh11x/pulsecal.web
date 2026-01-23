@@ -122,11 +122,16 @@ export const updateProfile = async (
     phone?: string;
     dateOfBirth?: Date;
     profileImage?: string;
+    clinicAddress?: string;
   }
 ) => {
+  // Extract clinic address from data
+  const { clinicAddress, ...userData } = data;
+
+  // Update user data
   const user = await prisma.user.update({
     where: { id: userId },
-    data,
+    data: userData,
     select: {
       id: true,
       email: true,
@@ -137,8 +142,23 @@ export const updateProfile = async (
       role: true,
       profileImage: true,
       updatedAt: true,
+      doctorProfile: true,
     },
   });
+
+  // If clinicAddress is provided and user is a doctor, update the doctor profile
+  if (clinicAddress !== undefined && user.role === 'DOCTOR') {
+    const doctorProfile = await prisma.doctorProfile.findUnique({
+      where: { userId },
+    });
+
+    if (doctorProfile) {
+      await prisma.doctorProfile.update({
+        where: { userId },
+        data: { clinicAddress },
+      });
+    }
+  }
 
   return user;
 };

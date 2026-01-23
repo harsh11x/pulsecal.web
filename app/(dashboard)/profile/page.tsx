@@ -27,6 +27,7 @@ export default function ProfilePage() {
     email: user?.email || "",
     phone: user?.phone || "",
     dateOfBirth: user?.dateOfBirth || "",
+    clinicAddress: (user as any)?.doctorProfile?.clinicAddress || "",
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -192,6 +193,15 @@ export default function ProfilePage() {
                 onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
               />
             </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="clinicAddress">Clinic Address</Label>
+            <Input
+              id="clinicAddress"
+              value={formData.clinicAddress}
+              onChange={(e) => setFormData({ ...formData, clinicAddress: e.target.value })}
+              placeholder="Your clinic's full address"
+            />
           </div>
           <Button type="submit" disabled={loading}>
             <Save className="mr-2 h-4 w-4" />
