@@ -1,7 +1,91 @@
 import prisma from '../../config/database';
+import admin from '../../config/firebase';
+import { hashPassword } from '../../utils/encrypt';
 import { getPaginationParams, getSortParams } from '../../utils/helpers';
 import { AppError } from '../../middlewares/error.middleware';
 
+
+export const createUser = async (data: {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  password?: string;
+  role: 'PATIENT' | 'DOCTOR' | 'RECEPTIONIST' | 'ADMIN';
+  clinicId?: string;
+  isActive?: boolean;
+  isEmailVerified?: boolean;
+}) => {
+  // 1. Check if user exists in DB
+  const existingUser = await prisma.user.findUnique({
+    where: { email: data.email },
+  });
+
+  if (existingUser) {
+    throw new AppError('User already exists', 400);
+  }
+
+  // 2. Create user in Firebase
+  let firebaseUid: string;
+  try {
+    const firebaseUser = await admin.auth().createUser({
+      email: data.email,
+      password: data.password, // Optional if we want to force password reset
+      emailVerified: data.isEmailVerified || false,
+      displayName: `${data.firstName} ${data.lastName}`,
+      disabled: data.isActive === false,
+    });
+    firebaseUid = firebaseUser.uid;
+
+    // Set custom claims for role
+    await admin.auth().setCustomUserClaims(firebaseUid, { role: data.role });
+
+  } catch (error: any) {
+    // If user already exists in Firebase but not in DB (edge case), retrieve UID
+    if (error.code === 'auth/email-already-exists') {
+      const userRecord = await admin.auth().getUserByEmail(data.email);
+      firebaseUid = userRecord.uid;
+    } else {
+      throw new AppError(`Failed to create Firebase user: ${error.message}`, 500);
+    }
+  }
+
+  // 3. Create user in Prisma
+  const user = await prisma.user.create({
+    data: {
+      email: data.email,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      phone: data.phone,
+      role: data.role,
+      clinicId: data.clinicId,
+      isActive: data.isActive !== false,
+      isEmailVerified: data.isEmailVerified || false,
+      firebaseUid,
+      onboardingCompleted: true, // Assuming staff added by doctor doesn't need onboarding flow
+    },
+  });
+
+  // 4. Create Profile based on role
+  if (data.role === 'DOCTOR') {
+    await prisma.doctorProfile.create({
+      data: {
+        userId: user.id,
+        licenseNumber: `LIC-${user.id.substring(0, 8)}`, // Placeholder
+        specialization: 'General',
+        clinicName: 'My Clinic', // Should probably inherit
+        consultationFee: 0,
+      },
+    });
+  } else if (data.role === 'PATIENT') {
+    await prisma.patientProfile.create({
+      data: { userId: user.id },
+    });
+  }
+  // Receptionist profile creation if model exists (Assuming no specific profile model for receptionist yet based on previous files, but usually there isn't one or it's implicitly User)
+
+  return user;
+};
 
 export const getProfile = async (userId: string) => {
   const user = await prisma.user.findUnique({

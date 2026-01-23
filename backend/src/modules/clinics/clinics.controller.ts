@@ -87,6 +87,8 @@ export const updateClinicController = async (
       country: Joi.string().optional(),
       phone: Joi.string().optional(),
       email: Joi.string().email().optional(),
+      website: Joi.string().uri().optional().allow(''),
+      description: Joi.string().optional().allow(''),
       latitude: Joi.number().optional(),
       longitude: Joi.number().optional(),
     }).min(1);

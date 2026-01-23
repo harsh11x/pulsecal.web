@@ -5,6 +5,71 @@ import { getClinicStaff } from './doctors.staff.service';
 import { sendSuccess } from '../../utils/apiResponse';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { AppError } from '../../middlewares/error.middleware';
+import prisma from '../../config/database';
+
+export const updateScheduleController = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) throw new AppError('User not authenticated', 401);
+
+    const { date, workingHours, slotDuration, blockedSlots } = req.body;
+
+    // Fetch existing profile
+    const profile = await prisma.doctorProfile.findUnique({
+      where: { userId },
+    });
+
+    if (!profile) throw new AppError('Doctor profile not found', 404);
+
+    // Update workingHours. We store generic workingHours AND specific blocked slots
+    // We'll store blockedSlots in a special 'exceptions' key within workingHours JSON
+    // This is a workaround since we can't easily add a new table/column
+    const currentWorkingHours = (profile.workingHours as any) || {};
+
+    // Update generic daily hours (if provided)
+    if (workingHours) {
+        // workingHours from frontend is { start: "09:00", end: "17:00" }
+        // We need to apply this to all days or specific days?
+        // Frontend DoctorScheduleManager sends a single `workingHours` object for the *selected date* context
+        // But also allows configuring generic hours.
+        // For MVP, let's assume we update the generic schedule for the day of week corresponding to `date`
+        // OR just update the whole structure if provided.
+        // The frontend sends `workingHours` as simple object { start, end }.
+        // We'll leave existing structure intact and just update exceptions if needed.
+        // Actually, the prompt says "modifying clinic time schedules".
+        // Let's just save what we get into a merged object.
+    }
+
+    const updatedData = {
+        ...currentWorkingHours,
+        // Save exceptions/blocked slots for this date
+        exceptions: {
+            ...(currentWorkingHours.exceptions || {}),
+            [date]: blockedSlots
+        },
+        // Also save generic config if we want to persist the "default" state
+        defaultSettings: {
+            workingHours,
+            slotDuration
+        }
+    };
+
+    await prisma.doctorProfile.update({
+        where: { userId },
+        data: {
+            workingHours: updatedData
+        }
+    });
+
+    sendSuccess(res, null, 'Schedule updated successfully');
+  } catch (err) {
+    next(err);
+  }
+};
 
 export const searchDoctorsController = async (
   req: AuthRequest,

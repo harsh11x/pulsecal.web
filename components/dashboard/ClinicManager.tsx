@@ -26,9 +26,7 @@ export default function ClinicManager({ clinicId }: ClinicManagerProps) {
         zipCode: "",
         country: "",
         phone: "",
-        email: "",
-        website: "",
-        description: ""
+        email: ""
     })
 
     useEffect(() => {
@@ -51,9 +49,7 @@ export default function ClinicManager({ clinicId }: ClinicManagerProps) {
                     zipCode: clinic.zipCode || "",
                     country: clinic.country || "",
                     phone: clinic.phone || "",
-                    email: clinic.email || "",
-                    website: clinic.website || "",
-                    description: clinic.description || ""
+                    email: clinic.email || ""
                 })
             }
         } catch (error) {

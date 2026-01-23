@@ -22,6 +22,7 @@ const razorpay = new Razorpay({
 // Schemas
 const createOrderSchema = Joi.object({
     plan: Joi.string().valid('STARTER', 'BASIC', 'PROFESSIONAL', 'ENTERPRISE').required(),
+    billingCycle: Joi.string().valid('MONTHLY', 'YEARLY').default('MONTHLY'),
 });
 
 const verifyPaymentSchema = Joi.object({
@@ -42,6 +43,7 @@ const verifyPaymentSchema = Joi.object({
         subscriptionPlan: Joi.string().valid('STARTER', 'BASIC', 'PROFESSIONAL', 'ENTERPRISE').required(),
     }).optional(),
     plan: Joi.string().valid('STARTER', 'BASIC', 'PROFESSIONAL', 'ENTERPRISE').optional(),
+    billingCycle: Joi.string().valid('MONTHLY', 'YEARLY').default('MONTHLY'),
 });
 
 export const createOrder = async (req: AuthRequest, res: Response, _next: NextFunction) => {
@@ -61,9 +63,14 @@ export const createOrder = async (req: AuthRequest, res: Response, _next: NextFu
             ENTERPRISE: 499900, // ₹4999
         };
 
-        const amount = planPricing[value.plan];
+        let amount = planPricing[value.plan];
         if (!amount) {
             return sendError(res, 'Invalid subscription plan', 400);
+        }
+
+        // Apply yearly multiplier (10 months instead of 12 = 2 months free)
+        if (value.billingCycle === 'YEARLY') {
+            amount = amount * 10;
         }
 
         const options = {
@@ -103,10 +110,11 @@ export const verifyPayment = async (req: AuthRequest, res: Response, _next: Next
             return sendError(res, error.details[0].message, 400);
         }
 
-        const { razorpay_order_id, razorpay_payment_id, razorpay_signature, clinicDetails } = value;
+        const { razorpay_order_id, razorpay_payment_id, razorpay_signature, clinicDetails, billingCycle } = value;
 
         // Determine subscription plan early for logging/logic
         const subscriptionPlan = clinicDetails?.subscriptionPlan || value.plan || 'STARTER';
+        const cycle = billingCycle || 'MONTHLY';
 
         // Verify Signature
         const body = razorpay_order_id + '|' + razorpay_payment_id;
@@ -186,12 +194,16 @@ export const verifyPayment = async (req: AuthRequest, res: Response, _next: Next
         }
 
         // Update Doctor Profile
+        const expiryDuration = cycle === 'YEARLY'
+            ? 365 * 24 * 60 * 60 * 1000 // 1 Year
+            : 30 * 24 * 60 * 60 * 1000; // 30 Days
+
         await prisma.doctorProfile.upsert({
             where: { userId: req.user!.id },
             update: {
                 subscriptionPlan: subscriptionPlan,
                 subscriptionStatus: 'ACTIVE',
-                subscriptionExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                subscriptionExpiresAt: new Date(Date.now() + expiryDuration),
                 razorpaySubscriptionId: razorpay_payment_id
             },
             create: {
@@ -200,7 +212,7 @@ export const verifyPayment = async (req: AuthRequest, res: Response, _next: Next
                 specialization: 'General',
                 subscriptionPlan: subscriptionPlan,
                 subscriptionStatus: 'ACTIVE',
-                subscriptionExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                subscriptionExpiresAt: new Date(Date.now() + expiryDuration),
                 razorpaySubscriptionId: razorpay_payment_id
             }
         });
@@ -212,7 +224,11 @@ export const verifyPayment = async (req: AuthRequest, res: Response, _next: Next
             PROFESSIONAL: 2999,
             ENTERPRISE: 4999,
         };
-        const amount = planAmounts[subscriptionPlan] || 1499;
+        let amount = planAmounts[subscriptionPlan] || 1499;
+
+        if (cycle === 'YEARLY') {
+            amount = amount * 10;
+        }
 
         await createPayment({
             patientId: req.user!.id,
@@ -224,7 +240,7 @@ export const verifyPayment = async (req: AuthRequest, res: Response, _next: Next
             razorpayPaymentId: razorpay_payment_id,
             razorpaySignature: razorpay_signature,
             status: 'COMPLETED',
-            description: `Subscription payment for ${subscriptionPlan} plan - Application: PulseCal`,
+            description: `Subscription payment for ${subscriptionPlan} plan (${cycle}) - Application: PulseCal`,
         });
 
         logger.info('PaymentGateway: Subscription Processed Successfully');

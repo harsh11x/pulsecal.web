@@ -30,6 +30,20 @@ const createDoctorProfileSchema = Joi.object({
     workingHours: Joi.object().optional(),
 });
 
+const updateDoctorProfileSchema = Joi.object({
+    licenseNumber: Joi.string().optional(),
+    specialization: Joi.string().optional(),
+    qualifications: Joi.string().optional(),
+    yearsOfExperience: Joi.number().optional(),
+    bio: Joi.string().optional(),
+    consultationFee: Joi.number().optional(),
+    clinicPhone: Joi.string().optional(),
+    clinicEmail: Joi.string().optional(),
+    services: Joi.array().items(Joi.string()).optional(),
+    workingHours: Joi.object().optional(),
+    clinicId: Joi.string().optional(),
+});
+
 export const createDoctorProfileController = async (
     req: AuthRequest,
     res: Response,
@@ -134,6 +148,29 @@ export const createDoctorProfileController = async (
     }
 };
 
+export const getDoctorProfileMeController = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+): Promise<void> => {
+    try {
+        const userId = req.user?.id;
+        if (!userId) throw new AppError('User not authenticated', 401);
+
+        const profile = await prisma.doctorProfile.findUnique({
+            where: { userId },
+        });
+
+        if (!profile) {
+            throw new AppError('Doctor profile not found', 404);
+        }
+
+        sendSuccess(res, profile, 'Profile retrieved successfully');
+    } catch (err) {
+        next(err);
+    }
+};
+
 export const updateDoctorProfileController = async (
     req: AuthRequest,
     res: Response,
@@ -143,7 +180,7 @@ export const updateDoctorProfileController = async (
         const userId = req.user?.id;
         if (!userId) throw new AppError('User not authenticated', 401);
 
-        const { error, value } = createDoctorProfileSchema.validate(req.body);
+        const { error, value } = updateDoctorProfileSchema.validate(req.body);
 
         if (error) {
             throw new AppError(error.details[0].message, 400);

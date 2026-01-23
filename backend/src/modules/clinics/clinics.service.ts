@@ -136,6 +136,8 @@ export const updateClinic = async (
     zipCode?: string;
     phone?: string;
     email?: string;
+    website?: string;
+    description?: string;
     latitude?: number;
     longitude?: number;
     isActive?: boolean;

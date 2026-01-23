@@ -8,6 +8,8 @@ import { Footer } from "@/components/landing/Footer"
 import { GetStartedAction } from "@/components/landing/GetStartedAction"
 import { AuthModal } from "@/components/auth/AuthModal"
 import { Button } from "@/components/ui/button"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 import {
   Calendar,
   Video,
@@ -27,6 +29,7 @@ import {
 export default function Home() {
   const router = useRouter()
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+  const [isYearly, setIsYearly] = useState(false)
 
   // Redirect logged-in users to dashboard
   useEffect(() => {
@@ -45,28 +48,28 @@ export default function Home() {
         <div className="mx-auto max-w-7xl">
           <div className="grid gap-12 lg:grid-cols-2 lg:gap-8">
             <div className="flex flex-col justify-center space-y-8">
-              <div className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/50 px-4 py-1.5 text-sm text-muted-foreground w-fit">
+              <div className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/50 px-4 py-1.5 text-sm text-muted-foreground w-fit animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
                 Trusted by 500+ healthcare providers
               </div>
 
-              <h1 className="text-balance text-5xl font-bold tracking-tight text-foreground lg:text-6xl">
-                Healthcare management that <span className="text-primary">just works</span>
+              <h1 className="text-balance text-5xl font-bold tracking-tight text-foreground lg:text-7xl animate-in fade-in slide-in-from-bottom-6 duration-700">
+                Healthcare management that <span className="text-primary bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">just works</span>
               </h1>
 
-              <p className="text-pretty text-xl text-muted-foreground leading-relaxed">
+              <p className="text-pretty text-xl text-muted-foreground leading-relaxed animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
                 PulseCal transforms chaotic appointment scheduling into seamless patient care. Manage appointments,
                 records, and communication all in one intelligent platform.
               </p>
 
-              <div className="flex flex-col gap-4 sm:flex-row">
+              <div className="flex flex-col gap-4 sm:flex-row animate-in fade-in slide-in-from-bottom-10 duration-700 delay-200">
                 <GetStartedAction className="text-base shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105" />
                 <Button size="lg" variant="outline" className="text-base bg-transparent border-2 hover:border-primary hover:text-primary transition-all duration-200">
                   Watch demo
                 </Button>
               </div>
 
-              <div className="flex items-center gap-8 text-sm">
+              <div className="flex items-center gap-8 text-sm animate-in fade-in slide-in-from-bottom-12 duration-700 delay-300">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="h-5 w-5 text-success" />
                   <span className="text-muted-foreground">No credit card required</span>
@@ -78,34 +81,34 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="relative flex items-center justify-center">
-              <div className="relative h-[500px] w-full rounded-2xl border border-border bg-gradient-to-br from-primary/5 via-background to-accent/5 p-8 shadow-2xl">
-                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/10 to-accent/10" />
-                <div className="relative h-full w-full rounded-lg bg-white p-6 shadow-lg">
+            <div className="relative flex items-center justify-center animate-in fade-in zoom-in duration-1000">
+              <div className="relative h-[500px] w-full rounded-2xl border border-border bg-gradient-to-br from-primary/5 via-background to-accent/5 p-8 shadow-2xl backdrop-blur-sm">
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/10 to-accent/10 opacity-50" />
+                <div className="relative h-full w-full rounded-lg bg-white p-6 shadow-lg overflow-hidden">
                   {/* Modern Dashboard Preview */}
                   <div className="grid h-full grid-cols-2 gap-4">
                     {/* Stats Cards */}
                     <div className="space-y-3">
-                      <div className="rounded-lg bg-gradient-to-br from-green-50 to-green-100 p-4 border border-green-200">
+                      <div className="rounded-lg bg-gradient-to-br from-green-50 to-green-100 p-4 border border-green-200 hover:scale-105 transition-transform">
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-xs font-medium text-green-600">Total Patients</p>
                             <p className="text-2xl font-bold text-green-700">605</p>
                           </div>
-                          <div className="h-12 w-12 rounded-full bg-green-500 flex items-center justify-center">
+                          <div className="h-12 w-12 rounded-full bg-green-500 flex items-center justify-center shadow-md">
                             <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                             </svg>
                           </div>
                         </div>
                       </div>
-                      <div className="rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 p-4 border border-blue-200">
+                      <div className="rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 p-4 border border-blue-200 hover:scale-105 transition-transform delay-75">
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-xs font-medium text-blue-600">Appointments</p>
                             <p className="text-2xl font-bold text-blue-700">403</p>
                           </div>
-                          <div className="h-12 w-12 rounded-full bg-blue-500 flex items-center justify-center">
+                          <div className="h-12 w-12 rounded-full bg-blue-500 flex items-center justify-center shadow-md">
                             <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
@@ -113,27 +116,27 @@ export default function Home() {
                         </div>
                       </div>
                     </div>
-                    <div className="space-y-3">
-                      <div className="rounded-lg bg-gradient-to-br from-orange-50 to-orange-100 p-4 border border-orange-200">
+                    <div className="space-y-3 pt-8">
+                      <div className="rounded-lg bg-gradient-to-br from-orange-50 to-orange-100 p-4 border border-orange-200 hover:scale-105 transition-transform delay-150">
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-xs font-medium text-orange-600">Pending</p>
                             <p className="text-2xl font-bold text-orange-700">40</p>
                           </div>
-                          <div className="h-12 w-12 rounded-full bg-orange-500 flex items-center justify-center">
+                          <div className="h-12 w-12 rounded-full bg-orange-500 flex items-center justify-center shadow-md">
                             <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                           </div>
                         </div>
                       </div>
-                      <div className="rounded-lg bg-gradient-to-br from-purple-50 to-purple-100 p-4 border border-purple-200">
+                      <div className="rounded-lg bg-gradient-to-br from-purple-50 to-purple-100 p-4 border border-purple-200 hover:scale-105 transition-transform delay-200">
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-xs font-medium text-purple-600">Revenue</p>
-                            <p className="text-2xl font-bold text-purple-700">₹6,45,000</p>
+                            <p className="text-2xl font-bold text-purple-700">₹6.45L</p>
                           </div>
-                          <div className="h-12 w-12 rounded-full bg-purple-500 flex items-center justify-center">
+                          <div className="h-12 w-12 rounded-full bg-purple-500 flex items-center justify-center shadow-md">
                             <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
@@ -145,6 +148,68 @@ export default function Home() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Trusted By Section */}
+      <section className="border-b border-border bg-background py-10">
+        <div className="mx-auto max-w-7xl px-4">
+          <p className="text-center text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-8">
+            Trusted by leading healthcare institutions
+          </p>
+          <div className="flex flex-wrap justify-center items-center gap-12 opacity-70 grayscale transition-all duration-500 hover:grayscale-0 hover:opacity-100">
+            {["City Hospital", "Medicare Plus", "HealthFirst", "Global Care", "Doctors United"].map((brand) => (
+              <div key={brand} className="flex items-center gap-2 text-xl font-bold text-muted-foreground">
+                <div className="h-8 w-8 rounded bg-muted-foreground/20" />
+                {brand}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works Section */}
+      <section className="border-b border-border bg-white px-4 py-20">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-16 text-center">
+            <h2 className="mb-4 text-3xl font-bold tracking-tight text-foreground lg:text-4xl">
+              How PulseCal Works
+            </h2>
+            <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
+              Streamline your practice in three simple steps
+            </p>
+          </div>
+
+          <div className="grid gap-8 md:grid-cols-3 relative">
+            {/* Connecting Line (Desktop) */}
+            <div className="hidden md:block absolute top-12 left-[16%] right-[16%] h-0.5 bg-gradient-to-r from-muted via-primary/30 to-muted z-0" />
+
+            {[
+              {
+                step: "01",
+                title: "Register Clinic",
+                desc: "Create your profile, set working hours, and configure your services.",
+              },
+              {
+                step: "02",
+                title: "Manage Schedule",
+                desc: "Patients book online. You manage appointments via the real-time dashboard.",
+              },
+              {
+                step: "03",
+                title: "Treat & Grow",
+                desc: "Focus on patient care while PulseCal handles billing, records, and reminders.",
+              },
+            ].map((item, i) => (
+              <div key={i} className="relative z-10 flex flex-col items-center text-center">
+                <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-white border-4 border-primary/10 shadow-lg transition-transform hover:scale-110">
+                  <span className="text-3xl font-bold text-primary">{item.step}</span>
+                </div>
+                <h3 className="mb-2 text-xl font-semibold">{item.title}</h3>
+                <p className="text-muted-foreground max-w-xs">{item.desc}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -184,7 +249,7 @@ export default function Home() {
             </div>
 
             <div className="flex items-center">
-              <div className="rounded-2xl border border-border bg-card p-8 shadow-lg">
+              <div className="rounded-2xl border border-border bg-card p-8 shadow-lg rotate-2 hover:rotate-0 transition-all duration-500">
                 <img src="/frustrated-healthcare-staff-with-paperwork.jpg" alt="Healthcare Problems" className="rounded-lg" />
               </div>
             </div>
@@ -193,7 +258,7 @@ export default function Home() {
       </section>
 
       {/* Solution Section */}
-      <section className="border-b border-border px-4 py-20">
+      <section className="border-b border-border px-4 py-20 bg-muted/10">
         <div className="mx-auto max-w-7xl">
           <div className="mb-16 text-center">
             <h2 className="mb-4 text-4xl font-bold tracking-tight text-foreground lg:text-5xl">
@@ -267,8 +332,8 @@ export default function Home() {
           </div>
 
           <div className="grid gap-8 lg:grid-cols-3">
-            <div className="flex flex-col items-center text-center">
-              <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-success/10">
+            <div className="flex flex-col items-center text-center p-6 rounded-2xl hover:bg-background/50 transition-colors">
+              <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-success/10 animate-bounce delay-100">
                 <Stethoscope className="h-10 w-10 text-success" />
               </div>
               <h3 className="mb-2 text-3xl font-bold text-foreground">98%</h3>
@@ -276,8 +341,8 @@ export default function Home() {
               <p className="mt-2 text-muted-foreground">Patients love the convenience</p>
             </div>
 
-            <div className="flex flex-col items-center text-center">
-              <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
+            <div className="flex flex-col items-center text-center p-6 rounded-2xl hover:bg-background/50 transition-colors">
+              <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 animate-bounce delay-200">
                 <Clock className="h-10 w-10 text-primary" />
               </div>
               <h3 className="mb-2 text-3xl font-bold text-foreground">5 hours</h3>
@@ -285,8 +350,8 @@ export default function Home() {
               <p className="mt-2 text-muted-foreground">Automated workflows free up staff</p>
             </div>
 
-            <div className="flex flex-col items-center text-center">
-              <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-accent/10">
+            <div className="flex flex-col items-center text-center p-6 rounded-2xl hover:bg-background/50 transition-colors">
+              <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-accent/10 animate-bounce delay-300">
                 <Activity className="h-10 w-10 text-accent" />
               </div>
               <h3 className="mb-2 text-3xl font-bold text-foreground">40%</h3>
@@ -371,23 +436,36 @@ export default function Home() {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="border-b border-border bg-muted/20 px-4 py-20">
+      <section id="pricing" className="border-b border-border bg-muted/20 px-4 py-20 relative">
         <div className="mx-auto max-w-7xl">
-          <div className="mb-16 text-center">
+          <div className="mb-12 text-center">
             <h2 className="mb-4 text-4xl font-bold tracking-tight text-foreground lg:text-5xl">
               Simple, transparent pricing
             </h2>
-            <p className="mx-auto max-w-2xl text-pretty text-xl text-muted-foreground leading-relaxed">
+            <p className="mx-auto max-w-2xl text-pretty text-xl text-muted-foreground leading-relaxed mb-8">
               Choose the plan that fits your practice. All plans include a 14-day free trial.
             </p>
+
+            <div className="flex items-center justify-center gap-4 mb-8">
+              <Label htmlFor="billing-mode" className={`text-sm font-medium cursor-pointer ${!isYearly ? "text-foreground" : "text-muted-foreground"}`}>Monthly</Label>
+              <Switch
+                id="billing-mode"
+                checked={isYearly}
+                onCheckedChange={setIsYearly}
+              />
+              <Label htmlFor="billing-mode" className={`text-sm font-medium cursor-pointer ${isYearly ? "text-foreground" : "text-muted-foreground"}`}>
+                Yearly <span className="text-xs text-primary font-bold ml-1">(2 Months Free)</span>
+              </Label>
+            </div>
           </div>
 
           <div className="grid gap-8 md:grid-cols-3">
             {[
               {
                 name: "Starter",
-                price: "Rs. 1499",
-                period: "per month",
+                price: isYearly ? "Rs. 14,990" : "Rs. 1,499",
+                period: isYearly ? "per year" : "per month",
+                savings: isYearly ? "Save ₹2,998" : null,
                 description: "Perfect for small practices",
                 features: [
                   "Add upto 3 Doctors per clinic",
@@ -400,8 +478,9 @@ export default function Home() {
               },
               {
                 name: "Professional",
-                price: "Rs. 2999",
-                period: "per month",
+                price: isYearly ? "Rs. 29,990" : "Rs. 2,999",
+                period: isYearly ? "per year" : "per month",
+                savings: isYearly ? "Save ₹5,998" : null,
                 description: "For growing practices",
                 features: [
                   "Unlimited appointments",
@@ -415,8 +494,9 @@ export default function Home() {
               },
               {
                 name: "Enterprise",
-                price: "Rs. 4999",
-                period: "per month",
+                price: isYearly ? "Rs. 49,990" : "Rs. 4,999",
+                period: isYearly ? "per year" : "per month",
+                savings: isYearly ? "Save ₹9,998" : null,
                 description: "For large organizations",
                 features: [
                   "Everything in Professional",
@@ -429,25 +509,39 @@ export default function Home() {
               <div
                 key={index}
                 className={`relative rounded-2xl border-2 p-8 transition-all duration-300 ${plan.popular
-                  ? "border-primary bg-card shadow-xl scale-105"
-                  : "border-border bg-card hover:border-primary/50 hover:shadow-lg"
+                  ? "border-primary bg-card shadow-xl scale-105 z-10"
+                  : "border-border bg-card hover:border-primary/50 hover:shadow-lg hover:-translate-y-1"
                   }`}
               >
                 {plan.popular && (
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                    <span className="rounded-full bg-primary px-4 py-1 text-xs font-semibold text-primary-foreground">
+                    <span className="rounded-full bg-primary px-4 py-1 text-xs font-semibold text-primary-foreground shadow-md">
                       Most Popular
                     </span>
+                  </div>
+                )}
+                {isYearly && (
+                  <div className="absolute top-4 right-4">
+                     <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700 border border-green-200">
+                        12 Months Autopay
+                     </span>
                   </div>
                 )}
                 <div className="mb-6">
                   <h3 className="mb-2 text-2xl font-bold text-foreground">{plan.name}</h3>
                   <p className="text-sm text-muted-foreground">{plan.description}</p>
                 </div>
-                <div className="mb-6">
+                <div className="mb-2">
                   <span className="text-4xl font-bold text-foreground">{plan.price}</span>
-                  <span className="text-muted-foreground"> / {plan.period}</span>
+                  <span className="text-muted-foreground"> / {plan.period.replace('per ', '')}</span>
                 </div>
+                {plan.savings && (
+                   <div className="mb-6 text-sm text-green-600 font-semibold animate-pulse">
+                     {plan.savings}
+                   </div>
+                )}
+                 {!plan.savings && <div className="mb-6 h-5"></div>}
+
                 <ul className="mb-8 space-y-3">
                   {plan.features.map((feature, idx) => (
                     <li key={idx} className="flex items-start gap-3">

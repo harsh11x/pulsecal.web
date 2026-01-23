@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
+import dynamic from "next/dynamic"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -8,12 +9,16 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { Badge } from "@/components/ui/badge"
-import { MapPin, Search, Navigation, Stethoscope, Clock, DollarSign, Star, Filter, X } from "lucide-react"
+import { MapPin, Search, Navigation, Stethoscope, Star, Filter } from "lucide-react"
 import { apiService } from "@/services/api"
 import { toast } from "sonner"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import Link from "next/link"
 import { DoctorProfileModal } from "./DoctorProfileModal"
+
+// Dynamically import LeafletMap with SSR disabled
+const LeafletMap = dynamic(() => import("./LeafletMap"), {
+  ssr: false,
+  loading: () => <div className="w-full h-full flex items-center justify-center bg-muted/20">Loading Map...</div>
+})
 
 interface Doctor {
   id: string
@@ -41,15 +46,14 @@ export function DoctorDiscoveryMap() {
   const [filteredDoctors, setFilteredDoctors] = useState<Doctor[]>([])
   const [loading, setLoading] = useState(true)
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [mapCenter, setMapCenter] = useState<[number, number]>([20.5937, 78.9629]) // Default to India center
+  const [mapZoom, setMapZoom] = useState(5)
   const [searchQuery, setSearchQuery] = useState("")
   const [specializationFilter, setSpecializationFilter] = useState("")
   const [availabilityFilter, setAvailabilityFilter] = useState<"all" | "available">("all")
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 500])
-  const [radius, setRadius] = useState([10]) // km
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 5000])
+  const [radius, setRadius] = useState([50]) // km
   const [showFilters, setShowFilters] = useState(false)
-  const mapRef = useRef<HTMLDivElement>(null)
-  const [map, setMap] = useState<any>(null)
-  const [markers, setMarkers] = useState<any[]>([])
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null)
 
   const specializations = [
@@ -82,48 +86,20 @@ export function DoctorDiscoveryMap() {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          })
+          const { latitude, longitude } = position.coords;
+          setUserLocation({ lat: latitude, lng: longitude });
+          setMapCenter([latitude, longitude]);
+          setMapZoom(12);
         },
         (error) => {
           console.error("Error getting location:", error)
-          toast.error("Could not get your location. Please enable location services.")
+          toast.error("Could not get your location. Defaulting to India view.")
         }
       )
     }
 
-    // Initialize Google Maps
-    const initMap = () => {
-      if (window.google && mapRef.current) {
-        const mapInstance = new window.google.maps.Map(mapRef.current, {
-          center: userLocation || { lat: 40.7128, lng: -74.006 },
-          zoom: 12,
-          mapTypeControl: true,
-          streetViewControl: false,
-          fullscreenControl: true,
-        })
-        setMap(mapInstance)
-      } else {
-        const script = document.createElement("script")
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`
-        script.async = true
-        script.defer = true
-        script.onload = () => {
-          if (mapRef.current) {
-            const mapInstance = new window.google.maps.Map(mapRef.current, {
-              center: userLocation || { lat: 40.7128, lng: -74.006 },
-              zoom: 12,
-            })
-            setMap(mapInstance)
-          }
-        }
-        document.head.appendChild(script)
-      }
-    }
-
-    initMap()
+    // Initial fetch
+    fetchDoctors();
   }, [])
 
   useEffect(() => {
@@ -136,12 +112,6 @@ export function DoctorDiscoveryMap() {
     filterDoctors()
   }, [doctors, searchQuery, specializationFilter, availabilityFilter, priceRange])
 
-  useEffect(() => {
-    if (map && filteredDoctors.length > 0) {
-      updateMapMarkers()
-    }
-  }, [map, filteredDoctors, userLocation])
-
   const fetchDoctors = async () => {
     setLoading(true)
     try {
@@ -151,31 +121,41 @@ export function DoctorDiscoveryMap() {
         params.longitude = userLocation.lng
         params.radius = radius[0] * 1000 // Convert km to meters
       }
+
       if (specializationFilter && specializationFilter !== "All Specializations") {
         params.specialization = specializationFilter
       }
 
-      const response: any = await apiService.get("/api/v1/doctors/search", { params })
-      let doctorsData = response?.data || response || []
+      try {
+          const response: any = await apiService.get("/api/v1/doctors/search", { params })
+          let doctorsData = response?.data?.doctors || response?.data || response || []
 
-      // Calculate distances if user location is available
-      if (userLocation) {
-        doctorsData = doctorsData.map((doctor: Doctor) => {
-          if (doctor.clinicLatitude && doctor.clinicLongitude) {
-            const distance = calculateDistance(
-              userLocation.lat,
-              userLocation.lng,
-              doctor.clinicLatitude,
-              doctor.clinicLongitude
-            )
-            return { ...doctor, distance }
+          if (!Array.isArray(doctorsData)) {
+              doctorsData = [];
           }
-          return doctor
-        })
-        doctorsData.sort((a: Doctor, b: Doctor) => (a.distance || Infinity) - (b.distance || Infinity))
+
+          if (userLocation && doctorsData.length > 0) {
+            doctorsData = doctorsData.map((doctor: Doctor) => {
+              if (doctor.clinicLatitude && doctor.clinicLongitude) {
+                const distance = calculateDistance(
+                  userLocation.lat,
+                  userLocation.lng,
+                  doctor.clinicLatitude,
+                  doctor.clinicLongitude
+                )
+                return { ...doctor, distance }
+              }
+              return { ...doctor, distance: 9999 }
+            })
+            doctorsData.sort((a: Doctor, b: Doctor) => (a.distance || Infinity) - (b.distance || Infinity))
+          }
+
+          setDoctors(doctorsData)
+      } catch (apiError) {
+          console.warn("API Search failed, trying fallback list or empty:", apiError);
+          setDoctors([]);
       }
 
-      setDoctors(doctorsData)
     } catch (error: any) {
       console.error("Failed to fetch doctors:", error)
       toast.error("Failed to load doctors")
@@ -188,7 +168,6 @@ export function DoctorDiscoveryMap() {
   const filterDoctors = () => {
     let filtered = [...doctors]
 
-    // Filter by search query
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
       filtered = filtered.filter(
@@ -200,22 +179,18 @@ export function DoctorDiscoveryMap() {
       )
     }
 
-    // Filter by specialization
     if (specializationFilter && specializationFilter !== "All Specializations") {
       filtered = filtered.filter((doctor) => doctor.specialization === specializationFilter)
     }
 
-    // Filter by availability
     if (availabilityFilter === "available") {
       filtered = filtered.filter((doctor) => doctor.isAvailable)
     }
 
-    // Filter by price range
     filtered = filtered.filter(
       (doctor) => doctor.consultationFee >= priceRange[0] && doctor.consultationFee <= priceRange[1]
     )
 
-    // Filter by radius
     if (userLocation) {
       filtered = filtered.filter((doctor) => {
         if (!doctor.distance) return false
@@ -227,7 +202,7 @@ export function DoctorDiscoveryMap() {
   }
 
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-    const R = 6371 // Radius of the Earth in km
+    const R = 6371
     const dLat = ((lat2 - lat1) * Math.PI) / 180
     const dLon = ((lon2 - lon1) * Math.PI) / 180
     const a =
@@ -240,82 +215,11 @@ export function DoctorDiscoveryMap() {
     return R * c
   }
 
-  const updateMapMarkers = () => {
-    // Clear existing markers
-    markers.forEach((marker) => marker.setMap(null))
-    const newMarkers: any[] = []
-
-    filteredDoctors.forEach((doctor) => {
-      if (doctor.clinicLatitude && doctor.clinicLongitude && map) {
-        const marker = new window.google.maps.Marker({
-          position: { lat: doctor.clinicLatitude, lng: doctor.clinicLongitude },
-          map: map,
-          title: `${doctor.firstName} ${doctor.lastName} - ${doctor.clinicName}`,
-          icon: {
-            url: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",
-            scaledSize: new window.google.maps.Size(32, 32),
-          },
-        })
-
-        const infoWindow = new window.google.maps.InfoWindow({
-          content: `
-            <div class="p-3 min-w-[200px]">
-              <h3 class="font-bold text-lg">${doctor.firstName} ${doctor.lastName}</h3>
-              <p class="text-sm text-gray-600">${doctor.specialization}</p>
-              <p class="text-sm font-medium">${doctor.clinicName}</p>
-              <p class="text-sm">₹${doctor.consultationFee}</p>
-              ${doctor.distance ? `<p class="text-xs text-gray-500 mt-1">${doctor.distance.toFixed(1)} km away</p>` : ""}
-              <button onclick="window.selectDoctor('${doctor.id}')" class="mt-2 px-3 py-1 bg-blue-600 text-white rounded text-sm">
-                View Details
-              </button>
-            </div>
-          `,
-        })
-
-        marker.addListener("click", () => {
-          infoWindow.open(map, marker)
-          setSelectedDoctor(doctor)
-        })
-
-        newMarkers.push(marker)
-      }
-    })
-
-    // Add user location marker
-    if (userLocation && map) {
-      const userMarker = new window.google.maps.Marker({
-        position: userLocation,
-        map: map,
-        icon: {
-          path: window.google.maps.SymbolPath.CIRCLE,
-          scale: 8,
-          fillColor: "#4285F4",
-          fillOpacity: 1,
-          strokeColor: "#ffffff",
-          strokeWeight: 2,
-        },
-        title: "Your Location",
-      })
-      newMarkers.push(userMarker)
-    }
-
-    setMarkers(newMarkers)
-
-    // Fit bounds to show all markers
-    if (filteredDoctors.length > 0 && map) {
-      const bounds = new window.google.maps.LatLngBounds()
-      filteredDoctors.forEach((doctor) => {
-        if (doctor.clinicLatitude && doctor.clinicLongitude) {
-          bounds.extend({
-            lat: doctor.clinicLatitude,
-            lng: doctor.clinicLongitude,
-          })
-        }
-      })
-      if (userLocation) {
-        bounds.extend(userLocation)
-      }
-      map.fitBounds(bounds)
+  const handleSelectDoctor = (doctor: Doctor) => {
+    setSelectedDoctor(doctor)
+    if (doctor.clinicLatitude && doctor.clinicLongitude) {
+        setMapCenter([doctor.clinicLatitude, doctor.clinicLongitude])
+        setMapZoom(15)
     }
   }
 
@@ -357,12 +261,13 @@ export function DoctorDiscoveryMap() {
                 onClick={() => {
                   navigator.geolocation.getCurrentPosition(
                     (position) => {
-                      setUserLocation({
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude,
-                      })
-                      fetchDoctors()
-                    }
+                        const { latitude, longitude } = position.coords;
+                        setUserLocation({ lat: latitude, lng: longitude });
+                        setMapCenter([latitude, longitude]);
+                        setMapZoom(12);
+                        fetchDoctors();
+                    },
+                    (error) => toast.error("Location access denied")
                   )
                 }}
               >
@@ -456,7 +361,15 @@ export function DoctorDiscoveryMap() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div ref={mapRef} className="w-full h-[600px] rounded-lg border" />
+            <div className="w-full h-[600px] rounded-lg border overflow-hidden relative z-0">
+               <LeafletMap
+                  center={mapCenter}
+                  zoom={mapZoom}
+                  userLocation={userLocation}
+                  doctors={filteredDoctors}
+                  onSelectDoctor={handleSelectDoctor}
+               />
+            </div>
           </CardContent>
         </Card>
 
@@ -478,17 +391,17 @@ export function DoctorDiscoveryMap() {
                 {filteredDoctors.map((doctor) => (
                   <Card
                     key={doctor.id}
-                    className="cursor-pointer hover:shadow-lg transition-shadow"
-                    onClick={() => setSelectedDoctor(doctor)}
+                    className={`cursor-pointer hover:shadow-lg transition-shadow ${selectedDoctor?.id === doctor.id ? 'border-primary bg-primary/5' : ''}`}
+                    onClick={() => handleSelectDoctor(doctor)}
                   >
                     <CardContent className="p-4">
                       <div className="flex items-start gap-3">
-                        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center flex-shrink-0 overflow-hidden">
                           {doctor.profileImage ? (
                             <img
                               src={doctor.profileImage}
                               alt={`${doctor.firstName} ${doctor.lastName}`}
-                              className="w-full h-full rounded-full object-cover"
+                              className="w-full h-full object-cover"
                             />
                           ) : (
                             <Stethoscope className="h-6 w-6 text-muted-foreground" />
@@ -509,7 +422,7 @@ export function DoctorDiscoveryMap() {
                             <Badge variant="outline" className="flex items-center gap-1 text-xs">
                               ₹{doctor.consultationFee}
                             </Badge>
-                            {doctor.distance && (
+                            {doctor.distance !== undefined && doctor.distance < 1000 && (
                               <Badge variant="secondary" className="text-xs">
                                 {doctor.distance.toFixed(1)} km
                               </Badge>
@@ -545,4 +458,3 @@ export function DoctorDiscoveryMap() {
     </div>
   )
 }
-
