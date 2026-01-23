@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { GoogleSignInButton } from "./GoogleSignInButton"
-import { signIn, signUp, syncUserProfile } from "@/lib/firebaseAuth"
+import { signIn, signUp, syncUserProfile, checkLoginMethods } from "@/lib/firebaseAuth"
 import { toast } from "sonner"
 import { Separator } from "@/components/ui/separator"
 import { Loader2, Eye, EyeOff } from "lucide-react"
@@ -103,8 +103,26 @@ export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
             errorMessage = "Account already exists. Please sign in instead."
           }
         }
-      } else if (error.code === "auth/user-not-found") {
-        errorMessage = "No account found with this email"
+      } else if (error.code === "auth/user-not-found" || error.code === "auth/invalid-credential") {
+        // Check if user exists with a different provider
+        if (mode === "signin") {
+          try {
+            const methods = await checkLoginMethods(formData.email);
+            if (methods && methods.length > 0) {
+              if (methods.includes('google.com')) {
+                errorMessage = "Looks like you signed up with Google. Please use the Google Sign In button.";
+              } else {
+                errorMessage = `Looks like you use a different sign-in method (${methods.join(', ')}).`;
+              }
+            } else {
+              errorMessage = "No account found with this email";
+            }
+          } catch (methodError) {
+            errorMessage = "No account found with this email";
+          }
+        } else {
+          errorMessage = "No account found with this email";
+        }
       } else if (error.code === "auth/wrong-password") {
         errorMessage = "Incorrect password"
       } else if (error.code === "auth/weak-password") {

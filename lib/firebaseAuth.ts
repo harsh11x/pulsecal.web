@@ -7,7 +7,8 @@ import {
   sendPasswordResetEmail,
   updateProfile,
   User,
-  UserCredential
+  UserCredential,
+  fetchSignInMethodsForEmail
 } from 'firebase/auth';
 import { auth, getAuthInstance } from './firebase';
 import { logger } from './logger';
@@ -222,6 +223,21 @@ export const getIdToken = async (forceRefresh: boolean = false): Promise<string 
   } catch (error) {
     console.error('Get ID token error:', error);
     return null;
+  }
+};
+
+/**
+ * Check sign-in methods for an email
+ * @returns Array of sign-in methods (e.g., ['google.com', 'password'])
+ */
+export const checkLoginMethods = async (email: string): Promise<string[]> => {
+  try {
+    const authInstance = getAuthInstance();
+    const methods = await fetchSignInMethodsForEmail(authInstance, email);
+    return methods;
+  } catch (error) {
+    console.error('Check login methods error:', error);
+    return [];
   }
 };
 
