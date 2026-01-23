@@ -177,21 +177,24 @@ export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
     sessionStorage.removeItem('selectedRole')
     sessionStorage.removeItem('pendingAuthRole')
 
-    // If signing in (not signing up), always go to dashboard
+    // CRITICAL FIX: Check if user has completed onboarding FIRST
+    // Existing users (onboardingCompleted=true) should ALWAYS go to dashboard
+    // regardless of whether they used signin or signup flow
+    if (user?.onboardingCompleted === true) {
+      console.log("✅ Existing user (onboarding completed), redirecting to dashboard")
+      router.push("/dashboard")
+      return
+    }
+
+    // For sign-in mode with users who haven't completed onboarding,
+    // still send them to dashboard (they're existing users trying to sign in)
     if (mode === "signin") {
       console.log("✅ Sign-in mode: redirecting to dashboard")
       router.push("/dashboard")
       return
     }
 
-    // For signup mode: check if onboarding is completed
-    if (user?.onboardingCompleted === true) {
-      console.log("✅ Onboarding already completed, redirecting to dashboard")
-      router.push("/dashboard")
-      return
-    }
-
-    // New users in signup mode go to onboarding
+    // Only new users in signup mode (without completed onboarding) go to onboarding
     console.log(`🚀 New user signup: redirecting to onboarding for role: ${userRole}`)
     if (userRole === 'DOCTOR') {
       router.push("/onboarding?role=doctor")
