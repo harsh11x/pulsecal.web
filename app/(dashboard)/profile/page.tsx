@@ -16,40 +16,93 @@ import { Camera, Save } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 
+import { State, City } from "country-state-city"
+
 export default function ProfilePage() {
   const user = useAppSelector((state) => state.auth.user)
   const dispatch = useAppDispatch()
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
+
+  // Parse existing address or use default
+  const parseAddress = (fullAddress: string) => {
+    if (!fullAddress) return { line: "", city: "", state: "", pincode: "" }
+    // Try to parse format: "Line, City, State - Pincode"
+    const parts = fullAddress.split(",").map(p => p.trim())
+    if (parts.length >= 3) {
+      const lastPart = parts[parts.length - 1] // "State - Pincode" or just State?
+      let state = lastPart
+      let pincode = ""
+
+      if (lastPart.includes("-")) {
+        const statePin = lastPart.split("-").map(p => p.trim())
+        state = statePin[0]
+        pincode = statePin[1]
+      }
+
+      return {
+        line: parts.slice(0, parts.length - 2).join(", "),
+        city: parts[parts.length - 2],
+        state: state,
+        pincode: pincode
+      }
+    }
+    return { line: fullAddress, city: "", state: "", pincode: "" }
+  }
+
+  const existingAddress = (user as any)?.doctorProfile?.clinicAddress || ""
+  const parsed = parseAddress(existingAddress)
+
   const [formData, setFormData] = useState({
     firstName: user?.firstName || "",
     lastName: user?.lastName || "",
     email: user?.email || "",
     phone: user?.phone || "",
     dateOfBirth: user?.dateOfBirth || "",
-    clinicAddress: (user as any)?.doctorProfile?.clinicAddress || "",
+    addressLine: parsed.line,
+    city: parsed.city,
+    state: parsed.state,
+    pincode: parsed.pincode,
   })
+
+  // Get Indian states
+  const states = State.getStatesOfCountry("IN")
+  // Get cities based on selected state
+  const cities = formData.state
+    ? City.getCitiesOfState("IN", states.find(s => s.name === formData.state)?.isoCode || "")
+    : []
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
       setLoading(true)
-      console.log("Submitting profile update:", formData)
+
+      // Construct full address string
+      const fullClinicAddress = `${formData.addressLine}, ${formData.city}, ${formData.state} - ${formData.pincode}`
+
+      const payload = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phone: formData.phone,
+        dateOfBirth: formData.dateOfBirth,
+        clinicAddress: fullClinicAddress
+      }
+
+      console.log("Submitting profile update:", payload)
 
       // Update profile via API
-      let updatedUser = await userService.updateProfile(formData)
+      let updatedUser = await userService.updateProfile(payload)
 
-      console.log("Profile update response:", updatedUser)
-
-      // If the backend returns the old user or partial data, we should trust our form data for the UI update
-      // provided the API call didn't throw an error.
-      // We merge the response with our current formData to ensure the UI reflects changes immediately.
+      // Optimistic update
       const optimisticUser = {
         ...user,
         ...updatedUser,
-        ...formData, // Overlay form data to ensure new values are shown
         id: user?.id || updatedUser.id,
-        role: user?.role || updatedUser.role
+        role: user?.role || updatedUser.role,
+        doctorProfile: {
+          ...(user as any)?.doctorProfile,
+          clinicAddress: fullClinicAddress
+        }
       }
 
       dispatch(setUser(optimisticUser))
@@ -58,16 +111,6 @@ export default function ProfilePage() {
         title: "Success",
         description: "Profile updated successfully",
       })
-
-      // Optionally trigger a background refresh to get the true server state
-      try {
-        const freshProfile = await userService.getProfile()
-        if (freshProfile) {
-          dispatch(setUser(freshProfile))
-        }
-      } catch (refreshError) {
-        console.warn("Failed to refresh profile after update:", refreshError)
-      }
 
     } catch (error: any) {
       console.error("Profile update error:", error)
@@ -82,24 +125,17 @@ export default function ProfilePage() {
   }
 
   const handleProfilePictureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    // ... existing logic ...
     const file = e.target.files?.[0]
     if (!file) return
-
     try {
       setLoading(true)
       const { url } = await userService.uploadProfilePicture(file)
       const updatedUser = await userService.updateProfile({ profileImage: url })
       dispatch(setUser(updatedUser))
-      toast({
-        title: "Success",
-        description: "Profile picture updated successfully",
-      })
+      toast({ title: "Success", description: "Profile picture updated successfully" })
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to upload profile picture",
-        variant: "destructive",
-      })
+      toast({ title: "Error", description: "Failed to upload profile picture", variant: "destructive" })
     } finally {
       setLoading(false)
     }
@@ -194,19 +230,73 @@ export default function ProfilePage() {
               />
             </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="clinicAddress">Clinic Address</Label>
-            <Input
-              id="clinicAddress"
-              value={formData.clinicAddress}
-              onChange={(e) => setFormData({ ...formData, clinicAddress: e.target.value })}
-              placeholder="Your clinic's full address"
-            />
+
+          <div className="space-y-4 pt-4 border-t">
+            <h3 className="text-lg font-semibold">Clinic Address</h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="state">State</Label>
+                <select
+                  id="state"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  value={formData.state}
+                  onChange={(e) => setFormData({ ...formData, state: e.target.value, city: "" })}
+                >
+                  <option value="">Select State</option>
+                  {states.map((state) => (
+                    <option key={state.isoCode} value={state.name}>
+                      {state.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="city">City</Label>
+                <select
+                  id="city"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  value={formData.city}
+                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                  disabled={!formData.state}
+                >
+                  <option value="">Select City</option>
+                  {cities.map((city) => (
+                    <option key={city.name} value={city.name}>
+                      {city.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="addressLine">Address Line</Label>
+              <Input
+                id="addressLine"
+                value={formData.addressLine}
+                onChange={(e) => setFormData({ ...formData, addressLine: e.target.value })}
+                placeholder="Street address, building, suite"
+              />
+            </div>
+
+            <div className="space-y-2 md:w-1/3">
+              <Label htmlFor="pincode">Pin Code</Label>
+              <Input
+                id="pincode"
+                value={formData.pincode}
+                onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
+                placeholder="e.g. 400001"
+              />
+            </div>
           </div>
-          <Button type="submit" disabled={loading}>
-            <Save className="mr-2 h-4 w-4" />
-            {loading ? "Saving..." : "Save Changes"}
-          </Button>
+
+          <div className="pt-4">
+            <Button type="submit" disabled={loading}>
+              <Save className="mr-2 h-4 w-4" />
+              {loading ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
         </form>
       </Card>
     </div>
