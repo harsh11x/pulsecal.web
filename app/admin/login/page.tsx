@@ -36,7 +36,7 @@ export default function AdminLoginPage() {
                 "/api/v1/auth/sync-profile",
                 {
                     // We can pass empty body or specific fields if needed
-                    // mainly we need the backend to creating/fetching the user based on token
+                    // mainly we need the backend to cr eating/fetching the user based on token
                     email: userCredential.user.email
                 },
                 {
