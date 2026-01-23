@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
-import { signIn, signUp, signInWithGoogle, signUpWithGoogle, syncUserProfile, getIdToken } from "@/lib/firebaseAuth"
+import { signIn, signUp, signInWithGoogle, signUpWithGoogle, syncUserProfile, getIdToken, checkLoginMethods } from "@/lib/firebaseAuth"
 import { toast } from "sonner"
 import { useAppDispatch } from "@/app/hooks"
 import { setUser } from "@/app/features/authSlice"
@@ -54,15 +54,15 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
       if (mode === "login") {
         // Just sign in with Firebase - backend middleware will handle user lookup/creation
         await signIn(email, password)
-        
+
         // Wait for Firebase to initialize
         await new Promise(resolve => setTimeout(resolve, 800))
-        
+
         // Fetch user profile from backend (middleware creates if missing)
         try {
           const profileResponse: any = await apiService.get("/api/v1/auth/profile")
           const userProfile = profileResponse?.data || profileResponse
-          
+
           if (userProfile && userProfile.id) {
             const userData = {
               id: userProfile.id,
@@ -79,7 +79,7 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
               clinicId: userProfile.clinicId,
             }
             dispatch(setUser(userData))
-            
+
             // Redirect based on onboarding status
             toast.success("Signed in successfully!")
             if (!userProfile.onboardingCompleted && userProfile.role === 'DOCTOR') {
@@ -94,36 +94,36 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
           toast.success("Signed in successfully!")
           router.push("/dashboard")
         }
-        
+
         onClose()
       } else {
         // Signup flow
         const nameParts = name.trim().split(" ")
         const firstName = nameParts[0] || ""
         const lastName = nameParts.slice(1).join(" ") || ""
-        
+
         if (!name.trim()) {
           toast.error("Please enter your full name")
           setLoading(false)
           return
         }
-        
+
         const userCredential = await signUp(email, password, name.trim())
-        
+
         // Wait for Firebase to initialize
         await new Promise(resolve => setTimeout(resolve, 800))
-        
+
         // Normalize role to uppercase for backend
         const normalizedRole = role.toUpperCase() as "PATIENT" | "DOCTOR" | "RECEPTIONIST"
-        
+
         // Sync profile with backend - middleware will create user on first API call
         try {
           await syncUserProfile(firstName, lastName, undefined, undefined, undefined, normalizedRole)
-          
+
           // Fetch the created profile
           const profileResponse: any = await apiService.get("/api/v1/auth/profile")
           const userProfile = profileResponse?.data || profileResponse
-          
+
           if (userProfile && userProfile.id) {
             const userData = {
               id: userProfile.id,
@@ -152,22 +152,41 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
             role: role.toLowerCase() as "patient" | "doctor" | "receptionist" | "admin",
             isActive: true,
             isEmailVerified: userCredential.user.emailVerified || false,
-            profileImage: userCredential.user.photoURL,
+            profileImage: userCredential.user.photoURL || undefined,
             onboardingCompleted: false,
           }
           dispatch(setUser(userData))
         }
-        
+
         toast.success("Account created successfully!")
         router.push(`/onboarding?role=${role}`)
         onClose()
       }
     } catch (error: any) {
       console.error("Authentication error:", error)
-      
+
       let errorMessage = "An error occurred"
-      if (error.code === "auth/user-not-found") {
-        errorMessage = "No account found with this email. Please sign up first."
+      if (error.code === "auth/user-not-found" || error.code === "auth/invalid-credential") {
+        // Check if user exists with a different provider
+        if (mode === "login") {
+          try {
+            // Use type assertion since checkLoginMethods might return any based on import
+            const methods = await checkLoginMethods(email);
+            if (methods && methods.length > 0) {
+              if (methods.includes('google.com')) {
+                errorMessage = "Looks like you signed up with Google. Please use the Google Sign In button.";
+              } else {
+                errorMessage = `Looks like you use a different sign-in method (${methods.join(', ')}).`;
+              }
+            } else {
+              errorMessage = "No account found with this email. Please sign up first.";
+            }
+          } catch (methodError) {
+            errorMessage = "No account found with this email. Please sign up first.";
+          }
+        } else {
+          errorMessage = "No account found with this email. Please sign up first.";
+        }
       } else if (error.code === "auth/wrong-password") {
         errorMessage = "Incorrect password"
       } else if (error.code === "auth/email-already-in-use") {
@@ -176,12 +195,10 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
         errorMessage = "Password should be at least 6 characters"
       } else if (error.code === "auth/invalid-email") {
         errorMessage = "Invalid email address"
-      } else if (error.code === "auth/invalid-credential") {
-        errorMessage = "Invalid email or password"
       } else if (error.message) {
         errorMessage = error.message
       }
-      
+
       toast.error(errorMessage)
     } finally {
       setLoading(false)
@@ -197,15 +214,15 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
         // For Google auth, signInWithGoogle works for both login and signup
         // It creates account if doesn't exist, signs in if exists
         userCredential = await signInWithGoogle()
-        
+
         // Check if this is a new user by checking if they have a profile in backend
         // We'll determine this after trying to fetch their profile
         isNewUser = false
       } catch (authError: any) {
         // Handle specific Firebase errors
-        if (authError.message?.includes('initial state') || 
-            authError.message?.includes('sessionStorage') ||
-            authError.message?.includes('missing initial state')) {
+        if (authError.message?.includes('initial state') ||
+          authError.message?.includes('sessionStorage') ||
+          authError.message?.includes('missing initial state')) {
           toast.error('Authentication state error. Please refresh the page and try again.')
           throw authError
         }
@@ -218,22 +235,22 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
         // Re-throw Firebase auth errors to be handled below
         throw authError
       }
-      
+
       // Ensure we have a user
       if (!userCredential?.user || !userCredential.user.uid) {
         throw new Error("Authentication completed but user data not available")
       }
-      
+
       // Wait for Firebase to fully initialize and stabilize
       await new Promise(resolve => setTimeout(resolve, 800))
-      
+
       // Normalize role to uppercase for backend
       const normalizedRole = role.toUpperCase() as "PATIENT" | "DOCTOR" | "RECEPTIONIST"
-      
+
       // First, try to fetch user profile to check if user already exists
       let userHasProfile = false
       let userOnboardingCompleted = false
-      
+
       try {
         // Get token with retry
         let token: string | null = null
@@ -242,25 +259,25 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
           if (token) break
           await new Promise(resolve => setTimeout(resolve, 400))
         }
-        
+
         if (token) {
           // Wait a bit more for backend to be ready
           await new Promise(resolve => setTimeout(resolve, 500))
-          
+
           try {
             // Use a timeout to prevent hanging
             const profilePromise = apiService.get("/api/v1/auth/profile")
-            const timeoutPromise = new Promise<never>((_, reject) => 
+            const timeoutPromise = new Promise<never>((_, reject) =>
               setTimeout(() => reject(new Error("Request timeout")), 5000)
             )
-            
+
             const profileResponse: any = await Promise.race([profilePromise, timeoutPromise])
             const userProfile = profileResponse?.data || profileResponse
-            
+
             if (userProfile && userProfile.id) {
               userHasProfile = true
               userOnboardingCompleted = userProfile.onboardingCompleted || false
-              
+
               // Map backend user data to frontend User type
               const userData = {
                 id: userProfile.id,
@@ -276,7 +293,7 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
                 onboardingCompleted: userOnboardingCompleted,
               }
               dispatch(setUser(userData))
-              
+
               // If user hasn't completed onboarding, treat as new signup
               if (!userOnboardingCompleted) {
                 isNewUser = true
@@ -290,10 +307,10 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
             if (apiError.response?.status === 404) {
               // User doesn't exist - this is a new user
               isNewUser = true
-            } else if (apiError.code === "ERR_NETWORK" || 
-                apiError.message?.includes("Network Error") || 
-                apiError.message?.includes("timeout") ||
-                apiError.message === "Request timeout") {
+            } else if (apiError.code === "ERR_NETWORK" ||
+              apiError.message?.includes("Network Error") ||
+              apiError.message?.includes("timeout") ||
+              apiError.message === "Request timeout") {
               // Backend unavailable - if mode is login, assume user exists
               // If mode is signup, treat as new user
               if (mode === "login") {
@@ -319,7 +336,7 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
           userHasProfile = true
         }
       }
-      
+
       // Sync profile with backend (only if user doesn't exist or needs update)
       // This will create profile if it doesn't exist
       if (!userHasProfile || isNewUser) {
@@ -330,7 +347,7 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
           console.warn("Profile sync warning:", syncError)
         }
       }
-      
+
       // Fetch user profile again after sync (if we synced)
       if (!userHasProfile || isNewUser) {
         try {
@@ -341,22 +358,22 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
             if (token) break
             await new Promise(resolve => setTimeout(resolve, 400))
           }
-          
+
           if (token) {
             // Wait a bit more for backend to be ready
             await new Promise(resolve => setTimeout(resolve, 500))
-            
+
             try {
               // Use a timeout to prevent hanging
               const profilePromise = apiService.get("/api/v1/auth/profile")
-              const timeoutPromise = new Promise<never>((_, reject) => 
+              const timeoutPromise = new Promise<never>((_, reject) =>
                 setTimeout(() => reject(new Error("Request timeout")), 5000)
               )
-              
+
               const profileResponse: any = await Promise.race([profilePromise, timeoutPromise])
               // Backend returns { success: true, data: {...}, message: "..." }
               const userProfile = profileResponse?.data || profileResponse
-              
+
               if (userProfile && userProfile.id) {
                 userHasProfile = true
                 // Map backend user data to frontend User type
@@ -374,7 +391,7 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
                   onboardingCompleted: userProfile.onboardingCompleted || false,
                 }
                 dispatch(setUser(userData))
-                
+
                 // If user hasn't completed onboarding, treat as new signup
                 if (!userProfile.onboardingCompleted) {
                   isNewUser = true
@@ -386,10 +403,10 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
             } catch (apiError: any) {
               // Network/timeout errors are expected if backend is not running
               // Don't block the flow - onboarding page will handle fetching the profile
-              if (apiError.code === "ERR_NETWORK" || 
-                  apiError.message?.includes("Network Error") || 
-                  apiError.message?.includes("timeout") ||
-                  apiError.message === "Request timeout") {
+              if (apiError.code === "ERR_NETWORK" ||
+                apiError.message?.includes("Network Error") ||
+                apiError.message?.includes("timeout") ||
+                apiError.message === "Request timeout") {
                 console.warn("Backend not available - user can still proceed. Onboarding page will fetch profile.")
                 // If backend is not available and mode is login, assume user exists
                 // If mode is signup, treat as new user
@@ -412,11 +429,11 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
           console.warn("Profile fetch error:", profileError.message || profileError)
         }
       }
-      
+
       // Determine redirect based on mode and user status
       let redirectPath = "/dashboard"
       let successMessage = "Signed in with Google successfully!"
-      
+
       if (mode === "signup") {
         // Signup mode - always go to onboarding
         redirectPath = `/onboarding?role=${role}`
@@ -439,20 +456,20 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
           successMessage = "Signed in with Google successfully!"
         }
       }
-      
+
       toast.success(successMessage)
-      
+
       // Small delay before redirect to ensure everything is ready
       await new Promise(resolve => setTimeout(resolve, 300))
-      
+
       router.push(redirectPath)
       onClose()
     } catch (error: any) {
       console.error("Google authentication error:", error)
-      
+
       // Handle specific error cases
       let errorMessage = "Google authentication failed. Please try again."
-      
+
       if (error.code === "auth/popup-blocked") {
         errorMessage = "Popup was blocked. Please allow popups for this site and try again."
       } else if (error.code === "auth/popup-closed-by-user") {
@@ -468,7 +485,7 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
       } else if (error.message) {
         errorMessage = error.message
       }
-      
+
       toast.error(errorMessage)
     } finally {
       setGoogleLoading(false)
@@ -535,93 +552,93 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-          {mode === "signup" && (
+            {mode === "signup" && (
+              <div className="space-y-2">
+                <Label htmlFor="name">Full Name</Label>
+                <Input
+                  id="name"
+                  type="text"
+                  placeholder="John Doe"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                />
+              </div>
+            )}
+
             <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
-                id="name"
-                type="text"
-                placeholder="John Doe"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
-          )}
 
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <div className="relative">
-              <Input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-          </div>
-
-          {mode === "login" && (
-            <div className="text-right">
-              <button
-                type="button"
-                className="text-sm text-primary hover:underline"
-                onClick={() => router.push("/auth/forgot-password")}
-              >
-                Forgot password?
-              </button>
-            </div>
-          )}
-
-          <Button type="submit" className="w-full" disabled={loading || googleLoading}>
-            {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {mode === "login" ? "Signing in..." : "Creating account..."}
-              </>
-            ) : (
-              mode === "login" ? "Log in" : "Sign up"
-            )}
-          </Button>
-
-          <div className="text-center text-sm text-muted-foreground">
-            {mode === "login" ? (
-              <>
-                Don't have an account?{" "}
-                <button type="button" onClick={() => onSwitchMode("signup")} className="text-primary hover:underline">
-                  Sign up
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
-              </>
-            ) : (
-              <>
-                Already have an account?{" "}
-                <button type="button" onClick={() => onSwitchMode("login")} className="text-primary hover:underline">
-                  Log in
+              </div>
+            </div>
+
+            {mode === "login" && (
+              <div className="text-right">
+                <button
+                  type="button"
+                  className="text-sm text-primary hover:underline"
+                  onClick={() => router.push("/auth/forgot-password")}
+                >
+                  Forgot password?
                 </button>
-              </>
+              </div>
             )}
-          </div>
+
+            <Button type="submit" className="w-full" disabled={loading || googleLoading}>
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {mode === "login" ? "Signing in..." : "Creating account..."}
+                </>
+              ) : (
+                mode === "login" ? "Log in" : "Sign up"
+              )}
+            </Button>
+
+            <div className="text-center text-sm text-muted-foreground">
+              {mode === "login" ? (
+                <>
+                  Don't have an account?{" "}
+                  <button type="button" onClick={() => onSwitchMode("signup")} className="text-primary hover:underline">
+                    Sign up
+                  </button>
+                </>
+              ) : (
+                <>
+                  Already have an account?{" "}
+                  <button type="button" onClick={() => onSwitchMode("login")} className="text-primary hover:underline">
+                    Log in
+                  </button>
+                </>
+              )}
+            </div>
           </form>
         </div>
       </DialogContent>
