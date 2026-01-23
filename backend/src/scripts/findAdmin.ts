@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 
 // Load .env from backend root
-const result = dotenv.config({ path: path.join(__dirname, '../../.env') });
+dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 // Override DATABASE_URL with DIRECT_URL if available for this script
 if (process.env.DIRECT_URL) {

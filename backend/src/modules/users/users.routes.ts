@@ -8,7 +8,7 @@ import {
   createUserController,
 } from './users.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
-import { requireAdmin, requireStaff, requireDoctor } from '../../middlewares/role.middleware';
+import { requireAdmin, requireStaff } from '../../middlewares/role.middleware';
 
 const router = Router();
 

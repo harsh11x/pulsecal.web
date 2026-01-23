@@ -2,7 +2,9 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "commonjs",
-    "lib": ["ES2022"],
+    "lib": [
+      "ES2022"
+    ],
     "outDir": "./dist",
     "rootDir": "./src",
     "strict": true,
@@ -28,17 +30,39 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": "./src",
     "paths": {
-      "@/*": ["./*"],
-      "@config/*": ["./config/*"],
-      "@modules/*": ["./modules/*"],
-      "@middlewares/*": ["./middlewares/*"],
-      "@utils/*": ["./utils/*"],
-      "@jobs/*": ["./jobs/*"],
-      "@socket/*": ["./socket/*"],
-      "@types/*": ["./types/*"]
+      "@/*": [
+        "./*"
+      ],
+      "@config/*": [
+        "./config/*"
+      ],
+      "@modules/*": [
+        "./modules/*"
+      ],
+      "@middlewares/*": [
+        "./middlewares/*"
+      ],
+      "@utils/*": [
+        "./utils/*"
+      ],
+      "@jobs/*": [
+        "./jobs/*"
+      ],
+      "@socket/*": [
+        "./socket/*"
+      ],
+      "@types/*": [
+        "./types/*"
+      ]
     }
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts",
+    "src/scripts/**/*"
+  ]
 }
-

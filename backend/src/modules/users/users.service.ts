@@ -1,6 +1,5 @@
 import prisma from '../../config/database';
 import admin from '../../config/firebase';
-import { hashPassword } from '../../utils/encrypt';
 import { getPaginationParams, getSortParams } from '../../utils/helpers';
 import { AppError } from '../../middlewares/error.middleware';
 
