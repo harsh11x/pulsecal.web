@@ -122,6 +122,12 @@ export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
   }
 
   const handleGoogleSuccess = (user?: any) => {
+    // DEBUG: Log the full user object to see what backend returns
+    console.log("🔍 DEBUG: User object from backend:", JSON.stringify(user, null, 2))
+    console.log("🔍 DEBUG: onboardingCompleted value:", user?.onboardingCompleted)
+    console.log("🔍 DEBUG: onboardingCompleted type:", typeof user?.onboardingCompleted)
+    console.log("🔍 DEBUG: Current mode:", mode)
+
     toast.success(
       mode === "signin"
         ? "Signed in with Google successfully!"
@@ -177,24 +183,27 @@ export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
     sessionStorage.removeItem('selectedRole')
     sessionStorage.removeItem('pendingAuthRole')
 
-    // CRITICAL FIX: Check if user has completed onboarding FIRST
-    // Existing users (onboardingCompleted=true) should ALWAYS go to dashboard
-    // regardless of whether they used signin or signup flow
-    if (user?.onboardingCompleted === true) {
-      console.log("✅ Existing user (onboarding completed), redirecting to dashboard")
+    // CRITICAL FIX: Detect if this is an existing user
+    // Check multiple signals:
+    // 1. onboardingCompleted === true (definite existing user)
+    // 2. createdAt is old (user account created more than 5 min ago)
+    // 3. mode === "signin" (user explicitly chose sign in)
+
+    const isExistingUser = user?.onboardingCompleted === true ||
+      (user?.createdAt && new Date(user.createdAt) < new Date(Date.now() - 5 * 60 * 1000)) ||
+      mode === "signin"
+
+    console.log("🔍 DEBUG: isExistingUser:", isExistingUser)
+    console.log("🔍 DEBUG: createdAt:", user?.createdAt)
+
+    // Existing users ALWAYS go to dashboard
+    if (isExistingUser) {
+      console.log("✅ Existing user detected, redirecting to dashboard")
       router.push("/dashboard")
       return
     }
 
-    // For sign-in mode with users who haven't completed onboarding,
-    // still send them to dashboard (they're existing users trying to sign in)
-    if (mode === "signin") {
-      console.log("✅ Sign-in mode: redirecting to dashboard")
-      router.push("/dashboard")
-      return
-    }
-
-    // Only new users in signup mode (without completed onboarding) go to onboarding
+    // Only brand new users in signup mode go to onboarding
     console.log(`🚀 New user signup: redirecting to onboarding for role: ${userRole}`)
     if (userRole === 'DOCTOR') {
       router.push("/onboarding?role=doctor")
