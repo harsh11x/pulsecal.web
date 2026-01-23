@@ -23,7 +23,9 @@ router.post('/subscription/verify', authenticate, verifyRazorpayPaymentControlle
 // Doctor search and profile routes
 router.get('/search', authenticate, searchDoctorsController);
 router.post('/schedule', authenticate, requireDoctor, updateScheduleController);
+router.get('/schedule', authenticate, requireDoctor, getDoctorAvailabilityController);
 router.get('/analytics', authenticate, requireDoctor, getDoctorAnalyticsController);
+router.get('/financial-reports', authenticate, requireDoctor, getDoctorAnalyticsController); // Reuse analytics for financial reports
 router.get('/clinic/staff', authenticate, requireDoctor, getClinicStaffController);
 router.get('/:id', authenticate, getDoctorByIdController);
 router.get('/:id/availability', authenticate, getDoctorAvailabilityController);

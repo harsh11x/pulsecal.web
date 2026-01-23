@@ -71,11 +71,31 @@ export default function DoctorFinancialReports() {
     }
   }
 
-  if (loading || !reportData) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
+    )
+  }
+
+  if (!reportData) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Financial Reports</CardTitle>
+          <CardDescription>Comprehensive financial analytics and insights</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <DollarSign className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No Financial Data Available</h3>
+            <p className="text-muted-foreground max-w-sm">
+              Financial reports will appear here once you have completed appointments with payment information.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     )
   }
 

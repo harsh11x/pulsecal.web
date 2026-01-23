@@ -27,11 +27,6 @@ export default function ProfilePage() {
     email: user?.email || "",
     phone: user?.phone || "",
     dateOfBirth: user?.dateOfBirth || "",
-    address: user?.address || "",
-    city: user?.city || "",
-    state: user?.state || "",
-    zipCode: user?.zipCode || "",
-    country: user?.country || "",
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -195,51 +190,6 @@ export default function ProfilePage() {
                 type="date"
                 value={formData.dateOfBirth}
                 onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="address">Address</Label>
-            <Input
-              id="address"
-              value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              placeholder="Full Address"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="city">City</Label>
-              <Input
-                id="city"
-                value={formData.city}
-                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="state">State</Label>
-              <Input
-                id="state"
-                value={formData.state}
-                onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="zipCode">Zip Code</Label>
-              <Input
-                id="zipCode"
-                value={formData.zipCode}
-                onChange={(e) => setFormData({ ...formData, zipCode: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="country">Country</Label>
-              <Input
-                id="country"
-                value={formData.country}
-                onChange={(e) => setFormData({ ...formData, country: e.target.value })}
               />
             </div>
           </div>
