@@ -123,12 +123,10 @@ export const updateProfile = async (
     dateOfBirth?: Date;
     profileImage?: string;
     clinicAddress?: string;
-    services?: string[];
-    workingHours?: any;
   }
 ) => {
-  // Extract doctor profile specific fields
-  const { clinicAddress, services, workingHours, ...userData } = data;
+  // Extract clinic address from data
+  const { clinicAddress, ...userData } = data;
 
   // Update user data
   const user = await prisma.user.update({
@@ -148,8 +146,8 @@ export const updateProfile = async (
     },
   });
 
-  // If doctor specific fields are provided and user is a doctor, update the doctor profile
-  if (user.role === 'DOCTOR' && (clinicAddress !== undefined || services !== undefined || workingHours !== undefined)) {
+  // If clinicAddress is provided and user is a doctor, update the doctor profile
+  if (clinicAddress !== undefined && user.role === 'DOCTOR') {
     const doctorProfile = await prisma.doctorProfile.findUnique({
       where: { userId },
     });
@@ -157,11 +155,7 @@ export const updateProfile = async (
     if (doctorProfile) {
       await prisma.doctorProfile.update({
         where: { userId },
-        data: {
-          clinicAddress,
-          services,
-          workingHours,
-        },
+        data: { clinicAddress },
       });
     }
   }

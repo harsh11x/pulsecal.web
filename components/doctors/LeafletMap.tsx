@@ -45,20 +45,8 @@ interface Doctor {
   lastName: string
   specialization: string
   clinicName?: string
-  clinicAddress?: string
-  clinicCity?: string
   clinicLatitude?: number
   clinicLongitude?: number
-  consultationFee: number
-  bio?: string
-  services?: string[]
-  profileImage?: string
-  rating?: number
-  totalReviews?: number
-  distance?: number
-  isAvailable?: boolean
-  nextAvailableSlot?: string
-  workingHours?: any
 }
 
 interface LeafletMapProps {

@@ -39,7 +39,6 @@ interface Doctor {
   distance?: number
   isAvailable?: boolean
   nextAvailableSlot?: string
-  workingHours?: any
 }
 
 export function DoctorDiscoveryMap() {
@@ -134,16 +133,6 @@ export function DoctorDiscoveryMap() {
         if (!Array.isArray(doctorsData)) {
           doctorsData = [];
         }
-
-        // Map the nested user data to flattened structure
-        doctorsData = doctorsData.map((doctor: any) => ({
-          ...doctor,
-          firstName: doctor.user?.firstName || "Doctor",
-          lastName: doctor.user?.lastName || "",
-          profileImage: doctor.user?.profileImage,
-          // Ensure workingsHours is preserved
-          workingHours: doctor.workingHours
-        }))
 
         if (userLocation && doctorsData.length > 0) {
           doctorsData = doctorsData.map((doctor: Doctor) => {

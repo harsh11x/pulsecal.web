@@ -30,9 +30,6 @@ const updateProfileSchema = Joi.object({
   phone: Joi.string().optional(),
   dateOfBirth: Joi.date().optional(),
   profileImage: Joi.string().optional(),
-  clinicAddress: Joi.string().optional(),
-  services: Joi.array().items(Joi.string()).optional(),
-  workingHours: Joi.object().optional(),
 });
 
 export const createUserController = async (

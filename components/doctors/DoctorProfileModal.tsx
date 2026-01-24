@@ -27,7 +27,7 @@ interface Doctor {
   distance?: number
   isAvailable?: boolean
   nextAvailableSlot?: string
-  workingHours?: any
+  workingHours?: Record<string, { start: string; end: string; isOpen: boolean }>
   qualifications?: string
   yearsOfExperience?: number
 }
@@ -205,7 +205,7 @@ export function DoctorProfileModal({ doctor, isOpen, onClose, userLocation }: Do
               <CardContent className="pt-6">
                 <h3 className="font-semibold mb-3">Working Hours</h3>
                 <div className="space-y-2">
-                  {Object.entries(doctor.workingHours).map(([day, hours]: [string, any]) => (
+                  {Object.entries(doctor.workingHours).map(([day, hours]) => (
                     <div key={day} className="flex items-center justify-between">
                       <span className="capitalize">{day}</span>
                       {hours.isOpen ? (
