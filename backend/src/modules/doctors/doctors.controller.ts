@@ -27,25 +27,22 @@ export const updateScheduleController = async (
 
     // Update workingHours. We store generic workingHours AND specific blocked slots
     // We'll store blockedSlots in a special 'exceptions' key within workingHours JSON
-    // This is a workaround since we can't easily add a new table/column
+    // And also update the specific day's schedule
     const currentWorkingHours = (profile.workingHours as any) || {};
-
-    // Update generic daily hours (if provided)
-    if (workingHours) {
-        // workingHours from frontend is { start: "09:00", end: "17:00" }
-        // We need to apply this to all days or specific days?
-        // Frontend DoctorScheduleManager sends a single `workingHours` object for the *selected date* context
-        // But also allows configuring generic hours.
-        // For MVP, let's assume we update the generic schedule for the day of week corresponding to `date`
-        // OR just update the whole structure if provided.
-        // The frontend sends `workingHours` as simple object { start, end }.
-        // We'll leave existing structure intact and just update exceptions if needed.
-        // Actually, the prompt says "modifying clinic time schedules".
-        // Let's just save what we get into a merged object.
-    }
+    
+    // Determine day of week from date
+    const dateObj = new Date(date);
+    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayName = days[dateObj.getDay()];
 
     const updatedData = {
         ...currentWorkingHours,
+        // Update the specific day schedule
+        [dayName]: {
+            start: workingHours.start,
+            end: workingHours.end,
+            isOpen: true // Assume open if saving schedule
+        },
         // Save exceptions/blocked slots for this date
         exceptions: {
             ...(currentWorkingHours.exceptions || {}),

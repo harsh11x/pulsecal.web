@@ -46,14 +46,35 @@ export default function DoctorScheduleManager() {
       const response: any = await apiService.get(`/api/v1/doctor-profiles/me`)
       const profile = response.data || response
       if (profile?.workingHours) {
-        // Find working hours for the selected day
-        const dayName = selectedDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
-        const daySchedule = profile.workingHours[dayName]
-        if (daySchedule) {
-            setWorkingHours({
-                start: daySchedule.start,
-                end: daySchedule.end
-            })
+        // Try to get settings from defaultSettings first (most recent save), then fall back to day-specific
+        const defaults = profile.workingHours.defaultSettings;
+        if (defaults) {
+            if (defaults.workingHours) {
+                setWorkingHours({
+                    start: defaults.workingHours.start,
+                    end: defaults.workingHours.end
+                })
+            }
+            if (defaults.slotDuration) {
+                setSlotDuration(defaults.slotDuration)
+            }
+        } else {
+            // Find working hours for the selected day
+            const dayName = selectedDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
+            const daySchedule = profile.workingHours[dayName]
+            if (daySchedule) {
+                setWorkingHours({
+                    start: daySchedule.start,
+                    end: daySchedule.end
+                })
+            }
+        }
+        
+        // Load blocked slots for this date
+        if (profile.workingHours.exceptions && profile.workingHours.exceptions[format(selectedDate, "yyyy-MM-dd")]) {
+            setBlockedSlots(profile.workingHours.exceptions[format(selectedDate, "yyyy-MM-dd")])
+        } else {
+            setBlockedSlots([])
         }
       }
     } catch (error) {
@@ -167,10 +188,12 @@ export default function DoctorScheduleManager() {
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="15">15 minutes</SelectItem>
-                  <SelectItem value="30">30 minutes</SelectItem>
-                  <SelectItem value="45">45 minutes</SelectItem>
+                <SelectContent className="max-h-[200px]">
+                  {Array.from({ length: 12 }, (_, i) => (i + 1) * 5).map((mins) => (
+                    <SelectItem key={mins} value={mins.toString()}>
+                      {mins} minutes
+                    </SelectItem>
+                  ))}
                   <SelectItem value="60">60 minutes</SelectItem>
                 </SelectContent>
               </Select>

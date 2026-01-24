@@ -44,14 +44,21 @@ export default function StaffManager() {
             setLoading(true)
             // Fetch both receptionists and doctors
             // We use Promise.all to fetch both roles in parallel
-            const [receptionists, doctors] = await Promise.all([
+            const [receptionistsRes, doctorsRes] = await Promise.all([
                 userService.getAllUsers("receptionist"),
                 userService.getAllUsers("doctor")
             ])
+            
+            // Handle paginated response structure if present
+            // apiService might return { success, data: { users: [] }, pagination } 
+            // OR just { users: [] } depending on service wrapper
+            // Check based on known response
+            const receptionists = (receptionistsRes as any).users || (receptionistsRes as any).data?.users || (Array.isArray(receptionistsRes) ? receptionistsRes : [])
+            const doctors = (doctorsRes as any).users || (doctorsRes as any).data?.users || (Array.isArray(doctorsRes) ? doctorsRes : [])
 
             // Filter by clinicId and combine
-            const myReceptionists = receptionists.filter(u => u.clinicId === currentUser.clinicId)
-            const myDoctors = doctors.filter(u => u.clinicId === currentUser.clinicId && u.id !== currentUser.id) // Exclude self if admin is a doctor
+            const myReceptionists = Array.isArray(receptionists) ? receptionists.filter((u: User) => u.clinicId === currentUser.clinicId) : []
+            const myDoctors = Array.isArray(doctors) ? doctors.filter((u: User) => u.clinicId === currentUser.clinicId && u.id !== currentUser.id) : [] // Exclude self if admin is a doctor
 
             setStaff([...myReceptionists, ...myDoctors])
         } catch (error) {
