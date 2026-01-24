@@ -53,7 +53,7 @@ export default function UsersManagementPage() {
     if (searchQuery) {
       filtered = filtered.filter(
         (user) =>
-          user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          `${user.firstName} ${user.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
           user.email.toLowerCase().includes(searchQuery.toLowerCase()),
       )
     }
@@ -141,7 +141,7 @@ export default function UsersManagementPage() {
             <tbody>
               {filteredUsers.map((user) => (
                 <tr key={user.id} className="border-b border-border hover:bg-accent/50">
-                  <td className="py-3 px-4 font-medium">{user.name}</td>
+                  <td className="py-3 px-4 font-medium">{user.firstName} {user.lastName}</td>
                   <td className="py-3 px-4">{user.email}</td>
                   <td className="py-3 px-4">
                     <span className="px-2 py-1 rounded-full text-xs bg-primary/20 text-primary capitalize">
