@@ -126,6 +126,10 @@ export function DoctorDiscoveryMap() {
         params.specialization = specializationFilter
       }
 
+      if (searchQuery) {
+          params.search = searchQuery;
+      }
+
       try {
         const response: any = await apiService.get("/api/v1/doctors/search", { params })
         let doctorsData = response?.data?.doctors || response?.data || response || []

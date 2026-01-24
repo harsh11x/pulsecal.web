@@ -74,7 +74,17 @@ export function AppointmentBooking({ doctorId, doctor: initialDoctor }: Appointm
       const response: any = await apiService.get(`/api/v1/doctors/${doctor.id}/availability`, {
         params: { date: dateStr },
       })
-      setAvailableSlots(response?.data || response || generateTimeSlots())
+      // Ensure we extract the 'slots' array from the backend response { available: true, slots: [...] }
+      const data = response?.data || response;
+      if (data && data.slots) {
+          setAvailableSlots(data.slots.map((s: string) => {
+              // Convert ISO time string to "HH:mm"
+              const d = new Date(s);
+              return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+          }));
+      } else {
+          setAvailableSlots([]);
+      }
     } catch (error) {
       console.error("Failed to fetch slots:", error)
       setAvailableSlots(generateTimeSlots())

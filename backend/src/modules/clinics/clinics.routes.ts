@@ -14,7 +14,7 @@ const router = Router();
 router.get('/', getClinicsController);
 router.get('/:id', getClinicByIdController);
 router.post('/', authenticate, createClinicController); // Removed requireAdmin - doctors need to create clinics
-router.put('/:id', authenticate, requireAdmin, updateClinicController);
+router.put('/:id', authenticate, updateClinicController); // Access control handled in controller
 router.delete('/:id', authenticate, requireAdmin, deleteClinicController);
 
 export default router;

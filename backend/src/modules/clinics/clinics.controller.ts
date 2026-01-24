@@ -97,6 +97,15 @@ export const updateClinicController = async (
     if (error) {
       throw new AppError(error.details[0].message, 400);
     }
+
+    // Access Control: Only Admin or the Clinic Owner (Doctor) can update
+    // Assuming req.user is populated by auth middleware
+    if (req.user?.role !== 'ADMIN') {
+        if (req.user?.clinicId !== req.params.id) {
+             throw new AppError('You do not have permission to update this clinic', 403);
+        }
+    }
+
     const clinic = await updateClinic(req.params.id, value);
     sendSuccess(res, clinic, 'Clinic updated successfully');
   } catch (err) {

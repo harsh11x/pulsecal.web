@@ -89,6 +89,8 @@ export const searchDoctorsController = async (
       city,
       page,
       limit,
+      services, // Extract services
+      search, // Extract generic search
     } = req.query;
 
     const result = await searchDoctors({
@@ -103,6 +105,8 @@ export const searchDoctorsController = async (
       city: city as string,
       page: page ? parseInt(page as string) : undefined,
       limit: limit ? parseInt(limit as string) : undefined,
+      services: services as string, // Pass services
+      search: search as string, // Pass generic search
     });
 
     sendSuccess(res, result, 'Doctors retrieved successfully');

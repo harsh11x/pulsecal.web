@@ -37,8 +37,29 @@ export default function DoctorScheduleManager() {
   const [blockedSlots, setBlockedSlots] = useState<TimeSlot[]>([])
 
   useEffect(() => {
+    fetchProfile()
     fetchSchedule()
   }, [selectedDate])
+
+  const fetchProfile = async () => {
+    try {
+      const response: any = await apiService.get(`/api/v1/doctor-profiles/me`)
+      const profile = response.data || response
+      if (profile?.workingHours) {
+        // Find working hours for the selected day
+        const dayName = selectedDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
+        const daySchedule = profile.workingHours[dayName]
+        if (daySchedule) {
+            setWorkingHours({
+                start: daySchedule.start,
+                end: daySchedule.end
+            })
+        }
+      }
+    } catch (error) {
+      console.warn("Failed to fetch doctor profile for schedule:", error)
+    }
+  }
 
   const fetchSchedule = async () => {
     try {

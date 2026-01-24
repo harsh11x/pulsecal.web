@@ -42,14 +42,18 @@ export default function StaffManager() {
     const fetchStaff = async () => {
         try {
             setLoading(true)
-            // Attempt to fetch receptionists. 
-            // Note: This API implementation depends on backend support for filtering by clinicId
-            // If direct filtering isn't supported, we might need to filter client-side or use a different endpoint
-            const users = await userService.getAllUsers("receptionist")
+            // Fetch both receptionists and doctors
+            // We use Promise.all to fetch both roles in parallel
+            const [receptionists, doctors] = await Promise.all([
+                userService.getAllUsers("receptionist"),
+                userService.getAllUsers("doctor")
+            ])
 
-            // Filter by clinicId if the API returns all receptionists
-            const myStaff = users.filter(u => u.clinicId === currentUser.clinicId)
-            setStaff(myStaff)
+            // Filter by clinicId and combine
+            const myReceptionists = receptionists.filter(u => u.clinicId === currentUser.clinicId)
+            const myDoctors = doctors.filter(u => u.clinicId === currentUser.clinicId && u.id !== currentUser.id) // Exclude self if admin is a doctor
+
+            setStaff([...myReceptionists, ...myDoctors])
         } catch (error) {
             console.error("Failed to fetch staff:", error)
             // Fallback/Mock for demonstration if API fails/is restricted
@@ -66,13 +70,13 @@ export default function StaffManager() {
             const payload = {
                 ...newStaff,
                 clinicId: currentUser.clinicId,
-                role: "receptionist" as const,
+                role: newStaff.role.toUpperCase() as "RECEPTIONIST" | "DOCTOR", // Ensure uppercase for backend enum
                 isActive: true,
                 isEmailVerified: true // Auto-verify for simplicity
             }
 
             await userService.createUser(payload)
-            toast.success("Staff member added successfully")
+            toast.success(`${newStaff.role === 'doctor' ? 'Doctor' : 'Receptionist'} added successfully`)
             setIsAddDialogOpen(false)
             setNewStaff({
                 firstName: "",
@@ -112,7 +116,7 @@ export default function StaffManager() {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center">
                 <div className="relative w-full max-w-sm">
                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -126,14 +130,14 @@ export default function StaffManager() {
                     <DialogTrigger asChild>
                         <Button>
                             <Plus className="mr-2 h-4 w-4" />
-                            Add Receptionist
+                            Add Staff Member
                         </Button>
                     </DialogTrigger>
                     <DialogContent>
                         <DialogHeader>
                             <DialogTitle>Add New Staff Member</DialogTitle>
                             <DialogDescription>
-                                Create an account for a new receptionist at your clinic.
+                                Create an account for a new doctor or receptionist at your clinic.
                             </DialogDescription>
                         </DialogHeader>
                         <form onSubmit={handleAddStaff} className="space-y-4">
@@ -174,6 +178,18 @@ export default function StaffManager() {
                                     value={newStaff.phone}
                                     onChange={(e) => setNewStaff({ ...newStaff, phone: e.target.value })}
                                 />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="role">Role</Label>
+                                <select
+                                    id="role"
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    value={newStaff.role}
+                                    onChange={(e) => setNewStaff({ ...newStaff, role: e.target.value })}
+                                >
+                                    <option value="receptionist">Receptionist</option>
+                                    <option value="doctor">Doctor</option>
+                                </select>
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="password">Temporary Password</Label>
@@ -247,6 +263,9 @@ export default function StaffManager() {
                                             </div>
                                         </TableCell>
                                         <TableCell>
+                                            <Badge variant="outline" className="capitalize mr-2">
+                                                {member.role.toLowerCase()}
+                                            </Badge>
                                             <Badge variant={member.isActive ? "default" : "secondary"}>
                                                 {member.isActive ? "Active" : "Inactive"}
                                             </Badge>

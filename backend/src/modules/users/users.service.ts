@@ -67,12 +67,34 @@ export const createUser = async (data: {
 
   // 4. Create Profile based on role
   if (data.role === 'DOCTOR') {
+    let clinicData: any = {};
+    if (data.clinicId) {
+      const clinic = await prisma.clinic.findUnique({
+        where: { id: data.clinicId }
+      });
+      if (clinic) {
+        clinicData = {
+          clinicName: clinic.name,
+          clinicAddress: clinic.address,
+          clinicLatitude: clinic.latitude ? Number(clinic.latitude) : null,
+          clinicLongitude: clinic.longitude ? Number(clinic.longitude) : null,
+          subscriptionStatus: 'ACTIVE', // Covered by clinic plan
+          subscriptionPlan: clinic.subscriptionPlan,
+        };
+      }
+    }
+
     await prisma.doctorProfile.create({
       data: {
         userId: user.id,
         licenseNumber: `LIC-${user.id.substring(0, 8)}`, // Placeholder
         specialization: 'General',
-        clinicName: 'My Clinic', // Should probably inherit
+        clinicName: clinicData.clinicName || 'My Clinic',
+        clinicAddress: clinicData.clinicAddress,
+        clinicLatitude: clinicData.clinicLatitude,
+        clinicLongitude: clinicData.clinicLongitude,
+        subscriptionStatus: clinicData.subscriptionStatus || 'PENDING',
+        subscriptionPlan: clinicData.subscriptionPlan || 'BASIC',
         consultationFee: 0,
       },
     });

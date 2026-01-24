@@ -92,23 +92,15 @@ export function RealTimeBooking({ doctorId, doctorName, consultationFee, onBooki
 
         setLoading(true)
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/appointments`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    doctorId,
-                    scheduledAt: selectedTime,
-                    reason,
-                    type: "IN_PERSON" // Default
-                })
+            // Use apiService for consistency and interceptors
+            const res: any = await apiService.post('/api/v1/appointments', {
+                doctorId,
+                scheduledAt: selectedTime,
+                reason,
+                type: "IN_PERSON"
             })
-
-            const data = await res.json()
-            if (!res.ok) throw new Error(data.message || "Booking failed")
-
+            
+            // Response handling is different with axios/apiService (res.data is returned directly)
             toast.success("Appointment booked successfully!")
             setSelectedTime(null)
             setReason("")
@@ -116,7 +108,7 @@ export function RealTimeBooking({ doctorId, doctorName, consultationFee, onBooki
             fetchSlots() // Refresh
 
         } catch (error: any) {
-            toast.error(error.message)
+            toast.error(error.message || "Booking failed")
         } finally {
             setLoading(false)
         }

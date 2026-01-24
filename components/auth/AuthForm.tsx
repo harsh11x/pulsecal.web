@@ -54,6 +54,13 @@ export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
 
         const userRole = role?.toUpperCase() as "PATIENT" | "DOCTOR" | "RECEPTIONIST" | undefined
 
+        // Prevent Receptionist Signup
+        if (userRole === "RECEPTIONIST") {
+            toast.error("Receptionist signup is restricted. Please contact your clinic administrator.")
+            setLoading(false)
+            return
+        }
+
         // Sync profile with backend
         await syncUserProfile(
           formData.firstName,
@@ -74,9 +81,8 @@ export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
         // Route based on role
         if (userRole === "DOCTOR") {
           router.push("/onboarding?role=doctor")
-        } else if (userRole === "RECEPTIONIST") {
-          router.push("/onboarding?role=receptionist")
         } else {
+          // Default to patient onboarding
           router.push("/onboarding?role=patient")
         }
       }
@@ -225,8 +231,6 @@ export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
     console.log(`🚀 New user signup: redirecting to onboarding for role: ${userRole}`)
     if (userRole === 'DOCTOR') {
       router.push("/onboarding?role=doctor")
-    } else if (userRole === 'RECEPTIONIST') {
-      router.push("/onboarding?role=receptionist")
     } else {
       router.push("/onboarding?role=patient")
     }

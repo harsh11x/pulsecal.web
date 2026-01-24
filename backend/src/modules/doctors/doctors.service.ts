@@ -32,6 +32,8 @@ export const searchDoctors = async (params: {
   city?: string;
   page?: number;
   limit?: number;
+  services?: string; // Specific services filter
+  search?: string; // Generic search (name, clinic, services)
 }) => {
   const {
     latitude,
@@ -45,6 +47,8 @@ export const searchDoctors = async (params: {
     city,
     page = 1,
     limit = 50,
+    services,
+    search,
   } = params;
 
   const skip = (page - 1) * limit;
@@ -66,6 +70,33 @@ export const searchDoctors = async (params: {
 
   if (clinicName) {
     where.clinicName = { contains: clinicName, mode: 'insensitive' };
+  }
+
+  // Filter by services (if provided)
+  if (services) {
+     where.services = {
+         has: services
+     };
+  }
+
+  // Generic Search (OR logic across multiple fields)
+  if (search) {
+      const searchLower = search.toLowerCase();
+      where.OR = [
+          // Search in User Name
+          {
+              user: {
+                  OR: [
+                      { firstName: { contains: searchLower, mode: 'insensitive' } },
+                      { lastName: { contains: searchLower, mode: 'insensitive' } }
+                  ]
+              }
+          },
+          // Search in Clinic Name
+          { clinicName: { contains: searchLower, mode: 'insensitive' } },
+          // Search in Services (Array contains)
+          { services: { has: search } }
+      ];
   }
 
   if (minFee !== undefined || maxFee !== undefined) {
