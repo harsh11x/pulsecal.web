@@ -209,16 +209,16 @@ export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
 
     // CRITICAL FIX: Detect if this is an existing user
     // Check multiple signals:
-    // 1. onboardingCompleted === true (definite existing user)
-    // 2. createdAt is old (user account created more than 5 min ago)
+    // 1. onboardingCompleted === true (if available from backend sync)
+    // 2. Account creation time is old (more than 5 min ago) - handle both backend 'createdAt' and Firebase 'metadata.creationTime'
     // 3. mode === "signin" (user explicitly chose sign in)
 
-    const isExistingUser = user?.onboardingCompleted === true ||
-      (user?.createdAt && new Date(user.createdAt) < new Date(Date.now() - 5 * 60 * 1000)) ||
-      mode === "signin"
+    const creationTime = user?.metadata?.creationTime || user?.createdAt;
+    const isOldUser = creationTime && new Date(creationTime) < new Date(Date.now() - 2 * 60 * 1000); // Reduced to 2 mins to be safe
 
-    console.log("🔍 DEBUG: isExistingUser:", isExistingUser)
-    console.log("🔍 DEBUG: createdAt:", user?.createdAt)
+    const isExistingUser = user?.onboardingCompleted === true ||
+      isOldUser ||
+      mode === "signin"
 
     // Existing users ALWAYS go to dashboard
     if (isExistingUser) {
