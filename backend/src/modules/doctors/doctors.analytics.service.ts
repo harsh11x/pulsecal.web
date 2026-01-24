@@ -1,6 +1,170 @@
 import prisma from '../../config/database';
 
 /**
+ * Get doctor reviews (Placeholder until review module is fully implemented)
+ */
+const getDoctorReviews = async (_doctorId: string) => {
+  // Temporarily return empty reviews until Prisma client is regenerated
+  return {
+    recentReviews: [],
+    averageRating: 0,
+    totalReviews: 0
+  }
+}
+
+/**
+ * Get revenue trends for a period
+ */
+const getRevenueTrends = async (doctorId: string, period: string, startDate: Date) => {
+  const payments = await prisma.payment.findMany({
+    where: {
+      doctorId,
+      updatedAt: { gte: startDate },
+      status: 'COMPLETED',
+    },
+    select: {
+      amount: true,
+      paidAt: true,
+      createdAt: true,
+    },
+  });
+
+  const trends: { date: string; revenue: number }[] = [];
+  const now = new Date();
+
+  if (period === 'day') {
+    // Hourly breakdown for today
+    for (let hour = 0; hour < 24; hour++) {
+      const hourStart = new Date(now);
+      hourStart.setHours(hour, 0, 0, 0);
+      const hourEnd = new Date(hourStart);
+      hourEnd.setHours(hour + 1, 0, 0, 0);
+
+      const hourRevenue = payments
+        .filter(p => {
+          const paidDate = p.paidAt ? new Date(p.paidAt) : new Date(p.createdAt);
+          return paidDate >= hourStart && paidDate < hourEnd;
+        })
+        .reduce((sum, p) => sum + Number(p.amount), 0);
+
+      trends.push({
+        date: hourStart.toISOString(),
+        revenue: Number(hourRevenue.toFixed(2)),
+      });
+    }
+  } else if (period === 'week' || period === 'month') {
+    // Daily breakdown
+    const days = period === 'week' ? 7 : 30;
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+      const nextDate = new Date(date);
+      nextDate.setDate(nextDate.getDate() + 1);
+
+      const dayRevenue = payments
+        .filter(p => {
+          const paidDate = p.paidAt ? new Date(p.paidAt) : new Date(p.createdAt);
+          return paidDate >= date && paidDate < nextDate;
+        })
+        .reduce((sum, p) => sum + Number(p.amount), 0);
+
+      trends.push({
+        date: date.toISOString(),
+        revenue: Number(dayRevenue.toFixed(2)),
+      });
+    }
+  } else if (period === '3months' || period === 'year') {
+    // Weekly or monthly breakdown
+    const intervals = period === '3months' ? 12 : 12; // 12 weeks or 12 months
+    const intervalType = period === '3months' ? 'week' : 'month';
+
+    for (let i = intervals - 1; i >= 0; i--) {
+      const date = new Date(now);
+      if (intervalType === 'week') {
+        date.setDate(date.getDate() - (i * 7));
+      } else {
+        date.setMonth(date.getMonth() - i);
+      }
+      date.setHours(0, 0, 0, 0);
+
+      const nextDate = new Date(date);
+      if (intervalType === 'week') {
+        nextDate.setDate(nextDate.getDate() + 7);
+      } else {
+        nextDate.setMonth(nextDate.getMonth() + 1);
+      }
+
+      const intervalRevenue = payments
+        .filter(p => {
+          const paidDate = p.paidAt ? new Date(p.paidAt) : new Date(p.createdAt);
+          return paidDate >= date && paidDate < nextDate;
+        })
+        .reduce((sum, p) => sum + Number(p.amount), 0);
+
+      trends.push({
+        date: date.toISOString(),
+        revenue: Number(intervalRevenue.toFixed(2)),
+      });
+    }
+  }
+
+  return trends;
+};
+
+/**
+ * Get patient growth trends
+ */
+const getPatientGrowth = async (doctorId: string, period: string, startDate: Date) => {
+  const appointments = await prisma.appointment.findMany({
+    where: {
+      doctorId,
+      scheduledAt: { gte: startDate },
+      deletedAt: null,
+    },
+    select: {
+      patientId: true,
+      scheduledAt: true,
+    },
+  });
+
+  // Get unique patients per time period
+  const now = new Date();
+  const growth: { date: string; newPatients: number; totalPatients: number }[] = [];
+
+  if (period === 'month' || period === '3months' || period === 'year') {
+    const intervals = period === 'month' ? 1 : period === '3months' ? 3 : 12;
+    const seenPatients = new Set<string>();
+
+    for (let i = intervals - 1; i >= 0; i--) {
+      const date = new Date(now);
+      date.setMonth(date.getMonth() - i);
+      date.setDate(1);
+      date.setHours(0, 0, 0, 0);
+      const nextDate = new Date(date);
+      nextDate.setMonth(nextDate.getMonth() + 1);
+
+      const periodApps = appointments.filter(apt => {
+        const aptDate = new Date(apt.scheduledAt);
+        return aptDate >= date && aptDate < nextDate;
+      });
+
+      const periodPatients = new Set(periodApps.map(apt => apt.patientId));
+      const newPatients = Array.from(periodPatients).filter(id => !seenPatients.has(id)).length;
+      Array.from(periodPatients).forEach(p => seenPatients.add(p));
+
+      growth.push({
+        date: date.toISOString(),
+        newPatients,
+        totalPatients: seenPatients.size,
+      });
+    }
+  }
+
+  return growth;
+};
+
+/**
  * Get doctor analytics including revenue, appointments, and trends
  */
 export const getDoctorAnalytics = async (
@@ -228,165 +392,4 @@ export const getDoctorAnalytics = async (
       recent: recentReviews
     }
   };
-};
-
-const getDoctorReviews = async (_doctorId: string) => {
-  // Temporarily return empty reviews until Prisma client is regenerated
-  return {
-    recentReviews: [],
-    averageRating: 0,
-    totalReviews: 0
-  }
-}
-
-/**
- * Get revenue trends for a period
- */
-const getRevenueTrends = async (doctorId: string, period: string, startDate: Date) => {
-  const payments = await prisma.payment.findMany({
-    where: {
-      doctorId,
-      updatedAt: { gte: startDate },
-      status: 'COMPLETED',
-    },
-    select: {
-      amount: true,
-      paidAt: true,
-      createdAt: true,
-    },
-  });
-
-  const trends: { date: string; revenue: number }[] = [];
-  const now = new Date();
-
-  if (period === 'day') {
-    // Hourly breakdown for today
-    for (let hour = 0; hour < 24; hour++) {
-      const hourStart = new Date(now);
-      hourStart.setHours(hour, 0, 0, 0);
-      const hourEnd = new Date(hourStart);
-      hourEnd.setHours(hour + 1, 0, 0, 0);
-
-      const hourRevenue = payments
-        .filter(p => {
-          const paidDate = p.paidAt ? new Date(p.paidAt) : new Date(p.createdAt);
-          return paidDate >= hourStart && paidDate < hourEnd;
-        })
-        .reduce((sum, p) => sum + Number(p.amount), 0);
-
-      trends.push({
-        date: hourStart.toISOString(),
-        revenue: Number(hourRevenue.toFixed(2)),
-      });
-    }
-  } else if (period === 'week' || period === 'month') {
-    // Daily breakdown
-    const days = period === 'week' ? 7 : 30;
-    for (let i = days - 1; i >= 0; i--) {
-      const date = new Date(now);
-      date.setDate(date.getDate() - i);
-      date.setHours(0, 0, 0, 0);
-      const nextDate = new Date(date);
-      nextDate.setDate(nextDate.getDate() + 1);
-
-      const dayRevenue = payments
-        .filter(p => {
-          const paidDate = p.paidAt ? new Date(p.paidAt) : new Date(p.createdAt);
-          return paidDate >= date && paidDate < nextDate;
-        })
-        .reduce((sum, p) => sum + Number(p.amount), 0);
-
-      trends.push({
-        date: date.toISOString(),
-        revenue: Number(dayRevenue.toFixed(2)),
-      });
-    }
-  } else if (period === '3months' || period === 'year') {
-    // Weekly or monthly breakdown
-    const intervals = period === '3months' ? 12 : 12; // 12 weeks or 12 months
-    const intervalType = period === '3months' ? 'week' : 'month';
-
-    for (let i = intervals - 1; i >= 0; i--) {
-      const date = new Date(now);
-      if (intervalType === 'week') {
-        date.setDate(date.getDate() - (i * 7));
-      } else {
-        date.setMonth(date.getMonth() - i);
-      }
-      date.setHours(0, 0, 0, 0);
-
-      const nextDate = new Date(date);
-      if (intervalType === 'week') {
-        nextDate.setDate(nextDate.getDate() + 7);
-      } else {
-        nextDate.setMonth(nextDate.getMonth() + 1);
-      }
-
-      const intervalRevenue = payments
-        .filter(p => {
-          const paidDate = p.paidAt ? new Date(p.paidAt) : new Date(p.createdAt);
-          return paidDate >= date && paidDate < nextDate;
-        })
-        .reduce((sum, p) => sum + Number(p.amount), 0);
-
-      trends.push({
-        date: date.toISOString(),
-        revenue: Number(intervalRevenue.toFixed(2)),
-      });
-    }
-  }
-
-  return trends;
-};
-
-/**
- * Get patient growth trends
- */
-const getPatientGrowth = async (doctorId: string, period: string, startDate: Date) => {
-  const appointments = await prisma.appointment.findMany({
-    where: {
-      doctorId,
-      scheduledAt: { gte: startDate },
-      deletedAt: null,
-    },
-    select: {
-      patientId: true,
-      scheduledAt: true,
-    },
-  });
-
-  // Get unique patients per time period
-  const now = new Date();
-  const growth: { date: string; newPatients: number; totalPatients: number }[] = [];
-
-  if (period === 'month' || period === '3months' || period === 'year') {
-    const intervals = period === 'month' ? 1 : period === '3months' ? 3 : 12;
-    const seenPatients = new Set<string>();
-
-    for (let i = intervals - 1; i >= 0; i--) {
-      const date = new Date(now);
-      date.setMonth(date.getMonth() - i);
-      date.setDate(1);
-      date.setHours(0, 0, 0, 0);
-      const nextDate = new Date(date);
-      nextDate.setMonth(nextDate.getMonth() + 1);
-
-      const periodApps = appointments.filter(apt => {
-        const aptDate = new Date(apt.scheduledAt);
-        return aptDate >= date && aptDate < nextDate;
-      });
-
-      const periodPatients = new Set(periodApps.map(apt => apt.patientId));
-      const newPatients = Array.from(periodPatients).filter(id => !seenPatients.has(id)).length;
-      Array.from(periodPatients).forEach(p => seenPatients.add(p));
-
-      growth.push({
-        date: date.toISOString(),
-        newPatients,
-        totalPatients: seenPatients.size,
-      });
-    }
-  }
-
-  return growth;
 };

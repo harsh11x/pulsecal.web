@@ -189,12 +189,11 @@ export default function DoctorScheduleManager() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="max-h-[200px]">
-                  {Array.from({ length: 12 }, (_, i) => (i + 1) * 5).map((mins) => (
+                  {Array.from({ length: 60 }, (_, i) => i + 1).map((mins) => (
                     <SelectItem key={mins} value={mins.toString()}>
                       {mins} minutes
                     </SelectItem>
                   ))}
-                  <SelectItem value="60">60 minutes</SelectItem>
                 </SelectContent>
               </Select>
             </div>
