@@ -39,6 +39,7 @@ interface Doctor {
   distance?: number
   isAvailable?: boolean
   nextAvailableSlot?: string
+  workingHours?: any
 }
 
 export function DoctorDiscoveryMap() {
@@ -127,33 +128,43 @@ export function DoctorDiscoveryMap() {
       }
 
       try {
-          const response: any = await apiService.get("/api/v1/doctors/search", { params })
-          let doctorsData = response?.data?.doctors || response?.data || response || []
+        const response: any = await apiService.get("/api/v1/doctors/search", { params })
+        let doctorsData = response?.data?.doctors || response?.data || response || []
 
-          if (!Array.isArray(doctorsData)) {
-              doctorsData = [];
-          }
+        if (!Array.isArray(doctorsData)) {
+          doctorsData = [];
+        }
 
-          if (userLocation && doctorsData.length > 0) {
-            doctorsData = doctorsData.map((doctor: Doctor) => {
-              if (doctor.clinicLatitude && doctor.clinicLongitude) {
-                const distance = calculateDistance(
-                  userLocation.lat,
-                  userLocation.lng,
-                  doctor.clinicLatitude,
-                  doctor.clinicLongitude
-                )
-                return { ...doctor, distance }
-              }
-              return { ...doctor, distance: 9999 }
-            })
-            doctorsData.sort((a: Doctor, b: Doctor) => (a.distance || Infinity) - (b.distance || Infinity))
-          }
+        // Map the nested user data to flattened structure
+        doctorsData = doctorsData.map((doctor: any) => ({
+          ...doctor,
+          firstName: doctor.user?.firstName || "Doctor",
+          lastName: doctor.user?.lastName || "",
+          profileImage: doctor.user?.profileImage,
+          // Ensure workingsHours is preserved
+          workingHours: doctor.workingHours
+        }))
 
-          setDoctors(doctorsData)
+        if (userLocation && doctorsData.length > 0) {
+          doctorsData = doctorsData.map((doctor: Doctor) => {
+            if (doctor.clinicLatitude && doctor.clinicLongitude) {
+              const distance = calculateDistance(
+                userLocation.lat,
+                userLocation.lng,
+                doctor.clinicLatitude,
+                doctor.clinicLongitude
+              )
+              return { ...doctor, distance }
+            }
+            return { ...doctor, distance: 9999 }
+          })
+          doctorsData.sort((a: Doctor, b: Doctor) => (a.distance || Infinity) - (b.distance || Infinity))
+        }
+
+        setDoctors(doctorsData)
       } catch (apiError) {
-          console.warn("API Search failed, trying fallback list or empty:", apiError);
-          setDoctors([]);
+        console.warn("API Search failed, trying fallback list or empty:", apiError);
+        setDoctors([]);
       }
 
     } catch (error: any) {
@@ -218,8 +229,8 @@ export function DoctorDiscoveryMap() {
   const handleSelectDoctor = (doctor: Doctor) => {
     setSelectedDoctor(doctor)
     if (doctor.clinicLatitude && doctor.clinicLongitude) {
-        setMapCenter([doctor.clinicLatitude, doctor.clinicLongitude])
-        setMapZoom(15)
+      setMapCenter([doctor.clinicLatitude, doctor.clinicLongitude])
+      setMapZoom(15)
     }
   }
 
@@ -261,11 +272,11 @@ export function DoctorDiscoveryMap() {
                 onClick={() => {
                   navigator.geolocation.getCurrentPosition(
                     (position) => {
-                        const { latitude, longitude } = position.coords;
-                        setUserLocation({ lat: latitude, lng: longitude });
-                        setMapCenter([latitude, longitude]);
-                        setMapZoom(12);
-                        fetchDoctors();
+                      const { latitude, longitude } = position.coords;
+                      setUserLocation({ lat: latitude, lng: longitude });
+                      setMapCenter([latitude, longitude]);
+                      setMapZoom(12);
+                      fetchDoctors();
                     },
                     (error) => toast.error("Location access denied")
                   )
@@ -362,13 +373,13 @@ export function DoctorDiscoveryMap() {
           </CardHeader>
           <CardContent>
             <div className="w-full h-[600px] rounded-lg border overflow-hidden relative z-0">
-               <LeafletMap
-                  center={mapCenter}
-                  zoom={mapZoom}
-                  userLocation={userLocation}
-                  doctors={filteredDoctors}
-                  onSelectDoctor={handleSelectDoctor}
-               />
+              <LeafletMap
+                center={mapCenter}
+                zoom={mapZoom}
+                userLocation={userLocation}
+                doctors={filteredDoctors}
+                onSelectDoctor={handleSelectDoctor}
+              />
             </div>
           </CardContent>
         </Card>

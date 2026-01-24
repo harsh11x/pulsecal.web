@@ -18,6 +18,7 @@ export interface User {
   state?: string
   zipCode?: string
   country?: string
+  doctorProfile?: DoctorProfile
 }
 
 export interface Appointment {

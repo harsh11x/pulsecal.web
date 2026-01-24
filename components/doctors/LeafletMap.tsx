@@ -45,8 +45,20 @@ interface Doctor {
   lastName: string
   specialization: string
   clinicName?: string
+  clinicAddress?: string
+  clinicCity?: string
   clinicLatitude?: number
   clinicLongitude?: number
+  consultationFee: number
+  bio?: string
+  services?: string[]
+  profileImage?: string
+  rating?: number
+  totalReviews?: number
+  distance?: number
+  isAvailable?: boolean
+  nextAvailableSlot?: string
+  workingHours?: any
 }
 
 interface LeafletMapProps {
@@ -60,49 +72,49 @@ interface LeafletMapProps {
 export default function LeafletMap({ center, zoom, userLocation, doctors, onSelectDoctor }: LeafletMapProps) {
   return (
     <div className="w-full h-full relative z-0">
-        <MapContainer center={center} zoom={zoom} style={{ height: "100%", width: "100%" }}>
-          <MapUpdater center={center} zoom={zoom} />
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
+      <MapContainer center={center} zoom={zoom} style={{ height: "100%", width: "100%" }}>
+        <MapUpdater center={center} zoom={zoom} />
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
 
-          {userLocation && (
-            <Marker position={[userLocation.lat, userLocation.lng]} icon={UserIcon}>
-              <Popup>Your Location</Popup>
-            </Marker>
-          )}
+        {userLocation && (
+          <Marker position={[userLocation.lat, userLocation.lng]} icon={UserIcon}>
+            <Popup>Your Location</Popup>
+          </Marker>
+        )}
 
-          {doctors.map((doctor) => (
-            doctor.clinicLatitude && doctor.clinicLongitude ? (
-              <Marker
-                key={doctor.id}
-                position={[doctor.clinicLatitude, doctor.clinicLongitude]}
-                icon={DefaultIcon}
-                eventHandlers={{
-                  click: () => onSelectDoctor(doctor),
-                }}
-              >
-                <Popup>
-                  <div className="min-w-[200px]">
-                    <h3 className="font-bold text-sm">{doctor.firstName} {doctor.lastName}</h3>
-                    <p className="text-xs text-gray-600">{doctor.specialization}</p>
-                    <p className="text-xs font-medium">{doctor.clinicName}</p>
-                    <div className="mt-2">
-                      <Button
-                        size="sm"
-                        className="w-full h-7 text-xs"
-                        onClick={() => onSelectDoctor(doctor)}
-                      >
-                        View Details
-                      </Button>
-                    </div>
+        {doctors.map((doctor) => (
+          doctor.clinicLatitude && doctor.clinicLongitude ? (
+            <Marker
+              key={doctor.id}
+              position={[doctor.clinicLatitude, doctor.clinicLongitude]}
+              icon={DefaultIcon}
+              eventHandlers={{
+                click: () => onSelectDoctor(doctor),
+              }}
+            >
+              <Popup>
+                <div className="min-w-[200px]">
+                  <h3 className="font-bold text-sm">{doctor.firstName} {doctor.lastName}</h3>
+                  <p className="text-xs text-gray-600">{doctor.specialization}</p>
+                  <p className="text-xs font-medium">{doctor.clinicName}</p>
+                  <div className="mt-2">
+                    <Button
+                      size="sm"
+                      className="w-full h-7 text-xs"
+                      onClick={() => onSelectDoctor(doctor)}
+                    >
+                      View Details
+                    </Button>
                   </div>
-                </Popup>
-              </Marker>
-            ) : null
-          ))}
-        </MapContainer>
+                </div>
+              </Popup>
+            </Marker>
+          ) : null
+        ))}
+      </MapContainer>
     </div>
   )
 }

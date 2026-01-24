@@ -1,5 +1,7 @@
 "use client"
 
+import type { User, WorkingHours } from "@/types"
+
 export const dynamic = 'force-dynamic'
 
 import type React from "react"
@@ -63,6 +65,16 @@ export default function ProfilePage() {
     city: parsed.city,
     state: parsed.state,
     pincode: parsed.pincode,
+    services: user?.doctorProfile?.services?.join(", ") || "",
+    workingHours: (user?.doctorProfile?.workingHours as WorkingHours) || {
+      monday: { start: "09:00", end: "17:00", isOpen: true },
+      tuesday: { start: "09:00", end: "17:00", isOpen: true },
+      wednesday: { start: "09:00", end: "17:00", isOpen: true },
+      thursday: { start: "09:00", end: "17:00", isOpen: true },
+      friday: { start: "09:00", end: "17:00", isOpen: true },
+      saturday: { start: "10:00", end: "14:00", isOpen: true },
+      sunday: { start: "00:00", end: "00:00", isOpen: false },
+    },
   })
 
   // Get Indian states
@@ -85,7 +97,9 @@ export default function ProfilePage() {
         lastName: formData.lastName,
         phone: formData.phone,
         dateOfBirth: formData.dateOfBirth,
-        clinicAddress: fullClinicAddress
+        clinicAddress: fullClinicAddress,
+        services: formData.services.split(",").map(s => s.trim()).filter(Boolean),
+        workingHours: formData.workingHours,
       }
 
       console.log("Submitting profile update:", payload)
@@ -101,7 +115,9 @@ export default function ProfilePage() {
         role: user?.role || updatedUser.role,
         doctorProfile: {
           ...(user as any)?.doctorProfile,
-          clinicAddress: fullClinicAddress
+          clinicAddress: fullClinicAddress,
+          services: payload.services,
+          workingHours: payload.workingHours,
         }
       }
 
@@ -288,6 +304,78 @@ export default function ProfilePage() {
                 onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
                 placeholder="e.g. 400001"
               />
+            </div>
+          </div>
+
+          <div className="space-y-4 pt-4 border-t">
+            <h3 className="text-lg font-semibold">Professional Details</h3>
+
+            <div className="space-y-2">
+              <Label htmlFor="services">Services Offered (comma separated)</Label>
+              <Input
+                id="services"
+                value={formData.services}
+                onChange={(e) => setFormData({ ...formData, services: e.target.value })}
+                placeholder="e.g. General Checkup, Root Canal, Teeth Whitening"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Clinic Timings</Label>
+              <div className="space-y-2 border rounded-md p-4">
+                {Object.entries(formData.workingHours).map(([day, hours]: [string, any]) => (
+                  <div key={day} className="grid grid-cols-12 gap-2 items-center">
+                    <div className="col-span-3 capitalize font-medium">{day}</div>
+                    <div className="col-span-2">
+                      <label className="flex items-center space-x-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={hours.isOpen}
+                          onChange={(e) => {
+                            const newHours = { ...formData.workingHours } as any
+                            newHours[day] = { ...hours, isOpen: e.target.checked }
+                            setFormData({ ...formData, workingHours: newHours })
+                          }}
+                          className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                        />
+                        <span>Open</span>
+                      </label>
+                    </div>
+                    {hours.isOpen && (
+                      <>
+                        <div className="col-span-3">
+                          <Input
+                            type="time"
+                            value={hours.start}
+                            onChange={(e) => {
+                              const newHours = { ...formData.workingHours } as any
+                              newHours[day] = { ...hours, start: e.target.value }
+                              setFormData({ ...formData, workingHours: newHours })
+                            }}
+                            className="h-8"
+                          />
+                        </div>
+                        <div className="col-span-1 text-center text-sm text-muted-foreground">to</div>
+                        <div className="col-span-3">
+                          <Input
+                            type="time"
+                            value={hours.end}
+                            onChange={(e) => {
+                              const newHours = { ...formData.workingHours } as any
+                              newHours[day] = { ...hours, end: e.target.value }
+                              setFormData({ ...formData, workingHours: newHours })
+                            }}
+                            className="h-8"
+                          />
+                        </div>
+                      </>
+                    )}
+                    {!hours.isOpen && (
+                      <div className="col-span-7 text-sm text-muted-foreground italic">Closed</div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
