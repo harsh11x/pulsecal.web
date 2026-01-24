@@ -82,7 +82,12 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
 
             // Redirect based on onboarding status
             toast.success("Signed in successfully!")
-            if (!userProfile.onboardingCompleted && userProfile.role === 'DOCTOR') {
+            // Only redirect to onboarding if explicit doctor without clinic or onboarding flag
+            const isDoctor = userProfile.role === 'DOCTOR';
+            const hasClinic = !!userProfile.clinicId;
+            const isOnboarded = userProfile.onboardingCompleted;
+
+            if (isDoctor && !isOnboarded && !hasClinic) {
               router.push(`/onboarding?role=doctor`)
             } else {
               router.push("/dashboard")
