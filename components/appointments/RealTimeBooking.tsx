@@ -62,7 +62,13 @@ export function RealTimeBooking({ doctorId, doctorName, consultationFee, onBooki
         if (!token) return
 
         // Connect to /notifications namespace with auth
-        const socket = io(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/notifications`, {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+        if (!apiUrl) {
+            console.error("NEXT_PUBLIC_API_URL is not defined");
+            return;
+        }
+        
+        const socket = io(`${apiUrl}/notifications`, {
             auth: {
                 token: token
             }
