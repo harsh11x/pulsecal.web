@@ -58,11 +58,13 @@ export const authenticate = async (
     });
     logger.info(`Auth Debug: User found by UID: ${user ? 'YES' : 'NO'}`);
 
-    // If not found by firebaseUid, try by email
+    // If not found by firebaseUid, try by email (Case Insensitive)
     if (!user && decodedToken.email) {
-      logger.info(`Auth Debug: Searching by email: ${decodedToken.email}`);
-      user = await prisma.user.findUnique({
-        where: { email: decodedToken.email },
+      logger.info(`Auth Debug: Searching by email (insensitive): ${decodedToken.email}`);
+      user = await prisma.user.findFirst({
+        where: {
+          email: { equals: decodedToken.email, mode: 'insensitive' }
+        },
         select: {
           id: true,
           email: true,
