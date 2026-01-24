@@ -39,6 +39,7 @@ export const authenticate = async (
 
     // Verify Firebase token
     const decodedToken = await admin.auth().verifyIdToken(token);
+    logger.info(`Auth Debug: Decoded token UID: ${decodedToken.uid}, Email: ${decodedToken.email}`);
 
     // Find or create user in database
     // First try to find by firebaseUid (most reliable)
@@ -55,9 +56,11 @@ export const authenticate = async (
         emailVerifiedAt: true,
       },
     });
+    logger.info(`Auth Debug: User found by UID: ${user ? 'YES' : 'NO'}`);
 
     // If not found by firebaseUid, try by email
     if (!user && decodedToken.email) {
+      logger.info(`Auth Debug: Searching by email: ${decodedToken.email}`);
       user = await prisma.user.findUnique({
         where: { email: decodedToken.email },
         select: {
@@ -71,10 +74,12 @@ export const authenticate = async (
           emailVerifiedAt: true,
         },
       });
+      logger.info(`Auth Debug: User found by Email: ${user ? 'YES' : 'NO'}`);
     }
 
     // If user doesn't exist, create them
     if (!user && decodedToken.email) {
+      logger.info('Auth Debug: Attempting to create user...');
       // Determine role from custom claims or default to PATIENT
       const role = (decodedToken.role as string) || 'PATIENT';
 
@@ -100,6 +105,7 @@ export const authenticate = async (
           emailVerifiedAt: true,
         },
       });
+      logger.info(`Auth Debug: User created with ID: ${user.id}`);
 
       // Create profile based on role
       if (user.role === 'PATIENT') {
@@ -120,6 +126,7 @@ export const authenticate = async (
     } else if (user) {
       // Update existing user with Firebase UID if missing
       if (!user.firebaseUid) {
+        logger.info(`Auth Debug: Updating user ${user.id} with Firebase UID ${decodedToken.uid}`);
         // Update existing user with Firebase UID
         user = await prisma.user.update({
           where: { id: user.id },
@@ -140,9 +147,12 @@ export const authenticate = async (
           },
         });
       }
+    } else {
+      logger.warn(`Auth Debug: User not found and could not be created. Email present? ${!!decodedToken.email}`);
     }
 
     if (!user || !user.isActive) {
+      logger.warn(`Auth Debug: Final user check failed. User: ${user ? 'Found' : 'Null'}, IsActive: ${user?.isActive}`);
       return sendError(res, 'User not found or inactive', 401);
     }
 
