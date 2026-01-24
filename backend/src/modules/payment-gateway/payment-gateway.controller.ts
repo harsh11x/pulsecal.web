@@ -175,6 +175,14 @@ export const verifyPayment = async (req: AuthRequest, res: Response, _next: Next
                 where: { userId: req.user!.id }
             });
 
+            // Prepare clinic address string
+            const fullAddress = [
+                clinic.address,
+                clinic.city,
+                clinic.state,
+                clinic.zipCode
+            ].filter(Boolean).join(", ");
+
             if (!existingProfile) {
                 await prisma.doctorProfile.create({
                     data: {
@@ -182,15 +190,9 @@ export const verifyPayment = async (req: AuthRequest, res: Response, _next: Next
                         licenseNumber: `LIC-${req.user!.id.substring(0, 8).toUpperCase()}`, // Temporary
                         specialization: 'General Practice', // Default
                         clinicName: clinic.name,
-                        clinicAddress: clinic.address,
-                        clinicCity: clinic.city,
-                        clinicState: clinic.state,
-                        clinicZipCode: clinic.zipCode,
-                        clinicCountry: clinic.country,
-                        clinicPhone: clinic.phone,
-                        clinicEmail: clinic.email,
-                        clinicLatitude: clinic.latitude,
-                        clinicLongitude: clinic.longitude,
+                        clinicAddress: fullAddress, // Combined address string
+                        clinicLatitude: clinic.latitude ? Number(clinic.latitude) : null,
+                        clinicLongitude: clinic.longitude ? Number(clinic.longitude) : null,
                         subscriptionStatus: 'ACTIVE',
                         subscriptionPlan: clinic.subscriptionPlan,
                         consultationFee: 0,
@@ -203,15 +205,9 @@ export const verifyPayment = async (req: AuthRequest, res: Response, _next: Next
                     where: { userId: req.user!.id },
                     data: {
                         clinicName: clinic.name,
-                        clinicAddress: clinic.address,
-                        clinicCity: clinic.city,
-                        clinicState: clinic.state,
-                        clinicZipCode: clinic.zipCode,
-                        clinicCountry: clinic.country,
-                        clinicPhone: clinic.phone,
-                        clinicEmail: clinic.email,
-                        clinicLatitude: clinic.latitude,
-                        clinicLongitude: clinic.longitude,
+                        clinicAddress: fullAddress, // Combined address string
+                        clinicLatitude: clinic.latitude ? Number(clinic.latitude) : null,
+                        clinicLongitude: clinic.longitude ? Number(clinic.longitude) : null,
                         subscriptionStatus: 'ACTIVE',
                         subscriptionPlan: clinic.subscriptionPlan,
                     }
