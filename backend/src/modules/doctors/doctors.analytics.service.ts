@@ -40,7 +40,7 @@ export const getDoctorAnalytics = async (
     }
   }
 
-  // Get appointments
+  // Get appointments for the selected period
   const appointments = await prisma.appointment.findMany({
     where: {
       doctorId,
@@ -61,18 +61,6 @@ export const getDoctorAnalytics = async (
     },
   });
 
-  // Get payments for completed appointments
-  const completedAppointmentIds = appointments
-    .filter(apt => apt.status === 'COMPLETED')
-    .map(apt => apt.id);
-
-  const payments = await prisma.payment.findMany({
-    where: {
-      appointmentId: { in: completedAppointmentIds },
-      status: 'COMPLETED',
-    },
-  });
-
   // Calculate metrics
   const totalAppointments = appointments.length;
   const todayAppointments = appointments.filter(apt => {
@@ -82,140 +70,111 @@ export const getDoctorAnalytics = async (
 
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayAppointments = await prisma.appointment.count({
-    where: {
-      doctorId,
-      scheduledAt: {
-        gte: new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate()),
-        lt: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+  
+  // Parallelize secondary queries
+  const weekStart = new Date(now);
+  weekStart.setDate(weekStart.getDate() - 7);
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const [
+    yesterdayAppointments,
+    weekAppointments,
+    monthAppointments,
+    yesterdayStats,
+    payments
+  ] = await Promise.all([
+    // Yesterday's appointment count
+    prisma.appointment.count({
+      where: {
+        doctorId,
+        scheduledAt: {
+          gte: new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate()),
+          lt: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+        },
+        deletedAt: null,
       },
-      deletedAt: null,
-    },
-  });
+    }),
+    // Week appointments
+    prisma.appointment.findMany({
+        where: { doctorId, scheduledAt: { gte: weekStart, lte: now }, deletedAt: null },
+        select: { id: true, status: true }
+    }),
+    // Month appointments
+    prisma.appointment.findMany({
+        where: { doctorId, scheduledAt: { gte: monthStart, lte: now }, deletedAt: null },
+        select: { id: true, status: true }
+    }),
+    // Yesterday stats (completed count, cancellation count)
+    prisma.appointment.findMany({
+        where: {
+            doctorId,
+            scheduledAt: {
+                gte: new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate()),
+                lt: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+            },
+            deletedAt: null
+        },
+        select: { status: true }
+    }),
+    // Payments for current period appointments
+    prisma.payment.findMany({
+        where: {
+            appointmentId: { in: appointments.filter(a => a.status === 'COMPLETED').map(a => a.id) },
+            status: 'COMPLETED'
+        }
+    })
+  ]);
 
-  const cancelledAppointments = appointments.filter(apt =>
-    apt.status === 'CANCELLED'
-  ).length;
-
+  const cancelledAppointments = appointments.filter(apt => apt.status === 'CANCELLED').length;
+  
   // Today's revenue
   const todayPayments = payments.filter(payment => {
     const paidDate = payment.paidAt ? new Date(payment.paidAt) : new Date(payment.createdAt);
     return paidDate.toDateString() === now.toDateString();
   });
-  const todayRevenue = todayPayments.reduce((sum, payment) =>
-    sum + Number(payment.amount), 0
-  );
+  const todayRevenue = todayPayments.reduce((sum, payment) => sum + Number(payment.amount), 0);
 
-  // Yesterday's revenue
+  // Yesterday's revenue (requires separate query as it might not be in main 'payments' if period is 'day')
+  // We need to fetch yesterday's payments explicitly if they aren't covered by 'appointments' range
   const yesterdayPayments = await prisma.payment.findMany({
     where: {
-      appointmentId: { in: completedAppointmentIds },
-      status: 'COMPLETED',
-      paidAt: {
-        gte: new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate()),
-        lt: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
-      },
+        doctorId,
+        status: 'COMPLETED',
+        paidAt: {
+            gte: new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate()),
+            lt: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+        },
     },
   });
-  const yesterdayRevenue = yesterdayPayments.reduce((sum, payment) =>
-    sum + Number(payment.amount), 0
-  );
+  const yesterdayRevenue = yesterdayPayments.reduce((sum, payment) => sum + Number(payment.amount), 0);
+
+  // Week/Month Revenue (needs separate payment queries for their ranges)
+  const weekCompletedIds = weekAppointments.filter(a => a.status === 'COMPLETED').map(a => a.id);
+  const monthCompletedIds = monthAppointments.filter(a => a.status === 'COMPLETED').map(a => a.id);
+  
+  const [weekPayments, monthPayments] = await Promise.all([
+    weekCompletedIds.length ? prisma.payment.findMany({ where: { appointmentId: { in: weekCompletedIds }, status: 'COMPLETED' } }) : [],
+    monthCompletedIds.length ? prisma.payment.findMany({ where: { appointmentId: { in: monthCompletedIds }, status: 'COMPLETED' } }) : []
+  ]);
+
+  const weekRevenue = weekPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+  const monthRevenue = monthPayments.reduce((sum, p) => sum + Number(p.amount), 0);
 
   // Cancellation rate
   const cancellationRate = totalAppointments > 0
     ? (cancelledAppointments / totalAppointments) * 100
     : 0;
 
-
-  // Calculate week and month stats
-  const weekStart = new Date(now);
-  weekStart.setDate(weekStart.getDate() - 7);
-
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-
-  const weekAppointments = await prisma.appointment.findMany({
-    where: {
-      doctorId,
-      scheduledAt: { gte: weekStart, lte: now },
-      deletedAt: null,
-    },
-  });
-
-  const monthAppointments = await prisma.appointment.findMany({
-    where: {
-      doctorId,
-      scheduledAt: { gte: monthStart, lte: now },
-      deletedAt: null,
-    },
-  });
-
-  const weekCompletedIds = weekAppointments
-    .filter(apt => apt.status === 'COMPLETED')
-    .map(apt => apt.id);
-
-  const monthCompletedIds = monthAppointments
-    .filter(apt => apt.status === 'COMPLETED')
-    .map(apt => apt.id);
-
-  const weekPayments = await prisma.payment.findMany({
-    where: {
-      appointmentId: { in: weekCompletedIds },
-      status: 'COMPLETED',
-    },
-  });
-
-  const monthPayments = await prisma.payment.findMany({
-    where: {
-      appointmentId: { in: monthCompletedIds },
-      status: 'COMPLETED',
-    },
-  });
-
-  const weekRevenue = weekPayments.reduce((sum, payment) =>
-    sum + Number(payment.amount), 0
-  );
-
-  const monthRevenue = monthPayments.reduce((sum, payment) =>
-    sum + Number(payment.amount), 0
-  );
-
   const todayCompletedCount = appointments.filter(apt => {
     const aptDate = new Date(apt.scheduledAt);
     return aptDate.toDateString() === now.toDateString() && apt.status === 'COMPLETED';
   }).length;
 
-  const yesterdayCompletedCount = await prisma.appointment.count({
-    where: {
-      doctorId,
-      scheduledAt: {
-        gte: new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate()),
-        lt: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
-      },
-      status: 'COMPLETED',
-      deletedAt: null,
-    },
-  });
+  const yesterdayCompletedCount = yesterdayStats.filter(a => a.status === 'COMPLETED').length;
+  const yesterdayCancellations = yesterdayStats.filter(a => a.status === 'CANCELLED').length;
 
   const weekCompletedCount = weekAppointments.filter(apt => apt.status === 'COMPLETED').length;
   const monthCompletedCount = monthAppointments.filter(apt => apt.status === 'COMPLETED').length;
-
-  const todayCancellations = appointments.filter(apt => {
-    const aptDate = new Date(apt.scheduledAt);
-    return aptDate.toDateString() === now.toDateString() && apt.status === 'CANCELLED';
-  }).length;
-
-  const yesterdayCancellations = await prisma.appointment.count({
-    where: {
-      doctorId,
-      scheduledAt: {
-        gte: new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate()),
-        lt: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
-      },
-      status: 'CANCELLED',
-      deletedAt: null,
-    },
-  });
-
   const weekCancellations = weekAppointments.filter(apt => apt.status === 'CANCELLED').length;
   const monthCancellations = monthAppointments.filter(apt => apt.status === 'CANCELLED').length;
 
@@ -233,7 +192,7 @@ export const getDoctorAnalytics = async (
       appointments: todayAppointments,
       revenue: Number(todayRevenue.toFixed(2)),
       patients: todayCompletedCount,
-      cancellations: todayCancellations,
+      cancellations: appointments.filter(apt => apt.status === 'CANCELLED' && new Date(apt.scheduledAt).toDateString() === now.toDateString()).length,
     },
     yesterday: {
       appointments: yesterdayAppointments,
@@ -270,8 +229,6 @@ export const getDoctorAnalytics = async (
     }
   };
 };
-
-// ... (previous helper functions) ...
 
 const getDoctorReviews = async (_doctorId: string) => {
   // Temporarily return empty reviews until Prisma client is regenerated
@@ -383,76 +340,6 @@ const getRevenueTrends = async (doctorId: string, period: string, startDate: Dat
 };
 
 /**
- * Get appointment trends
- */
-/* Temporarily commented out - not used in current implementation
-const getAppointmentTrends = async (doctorId: string, period: string, startDate: Date) => {
-  const appointments = await prisma.appointment.findMany({
-    where: {
-      doctorId,
-      scheduledAt: { gte: startDate },
-      deletedAt: null,
-    },
-    select: {
-      scheduledAt: true,
-      status: true,
-    },
-  });
-
-  const trends: { date: string; scheduled: number; confirmed: number; completed: number; cancelled: number }[] = [];
-  const now = new Date();
-
-  if (period === 'day') {
-    // Hourly breakdown
-    for (let hour = 0; hour < 24; hour++) {
-      const hourStart = new Date(now);
-      hourStart.setHours(hour, 0, 0, 0);
-      const hourEnd = new Date(hourStart);
-      hourEnd.setHours(hour + 1, 0, 0, 0);
-
-      const hourApps = appointments.filter(apt => {
-        const aptDate = new Date(apt.scheduledAt);
-        return aptDate >= hourStart && aptDate < hourEnd;
-      });
-
-      trends.push({
-        date: hourStart.toISOString(),
-        scheduled: hourApps.length,
-        confirmed: hourApps.filter(a => a.status === 'CONFIRMED').length,
-        completed: hourApps.filter(a => a.status === 'COMPLETED').length,
-        cancelled: hourApps.filter(a => a.status === 'CANCELLED').length,
-      });
-    }
-  } else {
-    // Daily breakdown
-    const days = period === 'week' ? 7 : period === 'month' ? 30 : period === '3months' ? 90 : 365;
-    for (let i = days - 1; i >= 0; i--) {
-      const date = new Date(now);
-      date.setDate(date.getDate() - i);
-      date.setHours(0, 0, 0, 0);
-      const nextDate = new Date(date);
-      nextDate.setDate(nextDate.getDate() + 1);
-
-      const dayApps = appointments.filter(apt => {
-        const aptDate = new Date(apt.scheduledAt);
-        return aptDate >= date && aptDate < nextDate;
-      });
-
-      trends.push({
-        date: date.toISOString(),
-        scheduled: dayApps.length,
-        confirmed: dayApps.filter(a => a.status === 'CONFIRMED').length,
-        completed: dayApps.filter(a => a.status === 'COMPLETED').length,
-        cancelled: dayApps.filter(a => a.status === 'CANCELLED').length,
-      });
-    }
-  }
-
-  return trends;
-};
-*/
-
-/**
  * Get patient growth trends
  */
 const getPatientGrowth = async (doctorId: string, period: string, startDate: Date) => {
@@ -503,4 +390,3 @@ const getPatientGrowth = async (doctorId: string, period: string, startDate: Dat
 
   return growth;
 };
-

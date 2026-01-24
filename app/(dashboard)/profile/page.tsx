@@ -78,7 +78,9 @@ export default function ProfilePage() {
       setLoading(true)
 
       // Construct full address string
-      const fullClinicAddress = `${formData.addressLine}, ${formData.city}, ${formData.state} - ${formData.pincode}`
+      const parts = [formData.addressLine, formData.city, formData.state].filter(Boolean);
+      const suffix = formData.pincode ? ` - ${formData.pincode}` : '';
+      const fullClinicAddress = parts.length > 0 ? parts.join(", ") + suffix : "";
 
       const payload = {
         firstName: formData.firstName,
@@ -91,7 +93,10 @@ export default function ProfilePage() {
       console.log("Submitting profile update:", payload)
 
       // Update profile via API
-      let updatedUser = await userService.updateProfile(payload)
+      // Note: userService.updateProfile returns the API response wrapper { success, data, message }
+      // We need to handle this to extract the actual user data
+      const response: any = await userService.updateProfile(payload)
+      const updatedUser = response.data || response
 
       // Optimistic update
       const optimisticUser = {

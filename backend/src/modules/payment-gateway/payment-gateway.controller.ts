@@ -170,6 +170,55 @@ export const verifyPayment = async (req: AuthRequest, res: Response, _next: Next
                 }
             });
 
+            // Create Doctor Profile
+            const existingProfile = await prisma.doctorProfile.findUnique({
+                where: { userId: req.user!.id }
+            });
+
+            if (!existingProfile) {
+                await prisma.doctorProfile.create({
+                    data: {
+                        userId: req.user!.id,
+                        licenseNumber: `LIC-${req.user!.id.substring(0, 8).toUpperCase()}`, // Temporary
+                        specialization: 'General Practice', // Default
+                        clinicName: clinic.name,
+                        clinicAddress: clinic.address,
+                        clinicCity: clinic.city,
+                        clinicState: clinic.state,
+                        clinicZipCode: clinic.zipCode,
+                        clinicCountry: clinic.country,
+                        clinicPhone: clinic.phone,
+                        clinicEmail: clinic.email,
+                        clinicLatitude: clinic.latitude,
+                        clinicLongitude: clinic.longitude,
+                        subscriptionStatus: 'ACTIVE',
+                        subscriptionPlan: clinic.subscriptionPlan,
+                        consultationFee: 0,
+                    }
+                });
+                logger.info('PaymentGateway: Doctor Profile Created');
+            } else {
+                // Update existing profile with clinic details
+                await prisma.doctorProfile.update({
+                    where: { userId: req.user!.id },
+                    data: {
+                        clinicName: clinic.name,
+                        clinicAddress: clinic.address,
+                        clinicCity: clinic.city,
+                        clinicState: clinic.state,
+                        clinicZipCode: clinic.zipCode,
+                        clinicCountry: clinic.country,
+                        clinicPhone: clinic.phone,
+                        clinicEmail: clinic.email,
+                        clinicLatitude: clinic.latitude,
+                        clinicLongitude: clinic.longitude,
+                        subscriptionStatus: 'ACTIVE',
+                        subscriptionPlan: clinic.subscriptionPlan,
+                    }
+                });
+                logger.info('PaymentGateway: Doctor Profile Updated');
+            }
+
             // Update Firebase Claims
             if (req.user!.firebaseUid) {
                 try {
