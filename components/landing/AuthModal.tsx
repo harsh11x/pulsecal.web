@@ -439,27 +439,28 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
       let redirectPath = "/dashboard"
       let successMessage = "Signed in with Google successfully!"
 
-      if (mode === "signup") {
-        // Signup mode - always go to onboarding
-        redirectPath = `/onboarding?role=${role}`
-        successMessage = "Account created with Google successfully!"
-      } else if (mode === "login") {
-        // Login mode - check user status
-        if (!userHasProfile) {
-          // User doesn't exist - this shouldn't happen in login, but handle it
-          toast.error("No account found. Please sign up first.")
-          onSwitchMode("signup")
-          setGoogleLoading(false)
-          return
-        } else if (isNewUser || !userOnboardingCompleted) {
-          // User exists but hasn't completed onboarding
-          redirectPath = `/onboarding?role=${role}`
-          successMessage = "Signed in successfully! Please complete your profile."
-        } else {
-          // User exists and has completed onboarding - go to dashboard
+      // CRITICAL: Determine if this is actually an existing user regardless of "mode"
+      // Check multiple signals:
+      // 1. onboardingCompleted === true (definitive)
+      // 2. Account creation time is old (e.g. > 2 mins ago) to catch existing users signing up again
+      // 3. User already has a profile (userHasProfile) AND we are not explicitly creating a new one
+      
+      const creationTime = userCredential?.user?.metadata?.creationTime;
+      const isOldUser = creationTime && new Date(creationTime) < new Date(Date.now() - 2 * 60 * 1000);
+      
+      const isEffectiveExistingUser = 
+          userOnboardingCompleted === true || 
+          isOldUser || 
+          (mode === "login" && userHasProfile);
+
+      if (isEffectiveExistingUser) {
+          // Existing user - always go to dashboard
           redirectPath = "/dashboard"
-          successMessage = "Signed in with Google successfully!"
-        }
+          successMessage = "Signed in successfully!"
+      } else {
+          // New user or incomplete profile
+          redirectPath = `/onboarding?role=${role}`
+          successMessage = mode === "signup" ? "Account created successfully!" : "Please complete your profile."
       }
 
       toast.success(successMessage)
