@@ -123,10 +123,25 @@ export const updateProfile = async (
     dateOfBirth?: Date;
     profileImage?: string;
     clinicAddress?: string;
+    specialization?: string;
+    bio?: string;
+    consultationFee?: number;
+    services?: string[];
+    workingHours?: any;
+    clinicName?: string;
   }
 ) => {
-  // Extract clinic address from data
-  const { clinicAddress, ...userData } = data;
+  // Extract doctor profile specific fields
+  const {
+    clinicAddress,
+    specialization,
+    bio,
+    consultationFee,
+    services,
+    workingHours,
+    clinicName,
+    ...userData
+  } = data;
 
   // Update user data
   const user = await prisma.user.update({
@@ -146,8 +161,17 @@ export const updateProfile = async (
     },
   });
 
-  // If clinicAddress is provided and user is a doctor, update the doctor profile
-  if (clinicAddress !== undefined && user.role === 'DOCTOR') {
+  // If ANY doctor specific fields are provided and user is a doctor, update the doctor profile
+  if (
+    user.role === 'DOCTOR' &&
+    (clinicAddress !== undefined ||
+      specialization !== undefined ||
+      bio !== undefined ||
+      consultationFee !== undefined ||
+      services !== undefined ||
+      workingHours !== undefined ||
+      clinicName !== undefined)
+  ) {
     const doctorProfile = await prisma.doctorProfile.findUnique({
       where: { userId },
     });
@@ -155,7 +179,30 @@ export const updateProfile = async (
     if (doctorProfile) {
       await prisma.doctorProfile.update({
         where: { userId },
-        data: { clinicAddress },
+        data: {
+          clinicAddress,
+          specialization,
+          bio,
+          consultationFee,
+          services,
+          workingHours,
+          clinicName,
+        },
+      });
+    } else {
+      // Create if it doesn't exist (fallback, though it should exist)
+      await prisma.doctorProfile.create({
+        data: {
+          userId,
+          licenseNumber: `LIC-${userId.substring(0, 8)}`, // Placeholder
+          specialization: specialization || 'General',
+          clinicName: clinicName || 'My Clinic',
+          clinicAddress,
+          bio,
+          consultationFee: consultationFee || 0,
+          services: services || [],
+          workingHours: workingHours,
+        },
       });
     }
   }
