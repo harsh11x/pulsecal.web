@@ -14,7 +14,7 @@ import './config/firebase';
 const app: Express = express();
 
 // Trust Proxy (Required for Vercel/AWS Load Balancers)
-app.set('trust proxy', true);
+app.set('trust proxy', 1);
 
 // Request ID Injection
 app.use((req, _res, next) => {
