@@ -11,7 +11,7 @@
 ```bash
 # Server
 NODE_ENV=production
-PORT=3000
+PORT=3001
 API_VERSION=v1
 CORS_ORIGIN=https://pulsecal.com,https://www.pulsecal.com,http://localhost:3000
 
@@ -47,7 +47,7 @@ REDIS_PASSWORD=
 ```bash
 # API Configuration
 NEXT_PUBLIC_API_URL=/api/v1
-NEXT_PUBLIC_BACKEND_URL=http://13.205.127.21:3000
+NEXT_PUBLIC_BACKEND_URL=http://13.205.127.21:3001
 NEXT_PUBLIC_SOCKET_URL=/api/v1
 
 # Firebase (if needed)
@@ -60,7 +60,7 @@ NEXT_PUBLIC_FIREBASE_PROJECT_ID=pulsecal-72bb4
 ### Important Notes:
 
 1. **`NEXT_PUBLIC_API_URL`** should be `/api/v1` (relative path) - this goes through Next.js proxy
-2. **`NEXT_PUBLIC_BACKEND_URL`** is used by the Next.js proxy to forward requests - should be `http://13.205.127.21:3000`
+2. **`NEXT_PUBLIC_BACKEND_URL`** is used by the Next.js proxy to forward requests - should be `http://13.205.127.21:3001`
 3. **`NEXT_PUBLIC_SOCKET_URL`** should be `/api/v1` (relative path) for Socket.IO
 
 ## Current Issue
@@ -69,9 +69,9 @@ Your backend `.env` has frontend variables. Remove these from backend `.env`:
 
 ```bash
 # REMOVE THESE FROM BACKEND .env:
-NEXT_PUBLIC_BACKEND_URL=http://13.205.127.21:3000/api/v1
-NEXT_PUBLIC_SOCKET_URL=http://13.205.127.21:3000/api/v1
-NEXT_PUBLIC_API_URL=http://13.205.127.21:3000/api/v1
+NEXT_PUBLIC_BACKEND_URL=http://13.205.127.21:3001/api/v1
+NEXT_PUBLIC_SOCKET_URL=http://13.205.127.21:3001/api/v1
+NEXT_PUBLIC_API_URL=http://13.205.127.21:3001/api/v1
 ```
 
 These should only be in your **frontend deployment** (Vercel/Netlify).
@@ -82,9 +82,9 @@ Edit `~/pulsecal.web/backend/.env` and remove the `NEXT_PUBLIC_*` lines:
 
 ```bash
 # Remove these lines:
-# NEXT_PUBLIC_BACKEND_URL=http://13.205.127.21:3000/api/v1
-# NEXT_PUBLIC_SOCKET_URL=http://13.205.127.21:3000/api/v1
-# NEXT_PUBLIC_API_URL=http://13.205.127.21:3000/api/v1
+# NEXT_PUBLIC_BACKEND_URL=http://13.205.127.21:3001/api/v1
+# NEXT_PUBLIC_SOCKET_URL=http://13.205.127.21:3001/api/v1
+# NEXT_PUBLIC_API_URL=http://13.205.127.21:3001/api/v1
 ```
 
 Then restart:

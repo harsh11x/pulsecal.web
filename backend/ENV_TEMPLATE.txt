@@ -6,7 +6,7 @@
 
 # Server Configuration
 NODE_ENV=production
-PORT=3000
+PORT=3001
 API_VERSION=v1
 CORS_ORIGIN=https://pulsecal.com,https://www.pulsecal.com,http://localhost:3000
 

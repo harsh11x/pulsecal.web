@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 // Server-side only - use BACKEND_URL env var
 // IMPORTANT: In production, BACKEND_URL should be set in Vercel environment variables
 const BACKEND_PROTOCOL = process.env.BACKEND_PROTOCOL || 'http';
-const BACKEND_HOST = process.env.BACKEND_HOST || process.env.BACKEND_URL?.replace(/^https?:\/\//, '') || '13.205.127.21:3000';
+const BACKEND_HOST = process.env.BACKEND_HOST || process.env.BACKEND_URL?.replace(/^https?:\/\//, '') || '13.205.127.21:3001';
 const BACKEND_URL = `${BACKEND_PROTOCOL}://${BACKEND_HOST}`;
 
 // Log configuration (server-side only)

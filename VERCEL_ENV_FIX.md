@@ -7,7 +7,7 @@ Mixed content errors because HTTP URLs are exposed to the browser.
 
 ### ✅ KEEP (Correct):
 - `NEXT_PUBLIC_API_URL` = `/api/v1` ✅
-- `BACKEND_URL` = `http://13.205.127.21:3000` ✅ (server-side only, OK)
+- `BACKEND_URL` = `http://13.205.127.21:3001` ✅ (server-side only, OK)
 
 ### ❌ DELETE (Causing Mixed Content):
 - `NEXT_PUBLIC_SOCKET_URL` - DELETE this variable
@@ -41,7 +41,7 @@ Mixed content errors because HTTP URLs are exposed to the browser.
 
 ```
 NEXT_PUBLIC_API_URL=/api/v1
-BACKEND_URL=http://13.205.127.21:3000
+BACKEND_URL=http://13.205.127.21:3001
 ```
 
 That's it! The proxy handles everything server-side.

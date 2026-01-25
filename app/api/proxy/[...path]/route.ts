@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const BACKEND_URL = process.env.BACKEND_URL || 'http://13.205.127.21:3000'
+const BACKEND_URL = process.env.BACKEND_URL || 'http://13.205.127.21:3001'
 
 export async function GET(request: NextRequest) {
     const path = request.nextUrl.pathname.replace('/api/proxy', '')

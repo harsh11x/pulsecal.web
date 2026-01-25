@@ -11,7 +11,7 @@ Go to: **Vercel Dashboard → Your Project → Settings → Environment Variable
 NEXT_PUBLIC_API_URL=/api/v1
 
 # Backend URL for server-side proxy (server-side only, won't cause mixed content)
-BACKEND_URL=http://13.205.127.21:3000
+BACKEND_URL=http://13.205.127.21:3001
 ```
 
 ### DO NOT SET THESE (They cause mixed content errors):

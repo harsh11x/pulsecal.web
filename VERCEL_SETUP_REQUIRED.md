@@ -10,7 +10,7 @@ Add these:
 
 | Variable Name | Value | Notes |
 |--------------|-------|-------|
-| `BACKEND_URL` | `http://13.205.127.21:3000` | Backend server URL (server-side only) |
+| `BACKEND_URL` | `http://13.205.127.21:3001` | Backend server URL (server-side only) |
 | `NEXT_PUBLIC_API_URL` | `/api/v1` | Frontend API base URL (uses proxy) |
 
 ## Important Notes

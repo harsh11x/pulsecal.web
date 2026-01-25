@@ -17,7 +17,7 @@ BACKEND_URL=https://your-backend-domain.com
 OR if your backend is behind a load balancer with HTTPS:
 
 ```
-BACKEND_URL=https://13.205.127.21:3000
+BACKEND_URL=http://13.205.127.21:3001
 ```
 
 OR if you have a domain for backend:
@@ -29,7 +29,7 @@ BACKEND_URL=https://api.pulsecal.com
 ## Current Issue
 
 - Frontend: `https://www.pulsecal.com` (HTTPS)
-- Backend: `http://13.205.127.21:3000` (HTTP)
+- Backend: `http://13.205.127.21:3001` (HTTP)
 - Result: Browser blocks requests (Mixed Content)
 
 ## Fix Options

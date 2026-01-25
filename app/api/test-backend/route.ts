@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 // Test endpoint to verify backend connectivity
-const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://13.205.127.21:3000';
+const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://13.205.127.21:3001';
 
 export async function GET() {
     const testResults: Record<string, any> = {

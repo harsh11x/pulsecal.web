@@ -7,7 +7,7 @@ Location: `~/pulsecal.web/backend/.env`
 ```bash
 # Server Configuration
 NODE_ENV=production
-PORT=3000
+PORT=3001
 API_VERSION=v1
 
 # CORS - Allow your frontend domains
@@ -45,6 +45,6 @@ CALENDLY_REDIRECT_URI=https://www.pulsecal.com/api/v1/auth/calendly/callback
 
 1. **NO rate limiter variables needed** - Rate limiter is completely removed
 2. **CORS_ORIGIN** must include your frontend domains
-3. **PORT** should be 3000
+3. **PORT** should be 3001
 4. After updating `.env`, restart PM2: `pm2 restart pulsecal`
 

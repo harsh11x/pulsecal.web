@@ -27,17 +27,17 @@ pm2 logs pulsecal --out --lines 200 | grep -E "GET|POST|PUT|DELETE|PATCH" | tail
 # Test the endpoints directly
 echo ""
 echo "5. Testing /health endpoint..."
-curl -s http://localhost:3000/health || echo "❌ Health check failed"
+curl -s http://localhost:3001/health || echo "❌ Health check failed"
 
 # Test auth profile endpoint (will fail without auth, but should show error)
 echo ""
 echo "6. Testing /api/v1/auth/profile (without auth - should show 401, not 500)..."
-curl -s -o /dev/null -w "HTTP Status: %{http_code}\n" http://localhost:3000/api/v1/auth/profile
+curl -s -o /dev/null -w "HTTP Status: %{http_code}\n" http://localhost:3001/api/v1/auth/profile
 
 # Check if server is actually receiving requests
 echo ""
-echo "7. Checking if server is listening on port 3000..."
-netstat -tlnp | grep 3000 || ss -tlnp | grep 3000 || echo "Port 3000 not found in netstat/ss"
+echo "7. Checking if server is listening on port 3001..."
+netstat -tlnp | grep 3001 || ss -tlnp | grep 3001 || echo "Port 3001 not found in netstat/ss"
 
 # Check process
 echo ""
