@@ -57,7 +57,9 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Security: HTTP Parameter Pollution
 app.use(hpp());
 
-app.use(apiRateLimiter);
+// Temporarily disable rate limiter to debug connection issues
+// TODO: Re-enable after confirming server is receiving requests
+// app.use(apiRateLimiter);
 
 app.use('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
