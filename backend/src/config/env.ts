@@ -35,10 +35,6 @@ interface EnvConfig {
   cors: {
     origin: string;
   };
-  rateLimit: {
-    windowMs: number;
-    maxRequests: number;
-  };
   security: {
     bcryptRounds: number;
     sessionSecret: string;
@@ -105,10 +101,6 @@ export const config: EnvConfig = {
   },
   cors: {
     origin: getEnvVar('CORS_ORIGIN', false, 'http://localhost:3000,https://pulsecal.com,https://www.pulsecal.com'),
-  },
-  rateLimit: {
-    windowMs: parseInt(getEnvVar('RATE_LIMIT_WINDOW_MS', false, '900000'), 10),
-    maxRequests: parseInt(getEnvVar('RATE_LIMIT_MAX_REQUESTS', false, '100'), 10),
   },
   security: {
     bcryptRounds: parseInt(getEnvVar('BCRYPT_ROUNDS', false, '12'), 10),
