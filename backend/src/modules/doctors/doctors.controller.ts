@@ -153,6 +153,16 @@ export const getDoctorAnalyticsController = async (
 ): Promise<void> => {
   try {
     const doctorId = req.user!.id;
+    
+    // Verify user has a doctor profile
+    const doctorProfile = await prisma.doctorProfile.findUnique({
+      where: { userId: doctorId }
+    });
+    
+    if (!doctorProfile) {
+      throw new AppError('Doctor profile not found. Please complete your profile setup.', 404);
+    }
+    
     const { period, startDate, endDate } = req.query;
 
     const analytics = await getDoctorAnalytics(

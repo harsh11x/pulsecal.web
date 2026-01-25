@@ -240,6 +240,9 @@ export const getDoctorAnalytics = async (
   weekStart.setDate(weekStart.getDate() - 7);
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
+  // Get completed appointment IDs first
+  const completedAppointmentIds = appointments.filter(a => a.status === 'COMPLETED').map(a => a.id);
+  
   const [
     yesterdayAppointments,
     weekAppointments,
@@ -281,12 +284,14 @@ export const getDoctorAnalytics = async (
         select: { status: true }
     }),
     // Payments for current period appointments
-    prisma.payment.findMany({
-        where: {
-            appointmentId: { in: appointments.filter(a => a.status === 'COMPLETED').map(a => a.id) },
+    completedAppointmentIds.length > 0
+      ? prisma.payment.findMany({
+          where: {
+            appointmentId: { in: completedAppointmentIds },
             status: 'COMPLETED'
-        }
-    })
+          }
+        })
+      : Promise.resolve([])
   ]);
 
   const cancelledAppointments = appointments.filter(apt => apt.status === 'CANCELLED').length;
