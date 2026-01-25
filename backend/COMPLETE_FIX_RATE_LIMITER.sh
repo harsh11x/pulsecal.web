@@ -61,9 +61,15 @@ echo "✅ Build successful"
 # 6. Verify compiled code
 echo ""
 echo "🔍 Step 6: Verifying compiled code..."
-if grep -q "app.use.*apiRateLimiter\|app\.use\(apiRateLimiter\)" dist/app.js; then
+# Check for actual usage (not comments) - look for uncommented app.use with apiRateLimiter
+if grep -E "^\s*app\.use\(apiRateLimiter\)|^\s*app\.use\(.*apiRateLimiter" dist/app.js 2>/dev/null | grep -v "//" | grep -v "^\s*//"; then
     echo "❌ ERROR: Rate limiter is being used in compiled code!"
     echo "   This means the source code still has it enabled"
+    exit 1
+fi
+# Also check if apiRateLimiter is imported (not commented)
+if grep -E "^\s*import.*apiRateLimiter|^\s*const.*apiRateLimiter.*=.*require" dist/app.js 2>/dev/null | grep -v "//" | grep -v "^\s*//"; then
+    echo "❌ ERROR: Rate limiter is imported in compiled code!"
     exit 1
 fi
 echo "✅ Compiled code looks good (rate limiter not active)"
