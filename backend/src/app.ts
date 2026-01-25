@@ -6,7 +6,7 @@ import pinoHttp from 'pino-http';
 import { v4 as uuidv4 } from 'uuid';
 import routes from './routes';
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware';
-import { apiRateLimiter } from './middlewares/rateLimit.middleware';
+// import { apiRateLimiter } from './middlewares/rateLimit.middleware'; // Temporarily disabled
 import { config } from './config/env';
 import { logger } from './utils/logger';
 import './config/firebase';

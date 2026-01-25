@@ -76,7 +76,7 @@ try {
 
 export const config: EnvConfig = {
   nodeEnv: getEnvVar('NODE_ENV', false, 'development'),
-  port: parseInt(getEnvVar('PORT', false, '3001'), 10),
+  port: parseInt(getEnvVar('PORT', false, '3000'), 10),
   apiVersion: getEnvVar('API_VERSION', false, 'v1'),
   databaseUrl: getEnvVar('DATABASE_URL'),
   redis: {
