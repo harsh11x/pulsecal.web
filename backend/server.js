@@ -56,7 +56,7 @@ const { setSocketInstance } = require('./dist/utils/socketEmitter');
 // ============================================================================
 // Get frontend URL from environment (for CORS and Socket.IO)
 const FRONTEND_URL = process.env.CORS_ORIGIN || process.env.FRONTEND_URL || 'https://www.pulsecal.com';
-const PORT = process.env.PORT || config.port || 3000;
+const PORT = process.env.PORT || config.port || 3001;
 const NODE_ENV = process.env.NODE_ENV || 'production';
 
 // Log configuration

@@ -33,7 +33,7 @@ pm2 logs pulsecal --lines 50
 ## What to Look For
 
 After restart, you should see:
-- ✅ "Server running on 0.0.0.0:3000"
+- ✅ "Server running on 0.0.0.0:3001"
 - ✅ NO rate limiter errors
 - ✅ When you use frontend, requests should appear in logs
 
@@ -44,7 +44,7 @@ If you're not using git, you need to manually copy these files to AWS:
 1. `backend/src/app.ts` - Make sure rate limiter is commented out
 2. `backend/src/middlewares/rateLimit.middleware.ts` - Should have `trustProxy: true`
 3. `backend/src/config/socket.ts` - Should have proper CORS config
-4. `backend/server.js` - Should have port 3000
+4. `backend/server.js` - Should have port 3001
 
 Then run `npm run build` and `pm2 restart pulsecal`
 

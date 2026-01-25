@@ -155,7 +155,7 @@ REDIS_PORT=...
 FIREBASE_PROJECT_ID=...
 CORS_ORIGIN=https://yourdomain.com
 NODE_ENV=production
-PORT=3000
+PORT=3001
 ```
 
 ### Running on AWS
@@ -186,7 +186,7 @@ PORT=3000
 ```javascript
 import io from 'socket.io-client';
 
-const socket = io('http://localhost:3000/notifications', {
+const socket = io('http://localhost:3001/notifications', {
   auth: {
     token: 'your-firebase-token'
   }
