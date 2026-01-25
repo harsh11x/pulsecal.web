@@ -11,14 +11,14 @@ export const getProfileController = async (
 ): Promise<void> => {
     try {
         if (!req.user) {
-            throw new Error('User not authenticated');
+            throw new AppError('User not authenticated', 401);
         }
         
         const profile = await getProfile(req.user.id);
         sendSuccess(res, profile, 'Profile retrieved successfully');
     } catch (err: any) {
         // Log the error for debugging
-        console.error('Error in getProfileController:', err);
+        console.error('Error in getProfileController:', err.message, err.stack);
         next(err);
     }
 };

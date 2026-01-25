@@ -109,31 +109,37 @@ export const createUser = async (data: {
 };
 
 export const getProfile = async (userId: string) => {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      id: true,
-      email: true,
-      firstName: true,
-      lastName: true,
-      phone: true,
-      dateOfBirth: true,
-      role: true,
-      isEmailVerified: true,
-      onboardingCompleted: true,
-      clinicId: true,
-      profileImage: true,
-      createdAt: true,
-      patientProfile: true,
-      doctorProfile: true,
-    },
-  });
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        dateOfBirth: true,
+        role: true,
+        isEmailVerified: true,
+        onboardingCompleted: true,
+        clinicId: true,
+        profileImage: true,
+        createdAt: true,
+        patientProfile: true,
+        doctorProfile: true,
+      },
+    });
 
-  if (!user) {
-    throw new AppError('User not found', 404);
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+
+    return user;
+  } catch (error: any) {
+    // Log the actual error
+    console.error('Error in getProfile:', error);
+    throw error;
   }
-
-  return user;
 };
 
 export const updateProfile = async (
