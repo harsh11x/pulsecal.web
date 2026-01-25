@@ -3,6 +3,7 @@ import { AuthRequest } from '../../middlewares/auth.middleware';
 import prisma from '../../config/database';
 import { sendSuccess } from '../../utils/apiResponse';
 import { getProfile, updateProfile } from '../users/users.service';
+import { AppError } from '../../middlewares/error.middleware';
 
 export const getProfileController = async (
     req: AuthRequest,
