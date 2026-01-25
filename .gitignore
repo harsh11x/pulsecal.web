@@ -16,3 +16,8 @@ node_modules/
 
 add_google_calendar_env.sh
 add_calendly_env.sh
+
+# Environment files with secrets (do not commit)
+backend/ENV_FILE_FOR_AWS.txt
+backend/.env.COMPLETE
+backend/.env.CORRECTED
