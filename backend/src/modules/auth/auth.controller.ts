@@ -1,6 +1,5 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../middlewares/auth.middleware';
-import prisma from '../../config/database';
 import { sendSuccess } from '../../utils/apiResponse';
 import { getProfile, updateProfile } from '../users/users.service';
 import { AppError } from '../../middlewares/error.middleware';
@@ -13,15 +12,28 @@ export const getProfileController = async (
 ): Promise<void> => {
   try {
     if (!req.user || !req.user.id) {
+      logger.warn('getProfileController: No user in request');
       throw new AppError('User not authenticated', 401);
     }
 
     const userId: string = req.user.id;
     logger.info({ userId }, 'Fetching user profile');
     
-    const userProfile = await getProfile(userId);
-    
-    sendSuccess(res, userProfile, 'Profile retrieved successfully');
+    try {
+      const userProfile = await getProfile(userId);
+      logger.info({ userId }, 'Profile fetched successfully');
+      sendSuccess(res, userProfile, 'Profile retrieved successfully');
+    } catch (profileError: any) {
+      logger.error(
+        { 
+          error: profileError.message, 
+          stack: profileError.stack,
+          userId 
+        }, 
+        'Error fetching profile'
+      );
+      throw profileError;
+    }
   } catch (error: any) {
     logger.error(
       { 
@@ -114,6 +126,7 @@ export const syncProfileController = async (
 
     // Get updated profile
     const updatedProfile = await getProfile(userId);
+    logger.info({ userId }, 'Profile synced successfully');
     sendSuccess(res, updatedProfile, 'Profile synced successfully');
   } catch (error: any) {
     logger.error(
