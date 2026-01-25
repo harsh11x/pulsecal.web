@@ -41,10 +41,15 @@ export default function DoctorScheduleManager() {
     fetchSchedule()
   }, [selectedDate])
 
+  // Reload blocked slots when date changes
+  useEffect(() => {
+    fetchProfile()
+  }, [selectedDate])
+
   const fetchProfile = async () => {
     try {
-      const response: any = await apiService.get(`/api/v1/doctor-profiles/me`)
-      const profile = response.data || response
+      const response: any = await apiService.get(`/doctor-profiles/me`)
+      const profile = response
       if (profile?.workingHours) {
         // Try to get settings from defaultSettings first (most recent save), then fall back to day-specific
         const defaults = profile.workingHours.defaultSettings;
@@ -71,8 +76,19 @@ export default function DoctorScheduleManager() {
         }
         
         // Load blocked slots for this date
-        if (profile.workingHours.exceptions && profile.workingHours.exceptions[format(selectedDate, "yyyy-MM-dd")]) {
-            setBlockedSlots(profile.workingHours.exceptions[format(selectedDate, "yyyy-MM-dd")])
+        const dateKey = format(selectedDate, "yyyy-MM-dd")
+        if (profile.workingHours.exceptions && profile.workingHours.exceptions[dateKey]) {
+            const savedBlockedSlots = profile.workingHours.exceptions[dateKey]
+            console.log("Loaded blocked slots for", dateKey, ":", savedBlockedSlots)
+            // Ensure blocked slots have the correct format
+            const formattedSlots = Array.isArray(savedBlockedSlots) 
+              ? savedBlockedSlots.map((slot: any) => ({
+                  startTime: slot.startTime,
+                  endTime: slot.endTime,
+                  isBlocked: true
+                }))
+              : []
+            setBlockedSlots(formattedSlots)
         } else {
             setBlockedSlots([])
         }
@@ -84,8 +100,8 @@ export default function DoctorScheduleManager() {
 
   const fetchSchedule = async () => {
     try {
-      const response: any = await apiService.get(`/api/v1/doctors/schedule?date=${format(selectedDate, "yyyy-MM-dd")}`)
-      if (response?.data) {
+      const response: any = await apiService.get(`/doctors/schedule?date=${format(selectedDate, "yyyy-MM-dd")}`)
+      if (response) {
         // Process schedule data
       }
     } catch (error) {
@@ -124,13 +140,33 @@ export default function DoctorScheduleManager() {
   }
 
   const handleBlockSlot = (slot: TimeSlot) => {
-    setBlockedSlots([...blockedSlots, { ...slot, isBlocked: true }])
-    toast.success("Time slot blocked")
+    // Check if slot is already blocked
+    const isAlreadyBlocked = blockedSlots.some(
+      (b) => b.startTime === slot.startTime && b.endTime === slot.endTime
+    )
+    if (isAlreadyBlocked) {
+      toast.info("This slot is already blocked")
+      return
+    }
+    const newBlockedSlot = {
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      isBlocked: true
+    }
+    setBlockedSlots([...blockedSlots, newBlockedSlot])
+    toast.success("Time slot blocked (remember to save)")
   }
 
-  const handleUnblockSlot = (slotId: string) => {
-    setBlockedSlots(blockedSlots.filter((s) => s.id !== slotId))
-    toast.success("Time slot unblocked")
+  const handleUnblockSlot = (slotIndex: number) => {
+    const slot = slots[slotIndex]
+    if (!slot) return
+    
+    // Remove by matching startTime and endTime
+    const updated = blockedSlots.filter(
+      (b) => !(b.startTime === slot.startTime && b.endTime === slot.endTime)
+    )
+    setBlockedSlots(updated)
+    toast.success("Time slot unblocked (remember to save)")
   }
 
   const handleSaveSchedule = async () => {
@@ -151,15 +187,18 @@ export default function DoctorScheduleManager() {
       
       console.log("Saving schedule:", payload)
       
-      await apiService.post("/api/v1/doctors/schedule", payload)
+      const response = await apiService.post("/doctors/schedule", payload)
+      console.log("Schedule save response:", response)
+      
       toast.success("Schedule saved successfully")
       
       // Refresh the profile to show updated schedule
       await fetchProfile()
     } catch (error: any) {
-      console.error("Failed to save schedule:", error)
-      const errorMessage = error.response?.data?.message || error.message || error.response?.data?.error || "Failed to save schedule"
-      toast.error(errorMessage)
+      console.error("Failed to save schedule - Full error:", error)
+      console.error("Error response:", error.response)
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || "Failed to save schedule"
+      toast.error(`Failed to save schedule: ${errorMessage}`)
     }
   }
 
@@ -246,7 +285,7 @@ export default function DoctorScheduleManager() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleUnblockSlot(slot.id || index.toString())}
+                        onClick={() => handleUnblockSlot(index)}
                       >
                         <X className="h-4 w-4" />
                       </Button>

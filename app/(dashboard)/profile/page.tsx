@@ -94,9 +94,10 @@ export default function ProfilePage() {
 
       // Update profile via API
       const response: any = await userService.updateProfile(payload)
+      console.log("Profile update response:", response)
+      
       // apiService now unwraps the response, so response should be the user object directly
-      // But handle both cases for safety
-      const updatedUser = response.data || response
+      const updatedUser = response
 
       // Optimistic update
       const optimisticUser = {
@@ -119,10 +120,12 @@ export default function ProfilePage() {
       })
 
     } catch (error: any) {
-      console.error("Profile update error:", error)
+      console.error("Profile update error - Full error:", error)
+      console.error("Error response:", error.response)
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || "Failed to update profile"
       toast({
         title: "Error",
-        description: error.message || "Failed to update profile",
+        description: `Failed to update profile: ${errorMessage}`,
         variant: "destructive",
       })
     } finally {

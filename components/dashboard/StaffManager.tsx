@@ -75,8 +75,11 @@ export default function StaffManager() {
                 isEmailVerified: true // Auto-verify for simplicity
             }
 
+            console.log("Creating staff member with payload:", payload)
             const response: any = await userService.createUser(payload)
-            const createdUser = response.data || response
+            console.log("Create staff response:", response)
+            
+            const createdUser = response
             
             toast.success(`${newStaff.role === 'doctor' ? 'Doctor' : 'Receptionist'} added successfully`)
             setIsAddDialogOpen(false)
@@ -91,9 +94,10 @@ export default function StaffManager() {
             })
             await fetchStaff()
         } catch (error: any) {
-            console.error("Add staff error:", error)
-            const errorMessage = error.response?.data?.message || error.message || "Failed to add staff member"
-            toast.error(errorMessage)
+            console.error("Add staff error - Full error:", error)
+            console.error("Error response:", error.response)
+            const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || "Failed to add staff member"
+            toast.error(`Failed to add staff: ${errorMessage}`)
         } finally {
             setActionLoading(false)
         }
@@ -103,13 +107,15 @@ export default function StaffManager() {
         if (!confirm("Are you sure you want to deactivate this staff member? They will no longer be able to access the system.")) return
 
         try {
+            console.log("Deactivating staff member:", userId)
             await userService.deleteUser(userId)
             toast.success("Staff member deactivated successfully")
             await fetchStaff()
         } catch (error: any) {
-            console.error("Delete staff error:", error)
+            console.error("Delete staff error - Full error:", error)
+            console.error("Error response:", error.response)
             const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || "Failed to deactivate staff member. You may not have permission to perform this action."
-            toast.error(errorMessage)
+            toast.error(`Failed to deactivate: ${errorMessage}`)
         }
     }
 

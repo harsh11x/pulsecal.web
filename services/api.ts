@@ -22,6 +22,10 @@ class ApiService {
         if (token) {
           config.headers.Authorization = `Bearer ${token}`
         }
+        console.debug(`API Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`, { 
+          hasAuth: !!token,
+          data: config.data ? (typeof config.data === 'string' ? config.data.substring(0, 100) : 'Object') : 'none'
+        })
         return config
       },
       (error) => Promise.reject(error),
@@ -88,11 +92,23 @@ class ApiService {
           }
         }
 
-        // For network errors, suppress console errors to prevent "Load failed" spam
+        // For network errors, log them properly for debugging
         if (error.code === "ERR_NETWORK" || error.message?.includes("Network Error")) {
-          // Silently handle network errors - components should handle fallbacks
-          console.debug("Network error (suppressed):", error.message)
+          console.error("Network error:", {
+            message: error.message,
+            code: error.code,
+            url: error.config?.url,
+            baseURL: error.config?.baseURL
+          })
         }
+        // Log all errors for debugging
+        console.error("API Error:", {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          url: error.config?.url,
+          method: error.config?.method
+        })
         // For network errors, don't redirect - let the calling code handle it
         return Promise.reject(error)
       },
@@ -103,9 +119,11 @@ class ApiService {
   private unwrapResponse<T>(responseData: any): T {
     // Check if response follows backend format { success: boolean, data: T, message: string }
     if (responseData && typeof responseData === 'object' && 'success' in responseData && 'data' in responseData) {
+      console.debug("Unwrapping API response:", { success: responseData.success, hasData: !!responseData.data, message: responseData.message })
       return responseData.data as T
     }
     // Return as-is if not in expected format
+    console.debug("API response not wrapped, returning as-is:", typeof responseData)
     return responseData as T
   }
 
