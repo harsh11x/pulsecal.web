@@ -10,6 +10,7 @@ import {
 import { sendSuccess, sendPaginated } from '../../utils/apiResponse';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { AppError } from '../../middlewares/error.middleware';
+import { logger } from '../../utils/logger';
 import Joi from 'joi';
 
 const createUserSchema = Joi.object({
@@ -50,16 +51,11 @@ export const createUserController = async (
       throw new AppError(error.details[0].message, 400);
     }
 
-    // Role-based security check: Only Admin or Doctor/Receptionist (for adding patients/staff)
-    // For now, let's assume middleware handles basic auth, but we should enforce:
-    // - Doctors can add Receptionists or Patients
-    // - Admins can add anyone
+    logger.info({ creatorId: req.user?.id, newUserRole: value.role }, 'Creating new user');
+
+    // Role-based security check
     if (req.user?.role !== 'ADMIN' && req.user?.role !== 'DOCTOR') {
-      // Allow creating if it's a receptionist adding a patient? Maybe.
-      // For this specific task "doctor adds new staff members", DOCTOR role is required.
       if (value.role === 'ADMIN' || value.role === 'DOCTOR') {
-        // Only Admin can create Admin or Doctor (unless specific invite flow)
-        // But wait, doctor adds doctor?
         if (req.user?.role !== 'ADMIN' && value.role === 'ADMIN') {
           throw new AppError('Unauthorized to create Admin user', 403);
         }
@@ -72,8 +68,10 @@ export const createUserController = async (
     }
 
     const user = await createUser(value);
+    logger.info({ userId: user.id }, 'User created successfully');
     sendSuccess(res, user, 'User created successfully', 201);
-  } catch (err) {
+  } catch (err: any) {
+    logger.error({ error: err.message, stack: err.stack }, 'Error in createUserController');
     next(err);
   }
 };
@@ -84,12 +82,13 @@ export const getProfileController = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    if (!req.user) {
-      throw new Error('User not authenticated');
+    if (!req.user || !req.user.id) {
+      throw new AppError('User not authenticated', 401);
     }
     const profile = await getProfile(req.user.id);
     sendSuccess(res, profile, 'Profile retrieved successfully');
-  } catch (err) {
+  } catch (err: any) {
+    logger.error({ error: err.message, userId: req.user?.id }, 'Error in getProfileController');
     next(err);
   }
 };
@@ -100,16 +99,20 @@ export const updateProfileController = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    if (!req.user) {
-      throw new Error('User not authenticated');
+    if (!req.user || !req.user.id) {
+      throw new AppError('User not authenticated', 401);
     }
     const { error, value } = updateProfileSchema.validate(req.body);
     if (error) {
-      throw new Error(error.details[0].message);
+      throw new AppError(error.details[0].message, 400);
     }
+    
+    logger.info({ userId: req.user.id, fields: Object.keys(value) }, 'Updating profile');
     const profile = await updateProfile(req.user.id, value);
+    logger.info({ userId: req.user.id }, 'Profile updated successfully');
     sendSuccess(res, profile, 'Profile updated successfully');
-  } catch (err) {
+  } catch (err: any) {
+    logger.error({ error: err.message, userId: req.user?.id }, 'Error in updateProfileController');
     next(err);
   }
 };
@@ -158,4 +161,3 @@ export const updateUserStatusController = async (
     next(err);
   }
 };
-

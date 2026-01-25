@@ -15,9 +15,15 @@ export const updateScheduleController = async (
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
-    if (!userId) throw new AppError('User not authenticated', 401);
+    if (!userId) {
+      throw new AppError('User not authenticated', 401);
+    }
 
     const { date, workingHours, slotDuration, blockedSlots } = req.body;
+
+    if (!date || !workingHours) {
+      throw new AppError('Date and workingHours are required', 400);
+    }
 
     logger.info({ userId, date }, 'Updating doctor schedule');
 
@@ -26,7 +32,9 @@ export const updateScheduleController = async (
       where: { userId },
     });
 
-    if (!profile) throw new AppError('Doctor profile not found', 404);
+    if (!profile) {
+      throw new AppError('Doctor profile not found', 404);
+    }
 
     // Update workingHours
     const currentWorkingHours = (profile.workingHours as any) || {};
@@ -45,11 +53,11 @@ export const updateScheduleController = async (
         },
         exceptions: {
             ...(currentWorkingHours.exceptions || {}),
-            [date]: blockedSlots
+            [date]: blockedSlots || []
         },
         defaultSettings: {
             workingHours,
-            slotDuration
+            slotDuration: slotDuration || 30
         }
     };
 
@@ -61,9 +69,9 @@ export const updateScheduleController = async (
     });
 
     logger.info({ userId }, 'Schedule updated successfully');
-    sendSuccess(res, null, 'Schedule updated successfully');
-  } catch (err) {
-    logger.error({ error: err }, 'Error in updateScheduleController');
+    sendSuccess(res, { workingHours: updatedData }, 'Schedule updated successfully');
+  } catch (err: any) {
+    logger.error({ error: err.message, userId: req.user?.id }, 'Error in updateScheduleController');
     next(err);
   }
 };
@@ -107,7 +115,8 @@ export const searchDoctorsController = async (
     });
 
     sendSuccess(res, result, 'Doctors retrieved successfully');
-  } catch (err) {
+  } catch (err: any) {
+    logger.error({ error: err.message }, 'Error in searchDoctorsController');
     next(err);
   }
 };
@@ -121,7 +130,8 @@ export const getDoctorByIdController = async (
     const { id } = req.params;
     const doctor = await getDoctorById(id);
     sendSuccess(res, doctor, 'Doctor retrieved successfully');
-  } catch (err) {
+  } catch (err: any) {
+    logger.error({ error: err.message }, 'Error in getDoctorByIdController');
     next(err);
   }
 };
@@ -137,7 +147,8 @@ export const getDoctorAvailabilityController = async (
     const dateObj = date ? new Date(date as string) : new Date();
     const availability = await getDoctorAvailability(id, dateObj);
     sendSuccess(res, availability, 'Availability retrieved successfully');
-  } catch (err) {
+  } catch (err: any) {
+    logger.error({ error: err.message }, 'Error in getDoctorAvailabilityController');
     next(err);
   }
 };
@@ -196,11 +207,14 @@ export const getClinicStaffController = async (
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
-    if (!userId) throw new AppError('User not authenticated', 401);
+    if (!userId) {
+      throw new AppError('User not authenticated', 401);
+    }
 
     const staff = await getClinicStaff(userId);
     sendSuccess(res, staff, 'Clinic staff retrieved successfully');
-  } catch (err) {
+  } catch (err: any) {
+    logger.error({ error: err.message, userId: req.user?.id }, 'Error in getClinicStaffController');
     next(err);
   }
 };
