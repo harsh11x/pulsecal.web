@@ -1,0 +1,39 @@
+# ============================================================================
+# BACKEND .env FILE TEMPLATE
+# Copy this file to .env on AWS and fill in your actual values
+# DO NOT commit .env file to git!
+# ============================================================================
+
+# Server Configuration
+NODE_ENV=production
+PORT=3000
+API_VERSION=v1
+CORS_ORIGIN=https://pulsecal.com,https://www.pulsecal.com,http://localhost:3000
+
+# Security Keys (REPLACE WITH YOUR ACTUAL KEYS)
+ENCRYPTION_KEY=your-32-character-encryption-key-here
+JWT_SECRET=your-jwt-secret-here
+JWT_REFRESH_SECRET=your-jwt-refresh-secret-here
+
+# Firebase Admin SDK (REPLACE WITH YOUR ACTUAL CREDENTIALS)
+FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_SERVICE_ACCOUNT_KEY={"type":"service_account","project_id":"...","private_key":"..."}
+
+# Razorpay Payment Gateway
+RAZORPAY_KEY_ID=your-razorpay-key-id
+RAZORPAY_KEY_SECRET=your-razorpay-key-secret
+
+# Calendly API Integration
+CALENDLY_CLIENT_ID=your-calendly-client-id
+CALENDLY_CLIENT_SECRET=your-calendly-client-secret
+CALENDLY_WEBHOOK_SIGNING_KEY=your-webhook-signing-key
+CALENDLY_REDIRECT_URI=https://www.pulsecal.com/api/v1/auth/calendly/callback
+
+# Database
+DATABASE_URL=postgresql://user:password@host:port/database
+DIRECT_URL=postgresql://user:password@host:port/database
+
+# Supabase Client (if needed)
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=your-supabase-key
+
