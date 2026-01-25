@@ -119,8 +119,8 @@ export const createAppointmentController = async (
     emitNewAppointment({
       id: appointment.id,
       doctorId: appointment.doctorId,
-      patientId: appointment.patientId,
-      patientName: `${appointment.patient.firstName} ${appointment.patient.lastName}`,
+      patientId: appointment.patientId || '',
+      patientName: appointment.patient ? `${appointment.patient.firstName} ${appointment.patient.lastName}` : 'Unknown Patient',
       scheduledAt: appointment.scheduledAt,
       reason: appointment.reason || undefined,
     });
@@ -186,7 +186,7 @@ export const updateAppointmentController = async (
     emitAppointmentUpdate({
       id: appointment.id,
       doctorId: appointment.doctorId,
-      patientId: appointment.patientId,
+      patientId: appointment.patientId || '',
       status: appointment.status,
       scheduledAt: appointment.scheduledAt,
     });
@@ -217,7 +217,7 @@ export const rescheduleAppointmentController = async (
     emitAppointmentUpdate({
       id: appointment.id,
       doctorId: appointment.doctorId,
-      patientId: appointment.patientId,
+      patientId: appointment.patientId || '',
       status: appointment.status,
       scheduledAt: appointment.scheduledAt,
     });
@@ -248,7 +248,7 @@ export const cancelAppointmentController = async (
     emitAppointmentUpdate({
       id: appointment.id,
       doctorId: appointment.doctorId,
-      patientId: appointment.patientId,
+      patientId: appointment.patientId || '',
       status: appointment.status,
       scheduledAt: appointment.scheduledAt,
     });

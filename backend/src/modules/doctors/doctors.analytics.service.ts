@@ -149,7 +149,7 @@ const getPatientGrowth = async (doctorId: string, period: string, startDate: Dat
         return aptDate >= date && aptDate < nextDate;
       });
 
-      const periodPatients = new Set(periodApps.map(apt => apt.patientId));
+      const periodPatients = new Set(periodApps.map(apt => apt.patientId).filter((id): id is string => id !== null));
       const newPatients = Array.from(periodPatients).filter(id => !seenPatients.has(id)).length;
       Array.from(periodPatients).forEach(p => seenPatients.add(p));
 

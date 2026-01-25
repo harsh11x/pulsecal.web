@@ -10,7 +10,7 @@ export const initializeSocket = (httpServer: HTTPServer): SocketIOServer => {
     ? corsOrigin.split(',').map(o => o.trim())
     : [corsOrigin];
 
-  logger.info('Socket.IO CORS Configuration:', { allowedOrigins });
+  logger.info({ allowedOrigins }, 'Socket.IO CORS Configuration');
 
   const io = new SocketIOServer(httpServer, {
     cors: {

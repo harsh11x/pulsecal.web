@@ -376,7 +376,7 @@ export const checkInAppointment = async (appointmentId: string) => {
   });
 
   // Automatically add to queue upon check-in
-  if (updated.doctorId) {
+  if (updated.doctorId && updated.patientId) {
     try {
       const { addToQueue } = await import('../queue/queue.service');
       await addToQueue({
