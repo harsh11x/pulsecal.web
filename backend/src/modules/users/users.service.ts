@@ -125,26 +125,8 @@ export const getProfile = async (userId: string) => {
         clinicId: true,
         profileImage: true,
         createdAt: true,
-        patientProfile: {
-          select: {
-            id: true,
-            bloodGroup: true,
-            allergies: true,
-            medicalHistory: true,
-          }
-        },
-        doctorProfile: {
-          select: {
-            id: true,
-            licenseNumber: true,
-            specialization: true,
-            consultationFee: true,
-            clinicName: true,
-            clinicAddress: true,
-            services: true,
-            workingHours: true,
-          }
-        },
+        patientProfile: true,
+        doctorProfile: true,
       },
     });
 
