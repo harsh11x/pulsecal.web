@@ -365,7 +365,7 @@ export default function DoctorOnboarding() {
               await firebaseUser.getIdToken(true);
               await new Promise(resolve => setTimeout(resolve, 1000));
 
-              const profileResponse: any = await apiService.get("/api/v1/auth/profile");
+              const profileResponse: any = await apiService.get("/auth/profile");
               const userProfile = profileResponse?.data || profileResponse;
 
               if (userProfile?.id) {
@@ -552,7 +552,7 @@ export default function DoctorOnboarding() {
       // Redundant safety save: Call sync-profile as well
       if (!onboardingComplete) {
         try {
-          await apiService.post("/api/v1/auth/sync-profile", {
+          await apiService.post("/auth/sync-profile", {
             onboardingCompleted: true
           })
           console.log("Saved onboarding status via sync-profile fallback")

@@ -60,10 +60,13 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
 
         // Fetch user profile from backend (middleware creates if missing)
         try {
-          const profileResponse: any = await apiService.get("/api/v1/auth/profile")
-          const userProfile = profileResponse?.data || profileResponse
+          console.log("🔍 Fetching user profile from backend...")
+          const profileResponse: any = await apiService.get("/auth/profile")
+          console.log("✅ Profile response received:", profileResponse)
+          const userProfile = profileResponse
 
           if (userProfile && userProfile.id) {
+            console.log("✅ User profile found:", userProfile.id, userProfile.email)
             const userData = {
               id: userProfile.id,
               email: userProfile.email,
@@ -94,7 +97,13 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
             }
           }
         } catch (apiError: any) {
-          console.warn("Failed to fetch user profile on login:", apiError)
+          console.error("❌ Failed to fetch user profile on login:", apiError)
+          console.error("Error details:", {
+            message: apiError.message,
+            response: apiError.response?.data,
+            status: apiError.response?.status,
+            url: apiError.config?.url
+          })
           // Even if profile fetch fails, let user proceed - they're authenticated
           toast.success("Signed in successfully!")
           router.push("/dashboard")
@@ -126,8 +135,8 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
           await syncUserProfile(firstName, lastName, undefined, undefined, undefined, normalizedRole)
 
           // Fetch the created profile
-          const profileResponse: any = await apiService.get("/api/v1/auth/profile")
-          const userProfile = profileResponse?.data || profileResponse
+          const profileResponse: any = await apiService.get("/auth/profile")
+          const userProfile = profileResponse
 
           if (userProfile && userProfile.id) {
             const userData = {
@@ -269,15 +278,15 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
           // Wait a bit more for backend to be ready
           await new Promise(resolve => setTimeout(resolve, 500))
 
-          try {
-            // Use a timeout to prevent hanging
-            const profilePromise = apiService.get("/api/v1/auth/profile")
-            const timeoutPromise = new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error("Request timeout")), 5000)
-            )
+            try {
+              // Use a timeout to prevent hanging
+              const profilePromise = apiService.get("/auth/profile")
+              const timeoutPromise = new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error("Request timeout")), 5000)
+              )
 
-            const profileResponse: any = await Promise.race([profilePromise, timeoutPromise])
-            const userProfile = profileResponse?.data || profileResponse
+              const profileResponse: any = await Promise.race([profilePromise, timeoutPromise])
+              const userProfile = profileResponse
 
             if (userProfile && userProfile.id) {
               userHasProfile = true
@@ -370,14 +379,14 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
 
             try {
               // Use a timeout to prevent hanging
-              const profilePromise = apiService.get("/api/v1/auth/profile")
+              const profilePromise = apiService.get("/auth/profile")
               const timeoutPromise = new Promise<never>((_, reject) =>
                 setTimeout(() => reject(new Error("Request timeout")), 5000)
               )
 
               const profileResponse: any = await Promise.race([profilePromise, timeoutPromise])
-              // Backend returns { success: true, data: {...}, message: "..." }
-              const userProfile = profileResponse?.data || profileResponse
+              // apiService unwraps the response, so userProfile is the data directly
+              const userProfile = profileResponse
 
               if (userProfile && userProfile.id) {
                 userHasProfile = true

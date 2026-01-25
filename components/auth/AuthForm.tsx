@@ -39,7 +39,9 @@ export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
     try {
       if (mode === "signin") {
         // Sign in with email and password
+        console.log("🔍 Signing in with email:", formData.email)
         await signIn(formData.email, formData.password)
+        console.log("✅ Firebase sign in successful")
         toast.success("Signed in successfully!")
 
         // Existing users always go to dashboard

@@ -33,7 +33,7 @@ function OnboardingContent() {
 
         try {
           // Use timeout to prevent hanging
-          const profilePromise = apiService.get("/api/v1/auth/profile")
+          const profilePromise = apiService.get("/auth/profile")
           const timeoutPromise = new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error("Request timeout")), 5000)
           )

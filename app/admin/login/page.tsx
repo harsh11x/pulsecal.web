@@ -33,7 +33,7 @@ export default function AdminLoginPage() {
 
             // Sync user with backend to get role and details
             const response: any = await apiService.post(
-                "/api/v1/auth/sync-profile",
+                "/auth/sync-profile",
                 {
                     // We can pass empty body or specific fields if needed
                     // mainly we need the backend to cr eating/fetching the user based on token
