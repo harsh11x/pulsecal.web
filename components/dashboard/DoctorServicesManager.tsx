@@ -31,7 +31,7 @@ export default function DoctorServicesManager({ userId }: DoctorServicesManagerP
             // Assuming we can fetch the doctor profile by user ID or a specific endpoint
             // Adjust endpoint if necessary, e.g., /api/v1/doctor-profiles/me
             const response: any = await apiService.get(`/doctor-profiles/me`)
-            const profile = response.data || response
+            const profile = response
 
             if (profile) {
                 setServices(profile.services || [])

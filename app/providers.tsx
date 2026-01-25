@@ -39,7 +39,8 @@ function AuthStateListener({ children }: { children: React.ReactNode }) {
 
                 try {
                   const profileResponse: any = await apiService.get("/auth/profile")
-                  const userProfile = profileResponse?.data || profileResponse
+                  // apiService unwraps responses, so profileResponse is the data directly
+                  const userProfile = profileResponse
 
                   if (userProfile && userProfile.id) {
                     const userData = {

@@ -58,10 +58,29 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
   const [todayAppointments, setTodayAppointments] = useState<any[]>([])
 
   useEffect(() => {
-    // Add a small delay before fetching to ensure token is ready
-    const timer = setTimeout(() => {
+    // Wait for token to be ready before fetching
+    const waitForToken = async () => {
+      let attempts = 0
+      const maxAttempts = 10
+      
+      while (attempts < maxAttempts) {
+        const { getIdToken } = await import("@/lib/firebaseAuth")
+        const token = await getIdToken()
+        if (token) {
+          console.log("✅ Token ready, fetching dashboard data...")
+          fetchDashboardData()
+          return
+        }
+        attempts++
+        await new Promise(resolve => setTimeout(resolve, 200))
+      }
+      
+      // If no token after max attempts, try anyway (might be public endpoint)
+      console.warn("⚠️ No token after waiting, attempting fetch anyway...")
       fetchDashboardData()
-    }, 300)
+    }
+    
+    waitForToken()
 
     // Socket connection for real-time updates
     const connectSocket = async () => {
@@ -101,7 +120,11 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
       // Fetch analytics data
       const analyticsResponse: any = await apiService.get("/doctors/analytics")
       console.log("✅ Analytics response:", analyticsResponse)
-      setStats(analyticsResponse || {
+      
+      // Handle both wrapped and unwrapped responses
+      const analyticsData = analyticsResponse?.data || analyticsResponse
+      
+      setStats(analyticsData || {
         today: { appointments: 0, revenue: 0, patients: 0, cancellations: 0 },
         yesterday: { appointments: 0, revenue: 0, patients: 0, cancellations: 0 },
         thisWeek: { appointments: 0, revenue: 0, patients: 0, cancellations: 0 },
@@ -114,26 +137,40 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
       // Fetch today's appointments
       const appointmentsResponse: any = await apiService.get("/appointments?date=today")
       console.log("✅ Appointments response:", appointmentsResponse)
-      setTodayAppointments(appointmentsResponse || [])
+      
+      // Handle both wrapped and unwrapped responses
+      const appointmentsData = appointmentsResponse?.data || appointmentsResponse
+      const appointmentsList = Array.isArray(appointmentsData) ? appointmentsData : appointmentsData?.appointments || []
+      setTodayAppointments(appointmentsList)
     } catch (error: any) {
       console.error("❌ Failed to fetch dashboard data:", error)
       console.error("Error details:", {
         message: error.message,
+        code: error.code,
         response: error.response?.data,
         status: error.response?.status,
-        url: error.config?.url
+        statusText: error.response?.statusText,
+        url: error.config?.url || error.request?.url,
+        baseURL: error.config?.baseURL
       })
 
       // Provide more specific error messages
       if (error.response?.status === 401) {
-        toast.error("Session expired. Please refresh the page.")
+        toast.error("Session expired. Please sign in again.")
+        // Redirect to login after a delay
+        setTimeout(() => {
+          window.location.href = "/"
+        }, 2000)
       } else if (error.response?.status === 403) {
         toast.error("You don't have permission to access this data. Please complete your onboarding.")
       } else if (error.code === "ERR_NETWORK" || !error.response) {
-        const errorMsg = error.response?.data?.details || error.response?.data?.error || "Cannot connect to backend server"
-        toast.error(`Network Error: ${errorMsg}`)
+        const errorMsg = error.message || "Cannot connect to backend server"
+        console.error("Network error - Backend might be down or unreachable")
+        toast.error(`Network Error: ${errorMsg}. Check your connection and backend server.`)
+      } else if (error.response?.status >= 500) {
+        toast.error("Backend server error. Please try again later.")
       } else {
-        const errorMsg = error.response?.data?.message || error.response?.data?.error || "Failed to load dashboard data"
+        const errorMsg = error.response?.data?.message || error.response?.data?.error || error.message || "Failed to load dashboard data"
         toast.error(`${errorMsg}. Please try again.`)
       }
 
