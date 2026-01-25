@@ -1,21 +1,17 @@
 #!/bin/bash
-# Check backend logs for 500 errors
-# Run this on AWS: bash CHECK_500_ERRORS.sh
-
+# Check what's causing 500 errors
 echo "🔍 Checking backend logs for 500 errors..."
 echo ""
 
 cd ~/pulsecal.web/backend || exit 1
 
-# Check error logs
-echo "📋 Recent error logs (last 50 lines):"
-pm2 logs pulsecal --err --lines 50 --nostream | grep -i "error\|500\|exception" | tail -20
+echo "📋 Recent error logs:"
+pm2 logs pulsecal --err --lines 100 --nostream | tail -50
 
 echo ""
-echo "📋 All recent logs (last 30 lines):"
-pm2 logs pulsecal --lines 30 --nostream
+echo "📋 Recent output logs (look for actual errors):"
+pm2 logs pulsecal --lines 100 --nostream | grep -i "error\|exception\|failed\|500" | tail -30
 
 echo ""
 echo "💡 To see live logs: pm2 logs pulsecal"
 echo "💡 To see only errors: pm2 logs pulsecal --err"
-
