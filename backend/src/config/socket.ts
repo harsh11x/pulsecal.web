@@ -4,13 +4,51 @@ import { Server as HTTPServer } from 'http';
 import { logger } from '../utils/logger';
 
 export const initializeSocket = (httpServer: HTTPServer): SocketIOServer => {
+  // Get CORS origin from environment, support multiple origins
+  const corsOrigin = process.env.CORS_ORIGIN || process.env.FRONTEND_URL || 'https://www.pulsecal.com';
+  const allowedOrigins = corsOrigin.includes(',')
+    ? corsOrigin.split(',').map(o => o.trim())
+    : [corsOrigin];
+
+  logger.info('Socket.IO CORS Configuration:', { allowedOrigins });
+
   const io = new SocketIOServer(httpServer, {
     cors: {
-      origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+      origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        
+        // Check if origin is in allowed list
+        const isAllowed = allowedOrigins.some(allowed => {
+          // Exact match
+          if (origin === allowed) return true;
+          // Wildcard subdomain match
+          if (allowed.startsWith('*.')) {
+            const domain = allowed.slice(2);
+            return origin.endsWith(domain);
+          }
+          return false;
+        });
+        
+        if (isAllowed) {
+          callback(null, true);
+        } else {
+          logger.warn(`Socket.IO CORS blocked origin: ${origin}`);
+          callback(new Error('Not allowed by CORS'));
+        }
+      },
       methods: ['GET', 'POST'],
       credentials: true,
+      allowedHeaders: ['Authorization', 'Content-Type'],
     },
     transports: ['websocket', 'polling'],
+    // Allow connections from HTTPS frontend even if backend is HTTP (behind load balancer)
+    allowEIO3: true,
+    // Handle proxy/load balancer
+    pingTimeout: 60000,
+    pingInterval: 25000,
+    // Allow upgrade from HTTP to WebSocket
+    allowUpgrades: true,
   });
 
   /*

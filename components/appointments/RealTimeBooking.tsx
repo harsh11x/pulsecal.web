@@ -42,7 +42,8 @@ export function RealTimeBooking({ doctorId, doctorName, consultationFee, onBooki
 
     const fetchSlots = async () => {
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || '/api/v1'}/doctors/${doctorId}/slots?days=10`, {
+            // Use relative path to go through Next.js proxy (HTTPS)
+            const res = await fetch(`/api/v1/doctors/${doctorId}/slots?days=10`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
             if (res.ok) {
@@ -61,18 +62,42 @@ export function RealTimeBooking({ doctorId, doctorName, consultationFee, onBooki
 
         if (!token) return
 
-        // Connect to /notifications namespace with auth
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-        if (!apiUrl) {
-            console.error("NEXT_PUBLIC_API_URL is not defined");
-            return;
+        // Check if we can use sockets (must have HTTPS backend when frontend is HTTPS)
+        const isHttps = window.location.protocol === 'https:'
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL
+        
+        if (isHttps && backendUrl && backendUrl.startsWith('http://')) {
+            console.warn("[RealTimeBooking] Frontend is HTTPS but backend is HTTP. Socket connections disabled.")
+            return // Don't connect sockets if there's a mixed content issue
         }
         
-        const socket = io(`${apiUrl}/notifications`, {
+        // Use HTTPS backend URL if available
+        let socketUrl: string
+        if (backendUrl && backendUrl.startsWith('https://')) {
+            socketUrl = `${backendUrl.replace(/\/$/, '')}/notifications`
+        } else {
+            // Try relative path (may not work for WebSockets)
+            socketUrl = "/api/v1/notifications"
+            console.warn("[RealTimeBooking] Using relative path - may not work. Configure HTTPS backend.")
+        }
+        
+        console.log(`[RealTimeBooking] Connecting socket to: ${socketUrl}`)
+        
+        const socket = io(socketUrl, {
             auth: {
                 token: token
-            }
+            },
+            transports: ['websocket', 'polling'],
+            autoConnect: backendUrl?.startsWith('https://') || false, // Only auto-connect if HTTPS
         })
+        
+        // Only connect if we have HTTPS
+        if (backendUrl && backendUrl.startsWith('https://')) {
+            socket.connect()
+        } else {
+            console.warn("[RealTimeBooking] Not connecting socket - backend must use HTTPS")
+            return
+        }
 
         socket.on('connect', () => {
             socket.emit('join_doctor_slots', doctorId)
