@@ -402,4 +402,8 @@ export const getDoctorAnalytics = async (
       recent: recentReviews
     }
   };
+  } catch (error: any) {
+    console.error('Error in getDoctorAnalytics:', error.message, error.stack);
+    throw error;
+  }
 };
