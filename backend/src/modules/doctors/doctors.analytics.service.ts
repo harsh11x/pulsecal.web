@@ -173,9 +173,14 @@ export const getDoctorAnalytics = async (
   customStartDate?: Date,
   customEndDate?: Date
 ) => {
-  const now = new Date();
-  let startDate: Date;
-  let endDate: Date = now;
+  try {
+    if (!doctorId || typeof doctorId !== 'string') {
+      throw new Error('Invalid doctor ID');
+    }
+
+    const now = new Date();
+    let startDate: Date;
+    let endDate: Date = now;
 
   if (period === 'custom' && customStartDate && customEndDate) {
     startDate = new Date(customStartDate);

@@ -106,6 +106,10 @@ export const getProfile = async (userId: string) => {
   try {
     logger.info({ userId }, 'Fetching profile from database');
     
+    if (!userId || typeof userId !== 'string') {
+      throw new AppError('Invalid user ID', 400);
+    }
+
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -121,8 +125,26 @@ export const getProfile = async (userId: string) => {
         clinicId: true,
         profileImage: true,
         createdAt: true,
-        patientProfile: true,
-        doctorProfile: true,
+        patientProfile: {
+          select: {
+            id: true,
+            bloodGroup: true,
+            allergies: true,
+            medicalHistory: true,
+          }
+        },
+        doctorProfile: {
+          select: {
+            id: true,
+            licenseNumber: true,
+            specialization: true,
+            consultationFee: true,
+            clinicName: true,
+            clinicAddress: true,
+            services: true,
+            workingHours: true,
+          }
+        },
       },
     });
 
@@ -134,15 +156,20 @@ export const getProfile = async (userId: string) => {
     logger.info({ userId, role: user.role }, 'Profile retrieved successfully');
     return user;
   } catch (error: any) {
+    if (error instanceof AppError) {
+      throw error;
+    }
     logger.error(
       { 
         error: error.message, 
         stack: error.stack,
-        userId 
+        userId,
+        errorName: error.name,
+        errorCode: error.code
       }, 
       'Error in getProfile service'
     );
-    throw error;
+    throw new AppError(`Failed to fetch profile: ${error.message}`, 500);
   }
 };
 
