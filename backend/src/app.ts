@@ -21,6 +21,40 @@ app.use((req, _res, next) => {
   next();
 });
 
+// Request Logging Middleware (logs ALL incoming requests)
+app.use((req, res, next) => {
+  const start = Date.now();
+  const requestInfo = {
+    method: req.method,
+    path: req.path,
+    url: req.originalUrl,
+    ip: req.ip,
+    userAgent: req.get('user-agent'),
+    authorization: req.get('authorization') ? 'Present' : 'Missing',
+  };
+  
+  // Log to console (PM2 will capture this)
+  console.log(`[REQUEST] ${req.method} ${req.path}`, JSON.stringify(requestInfo));
+  logger.info(requestInfo, `Incoming request: ${req.method} ${req.path}`);
+  
+  // Log response when it finishes
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`[RESPONSE] ${req.method} ${req.path} - ${res.statusCode} (${duration}ms)`);
+    logger.info(
+      {
+        method: req.method,
+        path: req.path,
+        statusCode: res.statusCode,
+        duration,
+      },
+      `Request completed: ${req.method} ${req.path}`
+    );
+  });
+  
+  next();
+});
+
 // Structured Logging
 app.use(
   pinoHttp({
