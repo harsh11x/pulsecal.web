@@ -7,8 +7,19 @@ export const apiRateLimiter = rateLimit({
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  // Trust proxy is enabled in Express (app.set('trust proxy', 1))
+  // This tells rate limiter to acknowledge and work with it
   validate: {
-    trustProxy: false,
+    trustProxy: true,
+  },
+  // Use a key generator that works with proxy headers
+  keyGenerator: (req) => {
+    // Get IP from X-Forwarded-For header (when behind proxy) or direct connection
+    const forwarded = req.headers['x-forwarded-for'];
+    const ip = forwarded 
+      ? (typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : forwarded[0])
+      : req.ip || req.socket.remoteAddress || 'unknown';
+    return ip;
   },
 });
 
@@ -18,7 +29,14 @@ export const authRateLimiter = rateLimit({
   message: 'Too many authentication attempts, please try again later.',
   skipSuccessfulRequests: true,
   validate: {
-    trustProxy: false,
+    trustProxy: true,
+  },
+  keyGenerator: (req) => {
+    const forwarded = req.headers['x-forwarded-for'];
+    const ip = forwarded 
+      ? (typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : forwarded[0])
+      : req.ip || req.socket.remoteAddress || 'unknown';
+    return ip;
   },
 });
 
@@ -27,7 +45,14 @@ export const strictRateLimiter = rateLimit({
   max: 10, // 10 requests per hour
   message: 'Too many requests, please try again later.',
   validate: {
-    trustProxy: false,
+    trustProxy: true,
+  },
+  keyGenerator: (req) => {
+    const forwarded = req.headers['x-forwarded-for'];
+    const ip = forwarded 
+      ? (typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : forwarded[0])
+      : req.ip || req.socket.remoteAddress || 'unknown';
+    return ip;
   },
 });
 
