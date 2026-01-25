@@ -100,11 +100,28 @@ export function GoogleSignInButton({
 
       // Provide more specific error message
       let errorMessage = "Google authentication failed. Please try again."
-      if (error.message) {
-        errorMessage = error.message
+      let shouldShowError = true
+      
+      if (error.code === "auth/popup-blocked") {
+        errorMessage = "Popup was blocked. Please allow popups for this site."
+      } else if (error.code === "auth/popup-closed-by-user" || error.message?.includes("cancelled")) {
+        // User cancelled - don't show error
+        errorMessage = "Sign-in was cancelled."
+        shouldShowError = false
+      } else if (error.code === "auth/network-request-failed" || error.code === "ERR_NETWORK") {
+        errorMessage = "Network error. Please check your connection and backend server."
+      } else if (error.message) {
+        // Only show if not a cancellation
+        if (!error.message.toLowerCase().includes("cancelled")) {
+          errorMessage = error.message
+        } else {
+          shouldShowError = false
+        }
       }
 
-      onError?.(new Error(errorMessage))
+      if (shouldShowError) {
+        onError?.(new Error(errorMessage))
+      }
     } finally {
       setLoading(false)
     }

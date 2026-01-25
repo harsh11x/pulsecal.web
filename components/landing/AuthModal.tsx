@@ -470,7 +470,7 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
 
       router.push(redirectPath)
       onClose()
-    } catch (error: any) {
+      } catch (error: any) {
       console.error("Google authentication error:", error)
 
       // Handle specific error cases
@@ -478,21 +478,31 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
 
       if (error.code === "auth/popup-blocked") {
         errorMessage = "Popup was blocked. Please allow popups for this site and try again."
-      } else if (error.code === "auth/popup-closed-by-user") {
-        errorMessage = "Sign-in was cancelled. Please try again."
+      } else if (error.code === "auth/popup-closed-by-user" || error.message?.includes("cancelled")) {
+        // Don't show error if user just cancelled - it's not really an error
+        errorMessage = "Sign-in was cancelled."
       } else if (error.code === "auth/account-exists-with-different-credential") {
         errorMessage = "An account already exists with this email. Please sign in with your password."
-      } else if (error.code === "auth/network-request-failed") {
+      } else if (error.code === "auth/network-request-failed" || error.code === "ERR_NETWORK") {
         errorMessage = "Network error. Please check your connection and try again."
       } else if (error.code === "auth/cancelled-popup-request") {
         errorMessage = "Only one popup request is allowed at a time. Please try again."
       } else if (error.code === "auth/unauthorized-domain") {
         errorMessage = "This domain is not authorized. Please contact support."
       } else if (error.message) {
-        errorMessage = error.message
+        // Only show error if it's not a cancellation
+        if (!error.message.toLowerCase().includes("cancelled")) {
+          errorMessage = error.message
+        } else {
+          // User cancelled - don't show error toast
+          return
+        }
       }
 
-      toast.error(errorMessage)
+      // Only show error if it's not a user cancellation
+      if (!errorMessage.toLowerCase().includes("cancelled")) {
+        toast.error(`Google sign in failed: ${errorMessage}`)
+      }
     } finally {
       setGoogleLoading(false)
     }
