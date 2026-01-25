@@ -142,7 +142,6 @@ export const getProfile = async (userId: string) => {
             consultationFee: true,
             services: true,
             workingHours: true,
-            slotDuration: true,
             bio: true,
             subscriptionStatus: true,
             subscriptionPlan: true,
