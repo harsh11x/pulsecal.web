@@ -134,7 +134,8 @@ export const getDoctorAvailabilityController = async (
   try {
     const { id } = req.params;
     const { date } = req.query;
-    const availability = await getDoctorAvailability(id, date as string);
+    const dateObj = date ? new Date(date as string) : new Date();
+    const availability = await getDoctorAvailability(id, dateObj);
     sendSuccess(res, availability, 'Availability retrieved successfully');
   } catch (err) {
     next(err);

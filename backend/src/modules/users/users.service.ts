@@ -1,6 +1,5 @@
 import prisma from '../../config/database';
 import admin from '../../config/firebase';
-import { getPaginationParams, getSortParams } from '../../utils/helpers';
 import { AppError } from '../../middlewares/error.middleware';
 import { logger } from '../../utils/logger';
 
@@ -258,15 +257,13 @@ export const updateProfile = async (
   }
 };
 
-export const getAllUsers = async (params: {
-  page?: number;
-  limit?: number;
-  role?: string;
-  search?: string;
-}) => {
-  const { page = 1, limit = 10, role, search } = params;
-  const { skip, take } = getPaginationParams(page, limit);
-  const { orderBy } = getSortParams('createdAt', 'desc');
+export const getAllUsers = async (req: any) => {
+  const { page = 1, limit = 10 } = req.query || {};
+  const { role, search } = req.query || {};
+  
+  const pageNum = Math.max(1, parseInt(page as string, 10) || 1);
+  const limitNum = Math.min(100, Math.max(1, parseInt(limit as string, 10) || 10));
+  const skip = (pageNum - 1) * limitNum;
 
   const where: any = {};
   if (role) {
@@ -274,9 +271,9 @@ export const getAllUsers = async (params: {
   }
   if (search) {
     where.OR = [
-      { firstName: { contains: search, mode: 'insensitive' } },
-      { lastName: { contains: search, mode: 'insensitive' } },
-      { email: { contains: search, mode: 'insensitive' } },
+      { firstName: { contains: search as string, mode: 'insensitive' } },
+      { lastName: { contains: search as string, mode: 'insensitive' } },
+      { email: { contains: search as string, mode: 'insensitive' } },
     ];
   }
 
@@ -284,8 +281,10 @@ export const getAllUsers = async (params: {
     prisma.user.findMany({
       where,
       skip,
-      take,
-      orderBy,
+      take: limitNum,
+      orderBy: {
+        createdAt: 'desc',
+      },
       select: {
         id: true,
         email: true,
@@ -302,10 +301,10 @@ export const getAllUsers = async (params: {
   return {
     data: users,
     pagination: {
-      page,
-      limit,
+      page: pageNum,
+      limit: limitNum,
       total,
-      totalPages: Math.ceil(total / limit),
+      totalPages: Math.ceil(total / limitNum),
     },
   };
 };

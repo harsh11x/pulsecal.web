@@ -123,7 +123,7 @@ export const getAllUsersController = async (
     const result = await getAllUsers(req);
     sendPaginated(
       res,
-      result.users,
+      result.data,
       result.pagination,
       'Users retrieved successfully'
     );
