@@ -20,21 +20,32 @@ export const errorHandler = (
   res: Response,
   _next: NextFunction
 ): void => {
-  if (err instanceof AppError) {
-    logger.warn({
-      statusCode: err.statusCode,
-      path: req.path,
-      method: req.method,
-    }, `AppError: ${err.message}`);
-    return sendError(res, err.message, err.statusCode);
-  }
-
-  logger.error({
+  // Always log errors with full details
+  const errorDetails = {
     error: err.message,
     stack: err.stack,
     path: req.path,
     method: req.method,
-  }, 'Unhandled error');
+    url: req.originalUrl,
+    query: req.query,
+    body: req.body,
+    statusCode: err instanceof AppError ? err.statusCode : 500,
+    userId: (req as any).user?.id,
+  };
+
+  if (err instanceof AppError) {
+    // Log AppErrors as warnings but with full context
+    logger.warn(errorDetails, `AppError (${err.statusCode}): ${err.message}`);
+    // Also log to console for PM2 to capture
+    console.error(`[AppError ${err.statusCode}] ${req.method} ${req.path}:`, err.message);
+    return sendError(res, err.message, err.statusCode);
+  }
+
+  // Log unhandled errors with full stack trace
+  logger.error(errorDetails, 'Unhandled error (500)');
+  // Also log to console for PM2 to capture
+  console.error(`[Unhandled Error] ${req.method} ${req.path}:`, err.message);
+  console.error('Stack trace:', err.stack);
 
   sendError(
     res,

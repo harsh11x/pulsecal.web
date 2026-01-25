@@ -188,14 +188,18 @@ export const getDoctorAnalyticsController = async (
     logger.info({ doctorId }, 'Analytics retrieved successfully');
     sendSuccess(res, analytics, 'Analytics retrieved successfully');
   } catch (err: any) {
-    logger.error(
-      { 
-        error: err.message, 
-        stack: err.stack,
-        doctorId: req.user?.id 
-      }, 
-      'Error in getDoctorAnalyticsController'
-    );
+    // Enhanced error logging
+    const errorInfo = {
+      error: err.message,
+      stack: err.stack,
+      doctorId: req.user?.id,
+      errorName: err.name,
+      errorCode: err.code,
+      query: req.query,
+    };
+    logger.error(errorInfo, 'Error in getDoctorAnalyticsController');
+    // Also log to console for PM2
+    console.error('[getDoctorAnalyticsController ERROR]', errorInfo);
     next(err);
   }
 };

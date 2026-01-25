@@ -36,14 +36,17 @@ export const getProfileController = async (
       throw profileError;
     }
   } catch (error: any) {
-    logger.error(
-      { 
-        error: error.message, 
-        stack: error.stack,
-        userId: req.user?.id 
-      }, 
-      'Error in getProfileController'
-    );
+    // Enhanced error logging
+    const errorInfo = {
+      error: error.message,
+      stack: error.stack,
+      userId: req.user?.id,
+      errorName: error.name,
+      errorCode: error.code,
+    };
+    logger.error(errorInfo, 'Error in getProfileController');
+    // Also log to console for PM2
+    console.error('[getProfileController ERROR]', errorInfo);
     next(error);
   }
 };
