@@ -26,7 +26,7 @@ export default function AppointmentDetail({ params }: { params: { id: string } }
 
   const fetchAppointment = async () => {
     try {
-      const response: any = await apiService.get(`/api/v1/appointments/${params.id}`)
+      const response: any = await apiService.get(`/appointments/${params.id}`)
       setAppointment(response?.data || response)
     } catch (error) {
       console.error("Failed to fetch appointment:", error)
@@ -40,7 +40,7 @@ export default function AppointmentDetail({ params }: { params: { id: string } }
     setProcessingPayment(true)
     try {
       // 1. Initiate Payment Order
-      const orderResponse: any = await apiService.post("/api/v1/payments/create-order", {
+      const orderResponse: any = await apiService.post("/payments/create-order", {
         appointmentId: appointment.id,
         amount: appointment.doctor?.consultationFee || 500 // Fallback or fetch from payment/doctor
       })
@@ -55,7 +55,7 @@ export default function AppointmentDetail({ params }: { params: { id: string } }
         handler: async (response: any) => {
           // 2. Verify Payment
           try {
-            await apiService.post("/api/v1/payments/verify", {
+            await apiService.post("/payments/verify", {
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature

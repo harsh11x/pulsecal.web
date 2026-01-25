@@ -30,7 +30,7 @@ export function AddInsuranceDialog({ open, onOpenChange, onSuccess }: AddInsuran
         setLoading(true)
 
         try {
-            await apiService.post("/api/v1/patients/insurance", {
+            await apiService.post("/patients/insurance", {
                 ...formData,
                 isActive: true
             })

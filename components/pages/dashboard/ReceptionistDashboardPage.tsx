@@ -122,29 +122,29 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
   const fetchDashboardData = async () => {
     try {
       // Fetch today's stats
-      const statsResponse: any = await apiService.get("/api/v1/receptionists/stats")
-      if (statsResponse?.data?.stats) {
-        setTodayStats(statsResponse.data.stats)
+      const statsResponse: any = await apiService.get("/receptionists/stats")
+      if (statsResponse?.stats) {
+        setTodayStats(statsResponse.stats)
       } else {
         setTodayStats({ appointments: 0, completed: 0, waiting: 0, cancelled: 0, inProgress: 0 })
       }
 
-      if (statsResponse?.data?.clinic) {
-        setClinicInfo(statsResponse.data.clinic)
+      if (statsResponse?.clinic) {
+        setClinicInfo(statsResponse.clinic)
       }
 
       // Fetch queue
-      const queueResponse: any = await apiService.get("/api/v1/receptionists/queue")
-      setQueue(queueResponse?.data || [])
+      const queueResponse: any = await apiService.get("/receptionists/queue")
+      setQueue(queueResponse || [])
 
       // Fetch today's appointments
-      const todayResponse: any = await apiService.get("/api/v1/appointments?date=today")
-      const todayApts = todayResponse?.data || []
+      const todayResponse: any = await apiService.get("/appointments?date=today")
+      const todayApts = todayResponse || []
       setTodayAppointments(Array.isArray(todayApts) ? todayApts : todayApts.appointments || [])
 
       // Fetch all appointments for the clinic
-      const allResponse: any = await apiService.get("/api/v1/appointments")
-      const allApts = allResponse?.data || []
+      const allResponse: any = await apiService.get("/appointments")
+      const allApts = allResponse || []
       setAllAppointments(Array.isArray(allApts) ? allApts : allApts.appointments || [])
     } catch (error: any) {
       console.error("Failed to fetch dashboard data:", error)
@@ -158,7 +158,7 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
 
   const handleCheckIn = async (appointmentId: string) => {
     try {
-      await apiService.post(`/api/v1/appointments/${appointmentId}/checkin`)
+      await apiService.post(`/appointments/${appointmentId}/checkin`)
       toast.success("Patient checked in successfully")
       fetchDashboardData()
     } catch (error: any) {
@@ -168,7 +168,7 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
 
   const handleAcceptAppointment = async (appointmentId: string) => {
     try {
-      await apiService.put(`/api/v1/appointments/${appointmentId}`, {
+      await apiService.put(`/appointments/${appointmentId}`, {
         status: "CONFIRMED"
       })
       toast.success("Appointment accepted successfully")
@@ -180,7 +180,7 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
 
   const handleQueueUpdate = async (queueId: string, status: string) => {
     try {
-      await apiService.put(`/api/v1/queue/${queueId}`, { status })
+      await apiService.put(`/queue/${queueId}`, { status })
       toast.success("Queue updated")
       fetchDashboardData()
     } catch (error: any) {
@@ -191,7 +191,7 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
   const handleCancelAppointment = async () => {
     if (!cancelId) return
     try {
-      await apiService.post(`/api/v1/appointments/${cancelId}/cancel`, {
+      await apiService.post(`/appointments/${cancelId}/cancel`, {
         cancellationReason: "Cancelled by receptionist"
       })
       toast.success("Appointment cancelled successfully")
@@ -210,7 +210,7 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
 
     try {
       const scheduledAt = new Date(`${newScheduleDate}T${newScheduleTime}`)
-      await apiService.post(`/api/v1/appointments/${rescheduleId}/reschedule`, {
+      await apiService.post(`/appointments/${rescheduleId}/reschedule`, {
         scheduledAt: scheduledAt.toISOString()
       })
       toast.success("Appointment rescheduled successfully")

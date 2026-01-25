@@ -39,7 +39,7 @@ export default function AdminDashboard() {
 
     const loadStats = async () => {
         try {
-            const response: any = await apiService.get("/api/v1/admin/stats")
+            const response: any = await apiService.get("/admin/stats")
             setStats(response?.data || response)
         } catch (error: any) {
             console.error("Failed to load stats:", error)

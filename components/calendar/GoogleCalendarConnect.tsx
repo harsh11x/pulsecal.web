@@ -21,7 +21,7 @@ export function GoogleCalendarConnect() {
     const checkConnectionStatus = async () => {
         try {
             setChecking(true)
-            const response: any = await apiService.get("/api/v1/calendar/status")
+            const response: any = await apiService.get("/calendar/status")
             setConnected(response.data?.connected || false)
             if (response.data?.tokenExpiry) {
                 setTokenExpiry(new Date(response.data.tokenExpiry))
@@ -38,7 +38,7 @@ export function GoogleCalendarConnect() {
             setLoading(true)
 
             // Get authorization URL
-            const response: any = await apiService.get("/api/v1/calendar/connect")
+            const response: any = await apiService.get("/calendar/connect")
             const authUrl = response.data?.authUrl
 
             if (!authUrl) {
@@ -65,7 +65,7 @@ export function GoogleCalendarConnect() {
                     if (code) {
                         try {
                             // Exchange code for tokens
-                            await apiService.post("/api/v1/calendar/callback", { code })
+                            await apiService.post("/calendar/callback", { code })
                             toast.success("Google Calendar connected successfully!")
                             setConnected(true)
                             checkConnectionStatus()
@@ -101,7 +101,7 @@ export function GoogleCalendarConnect() {
     const handleDisconnect = async () => {
         try {
             setLoading(true)
-            await apiService.post("/api/v1/calendar/disconnect")
+            await apiService.post("/calendar/disconnect")
             toast.success("Google Calendar disconnected")
             setConnected(false)
             setTokenExpiry(null)

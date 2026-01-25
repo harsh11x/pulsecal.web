@@ -18,7 +18,7 @@ export default function Insurance() {
 
   const fetchInsurance = async () => {
     try {
-      const response: any = await apiService.get("/api/v1/patients/insurance")
+      const response: any = await apiService.get("/patients/insurance")
       setInsurance(response.data)
     } catch (error) {
       console.error("Failed to fetch insurance:", error)

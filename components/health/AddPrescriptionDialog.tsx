@@ -49,7 +49,7 @@ export function AddPrescriptionDialog({ open, onOpenChange, onSuccess }: AddPres
         try {
             // Try to fetch patients list if user is doctor
             // Using a generic users endpoint or appointments to get recent patients
-            const response: any = await apiService.get("/api/v1/users?role=patient") // Adjust endpoint as needed
+            const response: any = await apiService.get("/users?role=patient") // Adjust endpoint as needed
             setPatients(response.data || [])
         } catch (e) {
             console.warn("Failed to fetch patients list", e)
@@ -84,7 +84,7 @@ export function AddPrescriptionDialog({ open, onOpenChange, onSuccess }: AddPres
                 notes: formData.notes
             }
 
-            await apiService.post("/api/v1/prescriptions", payload)
+            await apiService.post("/prescriptions", payload)
             toast.success("Prescription added successfully")
             onSuccess()
             onOpenChange(false)

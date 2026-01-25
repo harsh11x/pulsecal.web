@@ -42,7 +42,7 @@ export function RealTimeBooking({ doctorId, doctorName, consultationFee, onBooki
 
     const fetchSlots = async () => {
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/doctors/${doctorId}/slots?days=10`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || '/api/v1'}/doctors/${doctorId}/slots?days=10`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
             if (res.ok) {
@@ -99,7 +99,7 @@ export function RealTimeBooking({ doctorId, doctorName, consultationFee, onBooki
         setLoading(true)
         try {
             // Use apiService for consistency and interceptors
-            const res: any = await apiService.post('/api/v1/appointments', {
+            const res: any = await apiService.post('/appointments', {
                 doctorId,
                 scheduledAt: selectedTime,
                 reason,

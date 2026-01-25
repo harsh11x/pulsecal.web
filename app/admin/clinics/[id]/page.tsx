@@ -54,7 +54,7 @@ export default function ClinicDetailsPage() {
     const fetchClinicDetails = async () => {
         try {
             setLoading(true)
-            const response: any = await apiService.get(`/api/v1/admin/clinics/${id}`)
+            const response: any = await apiService.get(`/admin/clinics/${id}`)
             setClinic(response.data || response)
         } catch (error) {
             console.error("Failed to fetch clinic details:", error)

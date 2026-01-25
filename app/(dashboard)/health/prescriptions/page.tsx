@@ -20,7 +20,7 @@ export default function PrescriptionsPage() {
   const fetchPrescriptions = async () => {
     try {
       setLoading(true)
-      const response: any = await apiService.get("/api/v1/prescriptions")
+      const response: any = await apiService.get("/prescriptions")
       setPrescriptions(response.data || [])
     } catch (error) {
       console.error("Failed to fetch prescriptions:", error)

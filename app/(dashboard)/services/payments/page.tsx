@@ -18,7 +18,7 @@ export default function Payments() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response: any = await apiService.get("/api/v1/patients/payments")
+        const response: any = await apiService.get("/patients/payments")
         setData(response.data || { transactions: [], summary: { totalPaid: 0, totalPending: 0 } })
       } catch (error) {
         console.error("Failed to fetch payments:", error)

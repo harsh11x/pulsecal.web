@@ -38,7 +38,7 @@ export default function AppointmentsListPage() {
 
   const fetchAppointments = async () => {
     try {
-      const response: any = await apiService.get("/api/v1/appointments")
+      const response: any = await apiService.get("/appointments")
       setAppointments(response.data || [])
     } catch (error) {
       console.error("Failed to fetch appointments:", error)
@@ -51,7 +51,7 @@ export default function AppointmentsListPage() {
   const handleCancel = async () => {
     if (!cancelId) return
     try {
-      await apiService.post(`/api/v1/appointments/${cancelId}/cancel`, { reason: "Patient requested cancellation" })
+      await apiService.post(`/appointments/${cancelId}/cancel`, { reason: "Patient requested cancellation" })
       toast.success("Appointment cancelled successfully")
       fetchAppointments()
     } catch (error: any) {

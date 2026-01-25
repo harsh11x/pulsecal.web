@@ -78,12 +78,12 @@ export default function PatientDashboardPage({ user }: PatientDashboardPageProps
       setLoading(true)
 
       // Fetch patient stats
-      const statsResponse: any = await apiService.get("/api/v1/patients/stats")
-      setStatsData(statsResponse.data || { upcomingAppointments: 0, activePrescriptions: 0, medicalRecords: 0 })
+      const statsResponse: any = await apiService.get("/patients/stats")
+      setStatsData(statsResponse || { upcomingAppointments: 0, activePrescriptions: 0, medicalRecords: 0 })
 
       // Fetch upcoming appointments
-      const appointmentsResponse: any = await apiService.get("/api/v1/appointments")
-      const allAppointments = appointmentsResponse?.data || []
+      const appointmentsResponse: any = await apiService.get("/appointments")
+      const allAppointments = appointmentsResponse || []
       const appointments = Array.isArray(allAppointments) ? allAppointments : allAppointments.appointments || []
       
       // Filter for upcoming appointments only
@@ -101,8 +101,8 @@ export default function PatientDashboardPage({ user }: PatientDashboardPageProps
 
       // Fetch active prescriptions
       try {
-        const prescriptionsResponse: any = await apiService.get("/api/v1/prescriptions?status=ACTIVE")
-        const prescriptions = prescriptionsResponse?.data || []
+        const prescriptionsResponse: any = await apiService.get("/prescriptions?status=ACTIVE")
+        const prescriptions = prescriptionsResponse || []
         setActivePrescriptions(Array.isArray(prescriptions) ? prescriptions.slice(0, 5) : [])
       } catch (error) {
         console.error("Failed to fetch prescriptions:", error)

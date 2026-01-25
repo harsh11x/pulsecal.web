@@ -19,7 +19,7 @@ export default function AnalyticsPage() {
             try {
                 setLoading(true)
                 // Fetch analytics data
-                const analyticsResponse: any = await apiService.get("/api/v1/doctors/analytics")
+                const analyticsResponse: any = await apiService.get("/doctors/analytics")
                 setStats(analyticsResponse.data || null)
 
                 // Use real reviews from analytics response

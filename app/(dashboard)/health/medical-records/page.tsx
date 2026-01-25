@@ -28,7 +28,7 @@ export default function MedicalRecordsPage() {
   const fetchRecords = async () => {
     try {
       setLoading(true)
-      const response: any = await apiService.get("/api/v1/medical-records") // Ensure this endpoint returns list
+      const response: any = await apiService.get("/medical-records") // Ensure this endpoint returns list
       setRecords(response.data || [])
     } catch (error) {
       console.error("Failed to fetch medical records:", error)

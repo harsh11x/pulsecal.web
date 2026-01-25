@@ -51,7 +51,7 @@ export function AddMedicalRecordDialog({ open, onOpenChange, onSuccess }: AddMed
                 .map(t => t.trim())
                 .filter(t => t.length > 0)
 
-            await apiService.post("/api/v1/patients/medical-records", {
+            await apiService.post("/patients/medical-records", {
                 visitDate: formData.visitDate,
                 doctorName: formData.doctorName,
                 diagnosis: formData.diagnosis,

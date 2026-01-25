@@ -76,7 +76,7 @@ export default function ClinicsListPage() {
     const fetchClinics = async () => {
         try {
             setLoading(true)
-            const response: any = await apiService.get("/api/v1/admin/clinics")
+            const response: any = await apiService.get("/admin/clinics")
             // Handle both paginated and regular response structures
             // apiService returns response.data directly
             // If backend returns { data: [...], pagination: ... }, then response.data is the array

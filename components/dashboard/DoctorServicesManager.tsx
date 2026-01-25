@@ -30,7 +30,7 @@ export default function DoctorServicesManager({ userId }: DoctorServicesManagerP
         try {
             // Assuming we can fetch the doctor profile by user ID or a specific endpoint
             // Adjust endpoint if necessary, e.g., /api/v1/doctor-profiles/me
-            const response: any = await apiService.get(`/api/v1/doctor-profiles/me`)
+            const response: any = await apiService.get(`/doctor-profiles/me`)
             const profile = response.data || response
 
             if (profile) {
@@ -63,7 +63,7 @@ export default function DoctorServicesManager({ userId }: DoctorServicesManagerP
         setLoading(true)
         try {
             console.log("Saving services:", { services, consultationFee })
-            const response = await apiService.put("/api/v1/doctor-profiles/me", {
+            const response = await apiService.put("/doctor-profiles/me", {
                 services,
                 consultationFee
             })

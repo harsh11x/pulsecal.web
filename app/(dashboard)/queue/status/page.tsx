@@ -25,7 +25,7 @@ export default function QueueStatusPage() {
         try {
             setLoading(true)
             // Get today's appointments
-            const response: any = await apiService.get("/api/v1/appointments?date=today")
+            const response: any = await apiService.get("/appointments?date=today")
             const data = response?.data || []
             setAppointments(data)
 
@@ -53,7 +53,7 @@ export default function QueueStatusPage() {
 
     const updateStatus = async (id: string, status: string) => {
         try {
-            await apiService.patch(`/api/v1/appointments/${id}/status`, { status })
+            await apiService.patch(`/appointments/${id}/status`, { status })
             toast.success(`Appointment marked as ${status.replace('_', ' ')}`)
             fetchQueue()
         } catch (error) {

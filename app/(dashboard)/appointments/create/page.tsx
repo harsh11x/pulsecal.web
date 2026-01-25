@@ -72,7 +72,7 @@ export default function CreateAppointmentPage() {
         type: formData.type
       }
 
-      const response: any = await apiService.post("/api/v1/appointments", appointmentData)
+      const response: any = await apiService.post("/appointments", appointmentData)
 
       toast.success("Appointment created successfully")
       router.push(`/appointments/list`)

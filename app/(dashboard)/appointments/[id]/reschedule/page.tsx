@@ -29,7 +29,7 @@ export default function RescheduleAppointment({ params }: { params: { id: string
   const fetchAppointment = async () => {
     try {
       setLoading(true)
-      const data: any = await apiService.get(`/api/v1/appointments/${params.id}`)
+      const data: any = await apiService.get(`/appointments/${params.id}`)
       setAppointment(data)
 
       // Parse existing date/time if available
@@ -59,7 +59,7 @@ export default function RescheduleAppointment({ params }: { params: { id: string
       // Note: This needs to be adjusted for timezone handling in a real production app
       const dateTime = new Date(`${date}T${time}:00`)
 
-      await apiService.put(`/api/v1/appointments/${params.id}`, {
+      await apiService.put(`/appointments/${params.id}`, {
         scheduledAt: dateTime.toISOString(),
         status: "scheduled" // Reset status if it was cancelled/etc
       })

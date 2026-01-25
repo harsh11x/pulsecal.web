@@ -72,7 +72,7 @@ export default function SubscriptionPage() {
     const fetchSubscriptionStatus = async () => {
         try {
             // Assuming endpoint exists or using profile
-            const response: any = await apiService.get("/api/v1/doctors/profile/me")
+            const response: any = await apiService.get("/doctors/profile/me")
             // Check subscription fields in profile
             setCurrentSubscription({
                 plan: response.data?.subscriptionPlan || "BASIC", // Default to BASIC/STARTER
@@ -90,7 +90,7 @@ export default function SubscriptionPage() {
         setProcessing(planId)
         try {
             // 1. Create Subscription on Backend
-            const response: any = await apiService.post("/api/v1/payments/subscription/create", {
+            const response: any = await apiService.post("/payments/subscription/create", {
                 planId: planId
             })
 
@@ -105,7 +105,7 @@ export default function SubscriptionPage() {
                 handler: async (response: any) => {
                     // 3. Verify Payment
                     try {
-                        await apiService.post("/api/v1/payments/subscription/verify", {
+                        await apiService.post("/payments/subscription/verify", {
                             razorpay_payment_id: response.razorpay_payment_id,
                             razorpay_subscription_id: response.razorpay_subscription_id,
                             razorpay_signature: response.razorpay_signature
@@ -136,7 +136,7 @@ export default function SubscriptionPage() {
 
         setProcessing("CANCEL")
         try {
-            await apiService.post("/api/v1/payments/subscription/cancel", {})
+            await apiService.post("/payments/subscription/cancel", {})
             toast.success("Subscription cancelled successfully")
             fetchSubscriptionStatus()
         } catch (error: any) {

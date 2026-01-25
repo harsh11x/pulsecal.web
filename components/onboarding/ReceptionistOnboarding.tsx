@@ -46,7 +46,7 @@ export default function ReceptionistOnboarding() {
     // Fetch available clinics
     const fetchClinics = async () => {
       try {
-        const response: any = await apiService.get("/api/v1/clinics")
+        const response: any = await apiService.get("/clinics")
         setClinics(response?.data || response || [])
       } catch (error) {
         console.error("Failed to fetch clinics:", error)
@@ -60,7 +60,7 @@ export default function ReceptionistOnboarding() {
     setSearching(true)
     try {
       // Fetch all active clinics to ensure we have the latest list
-      const response: any = await apiService.get("/api/v1/clinics")
+      const response: any = await apiService.get("/clinics")
       const allClinics = response?.data || response || []
 
       if (!formData.clinicName) {
@@ -93,7 +93,7 @@ export default function ReceptionistOnboarding() {
     try {
       // Update user profile - with timeout and error handling
       try {
-        const profilePromise = apiService.put("/api/v1/users/profile", {
+        const profilePromise = apiService.put("/users/profile", {
           phone: formData.phone,
         })
         const timeoutPromise = new Promise<never>((_, reject) =>
@@ -117,7 +117,7 @@ export default function ReceptionistOnboarding() {
           linkData.verificationCode = formData.verificationCode
         }
 
-        const linkPromise = apiService.post("/api/v1/receptionists", linkData)
+        const linkPromise = apiService.post("/receptionists", linkData)
         const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("Request timeout")), 10000)
         )
@@ -138,7 +138,7 @@ export default function ReceptionistOnboarding() {
       let onboardingComplete = false
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
-          const completePromise = apiService.put("/api/v1/users/profile", {
+          const completePromise = apiService.put("/users/profile", {
             onboardingCompleted: true,
           })
           const timeoutPromise = new Promise<never>((_, reject) =>

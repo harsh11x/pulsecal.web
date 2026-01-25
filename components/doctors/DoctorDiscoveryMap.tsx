@@ -131,7 +131,7 @@ export function DoctorDiscoveryMap() {
       }
 
       try {
-        const response: any = await apiService.get("/api/v1/doctors/search", { params })
+        const response: any = await apiService.get("/doctors/search", { params })
         let doctorsData = response?.data?.doctors || response?.data || response || []
 
         if (!Array.isArray(doctorsData)) {

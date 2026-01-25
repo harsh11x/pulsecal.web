@@ -18,7 +18,7 @@ export default function AnalyticsPage() {
   const fetchStats = async () => {
     try {
       // Reuse existing admin stats endpoint which has totalRevenue etc.
-      const response: any = await apiService.get("/api/v1/admin/stats")
+      const response: any = await apiService.get("/admin/stats")
       setStats(response?.data || response)
     } catch (error) {
       console.error("Failed to load analytics:", error)

@@ -102,7 +102,7 @@ export default function DoctorOnboarding() {
     if (clinicMode === "join") {
       const fetchClinics = async () => {
         try {
-          const response: any = await apiService.get("/api/v1/clinics")
+          const response: any = await apiService.get("/clinics")
           setAvailableClinics(response?.data?.clinics || response?.data || [])
         } catch (error) {
           console.error("Failed to fetch clinics:", error)
@@ -118,7 +118,7 @@ export default function DoctorOnboarding() {
     try {
       // Always fetch all to ensure we have the full list to filter from
       // This avoids backend search implementation issues
-      const response: any = await apiService.get("/api/v1/clinics")
+      const response: any = await apiService.get("/clinics")
       const allClinics = response?.data?.clinics || response?.data || []
 
       if (!searchTerm) {
@@ -282,7 +282,7 @@ export default function DoctorOnboarding() {
 
       // Create Razorpay order
       console.log("🛒 Creating payment order...");
-      const orderResponse: any = await apiService.post("/api/v1/payment-gateway/create-order", {
+      const orderResponse: any = await apiService.post("/payment-gateway/create-order", {
         plan: formData.subscriptionPlan,
         billingCycle: formData.billingCycle
       });
@@ -327,7 +327,7 @@ export default function DoctorOnboarding() {
 
             // Verify payment
             console.log("🔍 Verifying payment with backend...");
-            const verifyResponse: any = await apiService.post("/api/v1/payment-gateway/verify", {
+            const verifyResponse: any = await apiService.post("/payment-gateway/verify", {
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
@@ -450,7 +450,7 @@ export default function DoctorOnboarding() {
     try {
       // Step 1: Update user profile - with timeout and error handling
       try {
-        const profilePromise = apiService.put("/api/v1/users/profile", {
+        const profilePromise = apiService.put("/users/profile", {
           phone: formData.phone,
         })
         const timeoutPromise = new Promise<never>((_, reject) =>
@@ -494,7 +494,7 @@ export default function DoctorOnboarding() {
         }
 
         // Use the new endpoint for doctor profiles
-        const doctorPromise = apiService.post("/api/v1/doctor-profiles", doctorProfileData)
+        const doctorPromise = apiService.post("/doctor-profiles", doctorProfileData)
         const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("Request timeout")), 10000)
         )
@@ -513,7 +513,7 @@ export default function DoctorOnboarding() {
         try {
           const profileFormData = new FormData()
           profileFormData.append("file", formData.profileImage)
-          const imagePromise = apiService.post("/api/v1/users/profile/picture", profileFormData, {
+          const imagePromise = apiService.post("/users/profile/picture", profileFormData, {
             headers: { "Content-Type": "multipart/form-data" },
           })
           const timeoutPromise = new Promise<never>((_, reject) =>
@@ -532,7 +532,7 @@ export default function DoctorOnboarding() {
       let onboardingComplete = false
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
-          const completePromise = apiService.put("/api/v1/users/profile", {
+          const completePromise = apiService.put("/users/profile", {
             onboardingCompleted: true,
           })
           const timeoutPromise = new Promise<never>((_, reject) =>
@@ -572,7 +572,7 @@ export default function DoctorOnboarding() {
 
         // Force refresh user profile from backend to ensure onboardingCompleted is persisted
         try {
-          const profileResponse: any = await apiService.get("/api/v1/auth/profile")
+          const profileResponse: any = await apiService.get("/auth/profile")
           const userProfile = profileResponse?.data || profileResponse
 
           if (userProfile && userProfile.id) {

@@ -98,7 +98,7 @@ export default function PatientOnboarding() {
     try {
       // Update user profile - with timeout and error handling
       try {
-        const profilePromise = apiService.put("/api/v1/users/profile", {
+        const profilePromise = apiService.put("/users/profile", {
           phone: formData.phone,
           dateOfBirth: formData.dateOfBirth,
           address: formData.address ? `${formData.address}, ${formData.city}, ${formData.state} ${formData.zipCode}` : undefined,
@@ -122,7 +122,7 @@ export default function PatientOnboarding() {
 
       // Update patient profile - with timeout and error handling
       try {
-        const patientPromise = apiService.post("/api/v1/patient-profiles", {
+        const patientPromise = apiService.post("/patient-profiles", {
           bloodType: formData.bloodType,
           allergies: formData.allergies,
           chronicConditions: formData.chronicConditions,
@@ -141,7 +141,7 @@ export default function PatientOnboarding() {
       // Create emergency contact if provided - with timeout and error handling
       if (formData.emergencyContactName && formData.emergencyContactPhone) {
         try {
-          const contactPromise = apiService.post("/api/v1/emergency-contacts", {
+          const contactPromise = apiService.post("/emergency-contacts", {
             name: formData.emergencyContactName,
             phone: formData.emergencyContactPhone,
             relation: formData.emergencyContactRelation,
@@ -162,7 +162,7 @@ export default function PatientOnboarding() {
       let onboardingComplete = false
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
-          const completePromise = apiService.put("/api/v1/users/profile", {
+          const completePromise = apiService.put("/users/profile", {
             onboardingCompleted: true,
           })
           const timeoutPromise = new Promise<never>((_, reject) =>

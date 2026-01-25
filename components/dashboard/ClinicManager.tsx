@@ -37,8 +37,8 @@ export default function ClinicManager({ clinicId }: ClinicManagerProps) {
 
     const fetchClinicDetails = async () => {
         try {
-            const response: any = await apiService.get(`/api/v1/clinics/${clinicId}`)
-            const clinic = response.data || response
+            const response: any = await apiService.get(`/clinics/${clinicId}`)
+            const clinic = response
 
             if (clinic) {
                 setFormData({
@@ -70,7 +70,7 @@ export default function ClinicManager({ clinicId }: ClinicManagerProps) {
 
         try {
             console.log("Updating clinic details:", formData)
-            const response = await apiService.put(`/api/v1/clinics/${clinicId}`, formData)
+            const response = await apiService.put(`/clinics/${clinicId}`, formData)
             console.log("Update response:", response)
             toast.success("Clinic details updated successfully")
         } catch (error: any) {

@@ -58,8 +58,8 @@ export function AppointmentBooking({ doctorId, doctor: initialDoctor }: Appointm
 
   const fetchDoctor = async () => {
     try {
-      const response: any = await apiService.get(`/api/v1/doctors/${doctorId}`)
-      setDoctor(response?.data || response)
+      const response: any = await apiService.get(`/doctors/${doctorId}`)
+      setDoctor(response)
     } catch (error) {
       console.error("Failed to fetch doctor:", error)
       toast.error("Failed to load doctor information")
@@ -71,11 +71,11 @@ export function AppointmentBooking({ doctorId, doctor: initialDoctor }: Appointm
 
     try {
       const dateStr = format(selectedDate, "yyyy-MM-dd")
-      const response: any = await apiService.get(`/api/v1/doctors/${doctor.id}/availability`, {
+      const response: any = await apiService.get(`/doctors/${doctor.id}/availability`, {
         params: { date: dateStr },
       })
-      // Ensure we extract the 'slots' array from the backend response { available: true, slots: [...] }
-      const data = response?.data || response;
+      // apiService unwraps the response, so data is the response directly
+      const data = response;
       if (data && data.slots) {
           setAvailableSlots(data.slots.map((s: string) => {
               // Convert ISO time string to "HH:mm"
@@ -120,7 +120,7 @@ export function AppointmentBooking({ doctorId, doctor: initialDoctor }: Appointm
         paymentMethod: formData.paymentMethod,
       }
 
-      const response: any = await apiService.post("/api/v1/appointments", appointmentData)
+      const response: any = await apiService.post("/appointments", appointmentData)
 
       toast.success("Appointment booked successfully!")
       router.push(`/appointments/${response?.data?.id || response?.id}`)

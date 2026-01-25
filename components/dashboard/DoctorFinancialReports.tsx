@@ -34,9 +34,9 @@ export default function DoctorFinancialReports() {
   const fetchReport = async () => {
     setLoading(true)
     try {
-      const response: any = await apiService.get(`/api/v1/doctors/financial-reports?type=${reportType}`)
-      if (response?.data) {
-        setReportData(response.data)
+      const response: any = await apiService.get(`/doctors/financial-reports?type=${reportType}`)
+      if (response) {
+        setReportData(response)
       } else {
         setReportData(null)
       }
@@ -51,7 +51,7 @@ export default function DoctorFinancialReports() {
   const handleExport = async (exportFormat: "pdf" | "csv" | "excel") => {
     try {
       const response: any = await apiService.get(
-        `/api/v1/doctors/financial-reports/export?type=${reportType}&format=${exportFormat}`,
+        `/doctors/financial-reports/export?type=${reportType}&format=${exportFormat}`,
         { responseType: "blob" }
       )
 

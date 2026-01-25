@@ -96,10 +96,12 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
   const fetchDashboardData = async () => {
     try {
       setLoading(true)
+      console.log("🔍 Fetching dashboard data...")
 
       // Fetch analytics data
-      const analyticsResponse: any = await apiService.get("/api/v1/doctors/analytics")
-      setStats(analyticsResponse.data || {
+      const analyticsResponse: any = await apiService.get("/doctors/analytics")
+      console.log("✅ Analytics response:", analyticsResponse)
+      setStats(analyticsResponse || {
         today: { appointments: 0, revenue: 0, patients: 0, cancellations: 0 },
         yesterday: { appointments: 0, revenue: 0, patients: 0, cancellations: 0 },
         thisWeek: { appointments: 0, revenue: 0, patients: 0, cancellations: 0 },
@@ -110,18 +112,29 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
       })
 
       // Fetch today's appointments
-      const appointmentsResponse: any = await apiService.get("/api/v1/appointments?date=today")
-      setTodayAppointments(appointmentsResponse?.data || [])
+      const appointmentsResponse: any = await apiService.get("/appointments?date=today")
+      console.log("✅ Appointments response:", appointmentsResponse)
+      setTodayAppointments(appointmentsResponse || [])
     } catch (error: any) {
-      console.error("Failed to fetch dashboard data:", error)
+      console.error("❌ Failed to fetch dashboard data:", error)
+      console.error("Error details:", {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        url: error.config?.url
+      })
 
       // Provide more specific error messages
       if (error.response?.status === 401) {
         toast.error("Session expired. Please refresh the page.")
       } else if (error.response?.status === 403) {
         toast.error("You don't have permission to access this data. Please complete your onboarding.")
+      } else if (error.code === "ERR_NETWORK" || !error.response) {
+        const errorMsg = error.response?.data?.details || error.response?.data?.error || "Cannot connect to backend server"
+        toast.error(`Network Error: ${errorMsg}`)
       } else {
-        toast.error("Failed to load dashboard data. Please try again.")
+        const errorMsg = error.response?.data?.message || error.response?.data?.error || "Failed to load dashboard data"
+        toast.error(`${errorMsg}. Please try again.`)
       }
 
       // Set empty stats to prevent loading forever
