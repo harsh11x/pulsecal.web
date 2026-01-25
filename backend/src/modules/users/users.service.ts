@@ -125,8 +125,29 @@ export const getProfile = async (userId: string) => {
         clinicId: true,
         profileImage: true,
         createdAt: true,
-        patientProfile: true,
-        doctorProfile: true,
+        patientProfile: {
+          select: {
+            id: true,
+            bloodType: true,
+            allergies: true,
+            chronicConditions: true,
+          },
+        },
+        doctorProfile: {
+          select: {
+            id: true,
+            specialization: true,
+            clinicName: true,
+            clinicAddress: true,
+            consultationFee: true,
+            services: true,
+            workingHours: true,
+            slotDuration: true,
+            bio: true,
+            subscriptionStatus: true,
+            subscriptionPlan: true,
+          },
+        },
       },
     });
 
