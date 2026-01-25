@@ -93,22 +93,28 @@ class ApiService {
         }
 
         // For network errors, log them properly for debugging
-        if (error.code === "ERR_NETWORK" || error.message?.includes("Network Error")) {
+        if (error.code === "ERR_NETWORK" || error.message?.includes("Network Error") || !error.response) {
           console.error("Network error:", {
             message: error.message,
             code: error.code,
             url: error.config?.url,
-            baseURL: error.config?.baseURL
+            baseURL: error.config?.baseURL,
+            fullURL: `${error.config?.baseURL}${error.config?.url}`
           })
+          // Enhance error with more details
+          error.networkError = true
+          error.detailedMessage = `Cannot connect to ${error.config?.baseURL}${error.config?.url}. Please check if the backend server is running.`
         }
         // Log all errors for debugging
-        console.error("API Error:", {
-          status: error.response?.status,
-          statusText: error.response?.statusText,
-          data: error.response?.data,
-          url: error.config?.url,
-          method: error.config?.method
-        })
+        if (error.response) {
+          console.error("API Error Response:", {
+            status: error.response?.status,
+            statusText: error.response?.statusText,
+            data: error.response?.data,
+            url: error.config?.url,
+            method: error.config?.method
+          })
+        }
         // For network errors, don't redirect - let the calling code handle it
         return Promise.reject(error)
       },

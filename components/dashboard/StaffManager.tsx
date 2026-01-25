@@ -96,8 +96,18 @@ export default function StaffManager() {
         } catch (error: any) {
             console.error("Add staff error - Full error:", error)
             console.error("Error response:", error.response)
-            const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || "Failed to add staff member"
-            toast.error(`Failed to add staff: ${errorMessage}`)
+            console.error("Error config:", error.config)
+            
+            // Handle network errors specifically
+            if (error.code === "ERR_NETWORK" || error.message?.includes("Network Error") || !error.response) {
+                const networkError = error.response?.data?.details || error.response?.data?.error || error.message || "Cannot connect to backend server. Please check if the server is running."
+                toast.error(`Network Error: ${networkError}`)
+            } else {
+                // Handle API errors
+                const errorData = error.response?.data || {}
+                const errorMessage = errorData.message || errorData.error || error.message || "Failed to add staff member"
+                toast.error(`Failed to add staff: ${errorMessage}`)
+            }
         } finally {
             setActionLoading(false)
         }

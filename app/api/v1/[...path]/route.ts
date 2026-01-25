@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BACKEND_URL = 'http://13.205.127.21:3001';
+// Server-side only - use BACKEND_URL env var, fallback to AWS IP
+const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://13.205.127.21:3001';
 
 export async function GET(
     request: NextRequest,
@@ -38,10 +39,14 @@ export async function PATCH(
 }
 
 async function proxyRequest(request: NextRequest, pathSegments: string[]) {
+    const path = pathSegments.join('/');
+    const url = new URL(request.url);
+    
+    // Remove /api/v1 prefix if it exists in path (since we're already in /api/v1 route)
+    const cleanPath = path.startsWith('api/v1/') ? path.replace('api/v1/', '') : path;
+    const targetUrl = `${BACKEND_URL}/api/v1/${cleanPath}${url.search}`;
+    
     try {
-        const path = pathSegments.join('/');
-        const url = new URL(request.url);
-        const targetUrl = `${BACKEND_URL}/api/v1/${path}${url.search}`;
 
         // Get request body for non-GET requests
         let body: string | undefined;
@@ -70,6 +75,8 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
             console.warn("Proxy: No Authorization header found in request");
         }
 
+        console.log(`[Proxy] ${request.method} ${targetUrl}`);
+
         // Make the request to the backend
         const response = await fetch(targetUrl, {
             method: request.method,
@@ -88,15 +95,28 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
             }
         });
 
+        // Set content-type if not present
+        if (!responseHeaders.has('content-type')) {
+            responseHeaders.set('content-type', 'application/json');
+        }
+
+        console.log(`[Proxy] Response: ${response.status} ${response.statusText}`);
+
         return new NextResponse(responseBody, {
             status: response.status,
             statusText: response.statusText,
             headers: responseHeaders,
         });
     } catch (error: any) {
-        console.error('Proxy error:', error);
+        console.error('[Proxy] Error:', error);
+        console.error('[Proxy] Target URL was:', targetUrl);
         return NextResponse.json(
-            { success: false, message: 'Backend connection failed', error: error.message },
+            { 
+                success: false, 
+                message: 'Backend connection failed', 
+                error: error.message,
+                details: `Failed to connect to ${BACKEND_URL}. Please check if the backend server is running.`
+            },
             { status: 502 }
         );
     }

@@ -41,11 +41,6 @@ export default function DoctorScheduleManager() {
     fetchSchedule()
   }, [selectedDate])
 
-  // Reload blocked slots when date changes
-  useEffect(() => {
-    fetchProfile()
-  }, [selectedDate])
-
   const fetchProfile = async () => {
     try {
       const response: any = await apiService.get(`/doctor-profiles/me`)
@@ -158,7 +153,9 @@ export default function DoctorScheduleManager() {
   }
 
   const handleUnblockSlot = (slotIndex: number) => {
-    const slot = slots[slotIndex]
+    // Generate slots to find the slot at this index
+    const currentSlots = generateTimeSlots(workingHours.start, workingHours.end, slotDuration)
+    const slot = currentSlots[slotIndex]
     if (!slot) return
     
     // Remove by matching startTime and endTime

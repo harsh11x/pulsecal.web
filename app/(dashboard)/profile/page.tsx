@@ -82,12 +82,21 @@ export default function ProfilePage() {
       const suffix = formData.pincode ? ` - ${formData.pincode}` : '';
       const fullClinicAddress = parts.length > 0 ? parts.join(", ") + suffix : "";
 
-      const payload = {
+      const payload: any = {
         firstName: formData.firstName,
         lastName: formData.lastName,
         phone: formData.phone,
-        dateOfBirth: formData.dateOfBirth,
         clinicAddress: fullClinicAddress
+      }
+      
+      // Only include dateOfBirth if it's provided and valid
+      // Backend expects Date object, but Joi will parse ISO string
+      if (formData.dateOfBirth) {
+        // Convert date string to ISO format for backend
+        const dateObj = new Date(formData.dateOfBirth)
+        if (!isNaN(dateObj.getTime())) {
+          payload.dateOfBirth = dateObj.toISOString()
+        }
       }
 
       console.log("Submitting profile update:", payload)
