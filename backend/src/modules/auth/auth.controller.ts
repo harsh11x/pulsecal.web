@@ -4,6 +4,7 @@ import { sendSuccess } from '../../utils/apiResponse';
 import { getProfile, updateProfile } from '../users/users.service';
 import { AppError } from '../../middlewares/error.middleware';
 import { logger } from '../../utils/logger';
+import prisma from '../../config/database';
 
 export const getProfileController = async (
   req: AuthRequest,
