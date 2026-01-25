@@ -24,7 +24,15 @@ export const userService = {
   },
 
   getAllUsers: async (role?: string): Promise<User[]> => {
-    return await apiService.get<User[]>("/users", { params: { role } })
+    // Backend returns paginated response { success, data: User[], pagination }
+    // After unwrap, we get the data array directly
+    const response = await apiService.get<User[] | { users: User[], pagination: any }>("/users", { params: { role } })
+    // Handle both direct array (after unwrap) and paginated structure
+    if (Array.isArray(response)) {
+      return response
+    }
+    // If still wrapped (shouldn't happen after unwrap, but handle it)
+    return (response as any).users || []
   },
 
   getUserById: async (id: string): Promise<User> => {
@@ -40,6 +48,8 @@ export const userService = {
   },
 
   deleteUser: async (id: string): Promise<void> => {
-    await apiService.delete(`/users/${id}`)
+    // Backend uses soft delete via status update
+    // Note: This requires ADMIN role, doctors may not have permission
+    await apiService.patch(`/users/${id}/status`, { isActive: false })
   },
 }

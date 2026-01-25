@@ -93,9 +93,9 @@ export default function ProfilePage() {
       console.log("Submitting profile update:", payload)
 
       // Update profile via API
-      // Note: userService.updateProfile returns the API response wrapper { success, data, message }
-      // We need to handle this to extract the actual user data
       const response: any = await userService.updateProfile(payload)
+      // apiService now unwraps the response, so response should be the user object directly
+      // But handle both cases for safety
       const updatedUser = response.data || response
 
       // Optimistic update
@@ -106,6 +106,7 @@ export default function ProfilePage() {
         role: user?.role || updatedUser.role,
         doctorProfile: {
           ...(user as any)?.doctorProfile,
+          ...(updatedUser as any)?.doctorProfile,
           clinicAddress: fullClinicAddress
         }
       }

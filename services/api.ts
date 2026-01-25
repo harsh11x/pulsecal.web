@@ -99,29 +99,39 @@ class ApiService {
     )
   }
 
+  // Helper to unwrap backend response format { success, data, message }
+  private unwrapResponse<T>(responseData: any): T {
+    // Check if response follows backend format { success: boolean, data: T, message: string }
+    if (responseData && typeof responseData === 'object' && 'success' in responseData && 'data' in responseData) {
+      return responseData.data as T
+    }
+    // Return as-is if not in expected format
+    return responseData as T
+  }
+
   async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
     const response: AxiosResponse<T> = await this.api.get(url, config)
-    return response.data
+    return this.unwrapResponse<T>(response.data)
   }
 
   async post<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
     const response: AxiosResponse<T> = await this.api.post(url, data, config)
-    return response.data
+    return this.unwrapResponse<T>(response.data)
   }
 
   async put<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
     const response: AxiosResponse<T> = await this.api.put(url, data, config)
-    return response.data
+    return this.unwrapResponse<T>(response.data)
   }
 
   async patch<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
     const response: AxiosResponse<T> = await this.api.patch(url, data, config)
-    return response.data
+    return this.unwrapResponse<T>(response.data)
   }
 
   async delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
     const response: AxiosResponse<T> = await this.api.delete(url, config)
-    return response.data
+    return this.unwrapResponse<T>(response.data)
   }
 }
 

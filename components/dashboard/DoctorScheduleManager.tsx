@@ -135,22 +135,30 @@ export default function DoctorScheduleManager() {
 
   const handleSaveSchedule = async () => {
     try {
-      console.log("Saving schedule:", {
+      const payload = {
         date: format(selectedDate, "yyyy-MM-dd"),
-        workingHours,
+        workingHours: {
+          start: workingHours.start,
+          end: workingHours.end
+        },
         slotDuration,
-        blockedSlots,
-      })
-      await apiService.post("/api/v1/doctors/schedule", {
-        date: format(selectedDate, "yyyy-MM-dd"),
-        workingHours,
-        slotDuration,
-        blockedSlots,
-      })
+        blockedSlots: blockedSlots.map(slot => ({
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          isBlocked: true
+        }))
+      }
+      
+      console.log("Saving schedule:", payload)
+      
+      await apiService.post("/api/v1/doctors/schedule", payload)
       toast.success("Schedule saved successfully")
+      
+      // Refresh the profile to show updated schedule
+      await fetchProfile()
     } catch (error: any) {
       console.error("Failed to save schedule:", error)
-      const errorMessage = error.response?.data?.message || error.message || "Failed to save schedule"
+      const errorMessage = error.response?.data?.message || error.message || error.response?.data?.error || "Failed to save schedule"
       toast.error(errorMessage)
     }
   }

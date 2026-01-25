@@ -42,28 +42,21 @@ export default function StaffManager() {
     const fetchStaff = async () => {
         try {
             setLoading(true)
-            // Fetch both receptionists and doctors
-            // We use Promise.all to fetch both roles in parallel
-            const [receptionistsRes, doctorsRes] = await Promise.all([
+            // Fetch both receptionists and doctors in parallel
+            const [receptionists, doctors] = await Promise.all([
                 userService.getAllUsers("receptionist"),
                 userService.getAllUsers("doctor")
             ])
-            
-            // Handle paginated response structure if present
-            // apiService might return { success, data: { users: [] }, pagination } 
-            // OR just { users: [] } depending on service wrapper
-            // Check based on known response
-            const receptionists = (receptionistsRes as any).users || (receptionistsRes as any).data?.users || (Array.isArray(receptionistsRes) ? receptionistsRes : [])
-            const doctors = (doctorsRes as any).users || (doctorsRes as any).data?.users || (Array.isArray(doctorsRes) ? doctorsRes : [])
 
             // Filter by clinicId and combine
-            const myReceptionists = Array.isArray(receptionists) ? receptionists.filter((u: User) => u.clinicId === currentUser.clinicId) : []
-            const myDoctors = Array.isArray(doctors) ? doctors.filter((u: User) => u.clinicId === currentUser.clinicId && u.id !== currentUser.id) : [] // Exclude self if admin is a doctor
+            const myReceptionists = receptionists.filter((u: User) => u.clinicId === currentUser.clinicId)
+            const myDoctors = doctors.filter((u: User) => u.clinicId === currentUser.clinicId && u.id !== currentUser.id) // Exclude self
 
             setStaff([...myReceptionists, ...myDoctors])
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to fetch staff:", error)
-            // Fallback/Mock for demonstration if API fails/is restricted
+            const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || "Failed to load staff members"
+            toast.error(errorMessage)
             setStaff([])
         } finally {
             setLoading(false)
@@ -82,7 +75,9 @@ export default function StaffManager() {
                 isEmailVerified: true // Auto-verify for simplicity
             }
 
-            await userService.createUser(payload)
+            const response: any = await userService.createUser(payload)
+            const createdUser = response.data || response
+            
             toast.success(`${newStaff.role === 'doctor' ? 'Doctor' : 'Receptionist'} added successfully`)
             setIsAddDialogOpen(false)
             setNewStaff({
@@ -94,24 +89,27 @@ export default function StaffManager() {
                 role: "receptionist",
                 clinicId: currentUser?.clinicId || ""
             })
-            fetchStaff()
+            await fetchStaff()
         } catch (error: any) {
             console.error("Add staff error:", error)
-            toast.error(error.message || "Failed to add staff member")
+            const errorMessage = error.response?.data?.message || error.message || "Failed to add staff member"
+            toast.error(errorMessage)
         } finally {
             setActionLoading(false)
         }
     }
 
     const handleDeleteStaff = async (userId: string) => {
-        if (!confirm("Are you sure you want to remove this staff member?")) return
+        if (!confirm("Are you sure you want to deactivate this staff member? They will no longer be able to access the system.")) return
 
         try {
             await userService.deleteUser(userId)
-            toast.success("Staff member removed")
-            setStaff(prev => prev.filter(s => s.id !== userId))
-        } catch (error) {
-            toast.error("Failed to remove staff member")
+            toast.success("Staff member deactivated successfully")
+            await fetchStaff()
+        } catch (error: any) {
+            console.error("Delete staff error:", error)
+            const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || "Failed to deactivate staff member. You may not have permission to perform this action."
+            toast.error(errorMessage)
         }
     }
 
