@@ -137,7 +137,7 @@ export default function StaffManager() {
 
     return (
         <div className="space-y-6">
-                    <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center">
                 <div className="relative w-full max-w-sm">
                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input

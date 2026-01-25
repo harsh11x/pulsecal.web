@@ -2,7 +2,7 @@ import prisma from '../../config/database';
 import admin from '../../config/firebase';
 import { getPaginationParams, getSortParams } from '../../utils/helpers';
 import { AppError } from '../../middlewares/error.middleware';
-
+import { logger } from '../../utils/logger';
 
 export const createUser = async (data: {
   firstName: string;
@@ -29,7 +29,7 @@ export const createUser = async (data: {
   try {
     const firebaseUser = await admin.auth().createUser({
       email: data.email,
-      password: data.password, // Optional if we want to force password reset
+      password: data.password,
       emailVerified: data.isEmailVerified || false,
       displayName: `${data.firstName} ${data.lastName}`,
       disabled: data.isActive === false,
@@ -61,7 +61,7 @@ export const createUser = async (data: {
       isActive: data.isActive !== false,
       isEmailVerified: data.isEmailVerified || false,
       firebaseUid,
-      onboardingCompleted: true, // Assuming staff added by doctor doesn't need onboarding flow
+      onboardingCompleted: true,
     },
   });
 
@@ -78,7 +78,7 @@ export const createUser = async (data: {
           clinicAddress: clinic.address,
           clinicLatitude: clinic.latitude ? Number(clinic.latitude) : null,
           clinicLongitude: clinic.longitude ? Number(clinic.longitude) : null,
-          subscriptionStatus: 'ACTIVE', // Covered by clinic plan
+          subscriptionStatus: 'ACTIVE',
           subscriptionPlan: clinic.subscriptionPlan,
         };
       }
@@ -87,7 +87,7 @@ export const createUser = async (data: {
     await prisma.doctorProfile.create({
       data: {
         userId: user.id,
-        licenseNumber: `LIC-${user.id.substring(0, 8)}`, // Placeholder
+        licenseNumber: `LIC-${user.id.substring(0, 8)}`,
         specialization: 'General',
         clinicName: clinicData.clinicName || 'My Clinic',
         clinicAddress: clinicData.clinicAddress,
@@ -98,18 +98,15 @@ export const createUser = async (data: {
         consultationFee: 0,
       },
     });
-  } else if (data.role === 'PATIENT') {
-    await prisma.patientProfile.create({
-      data: { userId: user.id },
-    });
   }
-  // Receptionist profile creation if model exists (Assuming no specific profile model for receptionist yet based on previous files, but usually there isn't one or it's implicitly User)
 
   return user;
 };
 
 export const getProfile = async (userId: string) => {
   try {
+    logger.info({ userId }, 'Fetching profile from database');
+    
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -131,13 +128,21 @@ export const getProfile = async (userId: string) => {
     });
 
     if (!user) {
+      logger.warn({ userId }, 'User not found in database');
       throw new AppError('User not found', 404);
     }
 
+    logger.info({ userId, role: user.role }, 'Profile retrieved successfully');
     return user;
   } catch (error: any) {
-    // Log the actual error
-    console.error('Error in getProfile:', error);
+    logger.error(
+      { 
+        error: error.message, 
+        stack: error.stack,
+        userId 
+      }, 
+      'Error in getProfile service'
+    );
     throw error;
   }
 };
@@ -148,7 +153,7 @@ export const updateProfile = async (
     firstName?: string;
     lastName?: string;
     phone?: string;
-    dateOfBirth?: Date;
+    dateOfBirth?: Date | null;
     profileImage?: string;
     clinicAddress?: string;
     specialization?: string;
@@ -159,111 +164,119 @@ export const updateProfile = async (
     clinicName?: string;
   }
 ) => {
-  // Extract doctor profile specific fields
-  const {
-    clinicAddress,
-    specialization,
-    bio,
-    consultationFee,
-    services,
-    workingHours,
-    clinicName,
-    ...userData
-  } = data;
+  try {
+    logger.info({ userId, fields: Object.keys(data) }, 'Updating profile');
 
-  // Update user data
-  const user = await prisma.user.update({
-    where: { id: userId },
-    data: userData,
-    select: {
-      id: true,
-      email: true,
-      firstName: true,
-      lastName: true,
-      phone: true,
-      dateOfBirth: true,
-      role: true,
-      profileImage: true,
-      updatedAt: true,
-      doctorProfile: true,
-    },
-  });
+    // Extract doctor profile specific fields
+    const {
+      clinicAddress,
+      specialization,
+      bio,
+      consultationFee,
+      services,
+      workingHours,
+      clinicName,
+      ...userData
+    } = data;
 
-  // If ANY doctor specific fields are provided and user is a doctor, update the doctor profile
-  if (
-    user.role === 'DOCTOR' &&
-    (clinicAddress !== undefined ||
-      specialization !== undefined ||
-      bio !== undefined ||
-      consultationFee !== undefined ||
-      services !== undefined ||
-      workingHours !== undefined ||
-      clinicName !== undefined)
-  ) {
-    const doctorProfile = await prisma.doctorProfile.findUnique({
-      where: { userId },
+    // Update user data
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: userData,
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        dateOfBirth: true,
+        role: true,
+        profileImage: true,
+        updatedAt: true,
+        doctorProfile: true,
+      },
     });
 
-    if (doctorProfile) {
-      await prisma.doctorProfile.update({
+    // If ANY doctor specific fields are provided and user is a doctor, update the doctor profile
+    if (
+      user.role === 'DOCTOR' &&
+      (clinicAddress !== undefined ||
+        specialization !== undefined ||
+        bio !== undefined ||
+        consultationFee !== undefined ||
+        services !== undefined ||
+        workingHours !== undefined ||
+        clinicName !== undefined)
+    ) {
+      const doctorProfile = await prisma.doctorProfile.findUnique({
         where: { userId },
-        data: {
-          clinicAddress,
-          specialization,
-          bio,
-          consultationFee,
-          services,
-          workingHours,
-          clinicName,
-        },
       });
-    } else {
-      // Create if it doesn't exist (fallback, though it should exist)
-      await prisma.doctorProfile.create({
-        data: {
-          userId,
-          licenseNumber: `LIC-${userId.substring(0, 8)}`, // Placeholder
-          specialization: specialization || 'General',
-          clinicName: clinicName || 'My Clinic',
-          clinicAddress,
-          bio,
-          consultationFee: consultationFee || 0,
-          services: services || [],
-          workingHours: workingHours,
-        },
-      });
-    }
-  }
 
-  return user;
+      if (doctorProfile) {
+        await prisma.doctorProfile.update({
+          where: { userId },
+          data: {
+            clinicAddress,
+            specialization,
+            bio,
+            consultationFee,
+            services,
+            workingHours,
+            clinicName,
+          },
+        });
+      } else {
+        // Create if it doesn't exist
+        await prisma.doctorProfile.create({
+          data: {
+            userId,
+            licenseNumber: `LIC-${userId.substring(0, 8)}`,
+            specialization: specialization || 'General',
+            clinicName: clinicName || 'My Clinic',
+            clinicAddress,
+            bio,
+            consultationFee: consultationFee || 0,
+            services: services || [],
+            workingHours: workingHours,
+          },
+        });
+      }
+    }
+
+    logger.info({ userId }, 'Profile updated successfully');
+    return user;
+  } catch (error: any) {
+    logger.error(
+      { 
+        error: error.message, 
+        stack: error.stack,
+        userId 
+      }, 
+      'Error in updateProfile service'
+    );
+    throw error;
+  }
 };
 
-export const getAllUsers = async (req: {
-  query: {
-    page?: string;
-    limit?: string;
-    sortBy?: string;
-    sortOrder?: string;
-    role?: string;
-    search?: string;
-  };
+export const getAllUsers = async (params: {
+  page?: number;
+  limit?: number;
+  role?: string;
+  search?: string;
 }) => {
-  const { page, limit, skip } = getPaginationParams(req as never);
-  const { orderBy, order } = getSortParams(req as never);
+  const { page = 1, limit = 10, role, search } = params;
+  const { skip, take } = getPaginationParams(page, limit);
+  const { orderBy } = getSortParams('createdAt', 'desc');
 
-  const where: any = {
-    deletedAt: null,
-  };
-
-  if (req.query.role) {
-    where.role = req.query.role;
+  const where: any = {};
+  if (role) {
+    where.role = role;
   }
-
-  if (req.query.search) {
+  if (search) {
     where.OR = [
-      { firstName: { contains: req.query.search, mode: 'insensitive' } },
-      { lastName: { contains: req.query.search, mode: 'insensitive' } },
-      { email: { contains: req.query.search, mode: 'insensitive' } },
+      { firstName: { contains: search, mode: 'insensitive' } },
+      { lastName: { contains: search, mode: 'insensitive' } },
+      { email: { contains: search, mode: 'insensitive' } },
     ];
   }
 
@@ -271,17 +284,15 @@ export const getAllUsers = async (req: {
     prisma.user.findMany({
       where,
       skip,
-      take: limit,
-      orderBy: { [orderBy]: order },
+      take,
+      orderBy,
       select: {
         id: true,
         email: true,
         firstName: true,
         lastName: true,
-        phone: true,
         role: true,
         isActive: true,
-        isEmailVerified: true,
         createdAt: true,
       },
     }),
@@ -289,7 +300,7 @@ export const getAllUsers = async (req: {
   ]);
 
   return {
-    users,
+    data: users,
     pagination: {
       page,
       limit,
@@ -333,14 +344,7 @@ export const updateUserStatus = async (
   const user = await prisma.user.update({
     where: { id: userId },
     data: { isActive },
-    select: {
-      id: true,
-      email: true,
-      isActive: true,
-      updatedAt: true,
-    },
   });
 
   return user;
 };
-

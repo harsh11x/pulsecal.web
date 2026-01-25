@@ -12,7 +12,7 @@ import './config/firebase';
 
 const app: Express = express();
 
-// Trust Proxy (Required for Vercel/AWS Load Balancers)
+// Trust Proxy (Required for AWS Load Balancers)
 app.set('trust proxy', 1);
 
 // Request ID Injection
@@ -34,17 +34,21 @@ app.use(
         ip: req.ip,
       }),
     },
-    // Reduce noise in development
     autoLogging: config.nodeEnv === 'production',
   })
 );
 
+// Security Headers
 app.use(helmet());
+
+// CORS Configuration
+const allowedOrigins = config.cors.origin.includes(',')
+  ? config.cors.origin.split(',').map((origin) => origin.trim())
+  : [config.cors.origin];
+
 app.use(
   cors({
-    origin: config.cors.origin.includes(',')
-      ? config.cors.origin.split(',').map(o => o.trim())
-      : config.cors.origin,
+    origin: allowedOrigins,
     credentials: true,
   })
 );
@@ -56,16 +60,16 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Security: HTTP Parameter Pollution
 app.use(hpp());
 
-// Rate limiter completely removed for now
-
+// Health Check
 app.use('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// API Routes
 app.use(routes);
 
+// Error Handlers
 app.use(notFoundHandler);
 app.use(errorHandler);
 
 export default app;
-

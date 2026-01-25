@@ -6,6 +6,7 @@ import { sendSuccess } from '../../utils/apiResponse';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { AppError } from '../../middlewares/error.middleware';
 import prisma from '../../config/database';
+import { logger } from '../../utils/logger';
 
 export const updateScheduleController = async (
   req: AuthRequest,
@@ -18,6 +19,8 @@ export const updateScheduleController = async (
 
     const { date, workingHours, slotDuration, blockedSlots } = req.body;
 
+    logger.info({ userId, date }, 'Updating doctor schedule');
+
     // Fetch existing profile
     const profile = await prisma.doctorProfile.findUnique({
       where: { userId },
@@ -25,9 +28,7 @@ export const updateScheduleController = async (
 
     if (!profile) throw new AppError('Doctor profile not found', 404);
 
-    // Update workingHours. We store generic workingHours AND specific blocked slots
-    // We'll store blockedSlots in a special 'exceptions' key within workingHours JSON
-    // And also update the specific day's schedule
+    // Update workingHours
     const currentWorkingHours = (profile.workingHours as any) || {};
     
     // Determine day of week from date
@@ -37,18 +38,15 @@ export const updateScheduleController = async (
 
     const updatedData = {
         ...currentWorkingHours,
-        // Update the specific day schedule
         [dayName]: {
             start: workingHours.start,
             end: workingHours.end,
-            isOpen: true // Assume open if saving schedule
+            isOpen: true
         },
-        // Save exceptions/blocked slots for this date
         exceptions: {
             ...(currentWorkingHours.exceptions || {}),
             [date]: blockedSlots
         },
-        // Also save generic config if we want to persist the "default" state
         defaultSettings: {
             workingHours,
             slotDuration
@@ -62,8 +60,10 @@ export const updateScheduleController = async (
         }
     });
 
+    logger.info({ userId }, 'Schedule updated successfully');
     sendSuccess(res, null, 'Schedule updated successfully');
   } catch (err) {
+    logger.error({ error: err }, 'Error in updateScheduleController');
     next(err);
   }
 };
@@ -86,8 +86,8 @@ export const searchDoctorsController = async (
       city,
       page,
       limit,
-      services, // Extract services
-      search, // Extract generic search
+      services,
+      search,
     } = req.query;
 
     const result = await searchDoctors({
@@ -100,10 +100,10 @@ export const searchDoctorsController = async (
       minFee: minFee ? parseFloat(minFee as string) : undefined,
       maxFee: maxFee ? parseFloat(maxFee as string) : undefined,
       city: city as string,
-      page: page ? parseInt(page as string) : undefined,
-      limit: limit ? parseInt(limit as string) : undefined,
-      services: services as string, // Pass services
-      search: search as string, // Pass generic search
+      page: page ? parseInt(page as string, 10) : 1,
+      limit: limit ? parseInt(limit as string, 10) : 10,
+      services: services as string,
+      search: search as string,
     });
 
     sendSuccess(res, result, 'Doctors retrieved successfully');
@@ -134,12 +134,7 @@ export const getDoctorAvailabilityController = async (
   try {
     const { id } = req.params;
     const { date } = req.query;
-
-    if (!date) {
-      throw new AppError('Date parameter is required', 400);
-    }
-
-    const availability = await getDoctorAvailability(id, new Date(date as string));
+    const availability = await getDoctorAvailability(id, date as string);
     sendSuccess(res, availability, 'Availability retrieved successfully');
   } catch (err) {
     next(err);
@@ -152,14 +147,20 @@ export const getDoctorAnalyticsController = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const doctorId = req.user!.id;
-    
+    const doctorId = req.user?.id;
+    if (!doctorId) {
+      throw new AppError('User not authenticated', 401);
+    }
+
+    logger.info({ doctorId }, 'Fetching doctor analytics');
+
     // Verify user has a doctor profile
     const doctorProfile = await prisma.doctorProfile.findUnique({
       where: { userId: doctorId }
     });
     
     if (!doctorProfile) {
+      logger.warn({ doctorId }, 'Doctor profile not found');
       throw new AppError('Doctor profile not found. Please complete your profile setup.', 404);
     }
     
@@ -172,8 +173,17 @@ export const getDoctorAnalyticsController = async (
       endDate ? new Date(endDate as string) : undefined
     );
 
+    logger.info({ doctorId }, 'Analytics retrieved successfully');
     sendSuccess(res, analytics, 'Analytics retrieved successfully');
-  } catch (err) {
+  } catch (err: any) {
+    logger.error(
+      { 
+        error: err.message, 
+        stack: err.stack,
+        doctorId: req.user?.id 
+      }, 
+      'Error in getDoctorAnalyticsController'
+    );
     next(err);
   }
 };
@@ -184,13 +194,10 @@ export const getClinicStaffController = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const clinicId = req.user!.clinicId;
+    const userId = req.user?.id;
+    if (!userId) throw new AppError('User not authenticated', 401);
 
-    if (!clinicId) {
-      throw new AppError('User is not associated with a clinic', 400);
-    }
-
-    const staff = await getClinicStaff(clinicId);
+    const staff = await getClinicStaff(userId);
     sendSuccess(res, staff, 'Clinic staff retrieved successfully');
   } catch (err) {
     next(err);
