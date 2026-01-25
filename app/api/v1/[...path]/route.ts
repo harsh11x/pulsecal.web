@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Server-side only - use BACKEND_URL env var, fallback to AWS IP
+// Server-side only - use BACKEND_URL env var
+// IMPORTANT: Use environment variable, never hardcode HTTP URLs
+// In production, BACKEND_URL should be set in Vercel environment variables
 const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://13.205.127.21:3000';
+
+// Log warning if using HTTP in production
+if (typeof window === 'undefined' && BACKEND_URL.startsWith('http://')) {
+  console.warn('[Proxy] WARNING: Using HTTP backend URL. This will cause mixed content errors with HTTPS frontend.');
+  console.warn('[Proxy] Set BACKEND_URL environment variable to HTTPS URL in Vercel.');
+}
 
 export async function GET(
     request: NextRequest,
