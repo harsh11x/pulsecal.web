@@ -4,7 +4,6 @@ import { NextRequest, NextResponse } from 'next/server';
 const BACKEND_URL = process.env.BACKEND_URL || 'http://13.205.127.21:3001';
 
 export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs';
 
 async function handleProxy(request: NextRequest, pathArray: string[]) {
     const path = pathArray.join('/');
@@ -22,7 +21,7 @@ async function handleProxy(request: NextRequest, pathArray: string[]) {
             }
         }
 
-        // Build headers - only forward what we need
+        // Build headers
         const headers: HeadersInit = {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
@@ -56,13 +55,7 @@ async function handleProxy(request: NextRequest, pathArray: string[]) {
         });
         
     } catch (error: any) {
-        console.error('[API Proxy Error]', {
-            path,
-            targetUrl,
-            error: error.message,
-            stack: error.stack,
-        });
-        
+        console.error('[API Proxy Error]', error.message);
         return NextResponse.json(
             { 
                 success: false, 
@@ -75,49 +68,36 @@ async function handleProxy(request: NextRequest, pathArray: string[]) {
     }
 }
 
-export async function GET(
-    request: NextRequest,
-    context: { params: { path: string[] } }
-) {
-    // In Next.js 14+, params might need awaiting
-    const params = context.params;
-    const pathArray = Array.isArray(params.path) ? params.path : [params.path];
+// Next.js 14+ requires awaiting params
+type RouteContext = { params: Promise<{ path: string[] }> | { path: string[] } };
+
+async function getPathArray(context: RouteContext): Promise<string[]> {
+    // Handle both Promise and non-Promise params (Next.js version compatibility)
+    const params = 'then' in context.params ? await context.params : context.params;
+    return Array.isArray(params.path) ? params.path : [params.path];
+}
+
+export async function GET(request: NextRequest, context: RouteContext) {
+    const pathArray = await getPathArray(context);
     return handleProxy(request, pathArray);
 }
 
-export async function POST(
-    request: NextRequest,
-    context: { params: { path: string[] } }
-) {
-    const params = context.params;
-    const pathArray = Array.isArray(params.path) ? params.path : [params.path];
+export async function POST(request: NextRequest, context: RouteContext) {
+    const pathArray = await getPathArray(context);
     return handleProxy(request, pathArray);
 }
 
-export async function PUT(
-    request: NextRequest,
-    context: { params: { path: string[] } }
-) {
-    const params = context.params;
-    const pathArray = Array.isArray(params.path) ? params.path : [params.path];
+export async function PUT(request: NextRequest, context: RouteContext) {
+    const pathArray = await getPathArray(context);
     return handleProxy(request, pathArray);
 }
 
-export async function DELETE(
-    request: NextRequest,
-    context: { params: { path: string[] } }
-) {
-    const params = context.params;
-    const pathArray = Array.isArray(params.path) ? params.path : [params.path];
+export async function DELETE(request: NextRequest, context: RouteContext) {
+    const pathArray = await getPathArray(context);
     return handleProxy(request, pathArray);
 }
 
-export async function PATCH(
-    request: NextRequest,
-    context: { params: { path: string[] } }
-) {
-    const params = context.params;
-    const pathArray = Array.isArray(params.path) ? params.path : [params.path];
+export async function PATCH(request: NextRequest, context: RouteContext) {
+    const pathArray = await getPathArray(context);
     return handleProxy(request, pathArray);
 }
-
