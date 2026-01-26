@@ -102,8 +102,12 @@ export const updateProfileController = async (
     if (!req.user || !req.user.id) {
       throw new AppError('User not authenticated', 401);
     }
-    const { error, value } = updateProfileSchema.validate(req.body);
+    
+    logger.info({ userId: req.user.id, body: req.body }, 'Profile update request received');
+    
+    const { error, value } = updateProfileSchema.validate(req.body, { stripUnknown: true });
     if (error) {
+      logger.error({ validationError: error.details[0].message, body: req.body }, 'Profile validation failed');
       throw new AppError(error.details[0].message, 400);
     }
     
@@ -112,7 +116,7 @@ export const updateProfileController = async (
     logger.info({ userId: req.user.id }, 'Profile updated successfully');
     sendSuccess(res, profile, 'Profile updated successfully');
   } catch (err: any) {
-    logger.error({ error: err.message, userId: req.user?.id }, 'Error in updateProfileController');
+    logger.error({ error: err.message, stack: err.stack, userId: req.user?.id, body: req.body }, 'Error in updateProfileController');
     next(err);
   }
 };
