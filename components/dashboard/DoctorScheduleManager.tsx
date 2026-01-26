@@ -162,6 +162,12 @@ export default function DoctorScheduleManager() {
   }
 
   const handleSaveSchedule = async () => {
+    console.log("=== SAVE SCHEDULE CLICKED ===")
+    console.log("Working Hours:", workingHours)
+    console.log("Slot Duration:", slotDuration)
+    console.log("Blocked Slots:", blockedSlots)
+    console.log("Selected Date:", selectedDate)
+    
     try {
       const payload = {
         date: format(selectedDate, "yyyy-MM-dd"),
@@ -177,20 +183,24 @@ export default function DoctorScheduleManager() {
         }))
       }
       
-      console.log("Saving schedule:", payload)
+      console.log("Sending payload to /doctors/schedule:", JSON.stringify(payload, null, 2))
       
       const response = await apiService.post("/doctors/schedule", payload)
       console.log("Schedule save response:", response)
       
-      toast.success("Schedule saved successfully")
+      toast.success("Schedule saved successfully!")
       
       // Refresh the profile to show updated schedule
+      console.log("Refreshing profile after save...")
       await fetchProfile()
+      console.log("Profile refreshed, blocked slots now:", blockedSlots)
     } catch (error: any) {
-      console.error("Failed to save schedule - Full error:", error)
+      console.error("=== SAVE SCHEDULE FAILED ===")
+      console.error("Error:", error)
       console.error("Error response:", error.response)
+      console.error("Error data:", error.response?.data)
       const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || "Failed to save schedule"
-      toast.error(`Failed to save schedule: ${errorMessage}`)
+      toast.error(`Failed to save: ${errorMessage}`)
     }
   }
 
