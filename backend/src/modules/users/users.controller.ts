@@ -25,21 +25,7 @@ const createUserSchema = Joi.object({
   isEmailVerified: Joi.boolean().optional(),
 });
 
-// Permissive schema - allow any profile fields
-const updateProfileSchema = Joi.object({
-  firstName: Joi.any(),
-  lastName: Joi.any(),
-  phone: Joi.any(),
-  dateOfBirth: Joi.any(),
-  profileImage: Joi.any(),
-  clinicAddress: Joi.any(),
-  specialization: Joi.any(),
-  bio: Joi.any(),
-  consultationFee: Joi.any(),
-  services: Joi.any(),
-  workingHours: Joi.any(),
-  clinicName: Joi.any(),
-}).unknown(true);
+// Profile update validation removed - accepting all fields
 
 export const createUserController = async (
   req: AuthRequest,
@@ -106,14 +92,8 @@ export const updateProfileController = async (
     
     logger.info({ userId: req.user.id, body: req.body }, 'Profile update request received');
     
-    const { error, value } = updateProfileSchema.validate(req.body, { stripUnknown: true });
-    if (error) {
-      logger.error({ validationError: error.details[0].message, body: req.body }, 'Profile validation failed');
-      throw new AppError(error.details[0].message, 400);
-    }
-    
-    logger.info({ userId: req.user.id, fields: Object.keys(value) }, 'Updating profile');
-    const profile = await updateProfile(req.user.id, value);
+    // NO validation - just pass directly to service
+    const profile = await updateProfile(req.user.id, req.body);
     logger.info({ userId: req.user.id }, 'Profile updated successfully');
     sendSuccess(res, profile, 'Profile updated successfully');
   } catch (err: any) {
