@@ -152,12 +152,7 @@ export default function DoctorScheduleManager() {
     toast.success("Time slot blocked (remember to save)")
   }
 
-  const handleUnblockSlot = (slotIndex: number) => {
-    // Generate slots to find the slot at this index
-    const currentSlots = generateTimeSlots(workingHours.start, workingHours.end, slotDuration)
-    const slot = currentSlots[slotIndex]
-    if (!slot) return
-    
+  const handleUnblockSlot = (slot: TimeSlot) => {
     // Remove by matching startTime and endTime
     const updated = blockedSlots.filter(
       (b) => !(b.startTime === slot.startTime && b.endTime === slot.endTime)
@@ -282,7 +277,7 @@ export default function DoctorScheduleManager() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleUnblockSlot(index)}
+                        onClick={() => handleUnblockSlot(slot)}
                       >
                         <X className="h-4 w-4" />
                       </Button>

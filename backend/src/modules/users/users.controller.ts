@@ -26,18 +26,18 @@ const createUserSchema = Joi.object({
 });
 
 const updateProfileSchema = Joi.object({
-  firstName: Joi.string().optional(),
-  lastName: Joi.string().optional(),
-  phone: Joi.string().optional(),
-  dateOfBirth: Joi.date().optional(),
-  profileImage: Joi.string().optional(),
-  clinicAddress: Joi.string().optional(),
-  specialization: Joi.string().optional(),
-  bio: Joi.string().optional(),
-  consultationFee: Joi.number().optional(),
+  firstName: Joi.string().allow('').optional(),
+  lastName: Joi.string().allow('').optional(),
+  phone: Joi.string().allow('', null).optional(),
+  dateOfBirth: Joi.alternatives().try(Joi.date(), Joi.string().allow('', null)).optional(),
+  profileImage: Joi.string().allow('', null).optional(),
+  clinicAddress: Joi.string().allow('', null).optional(),
+  specialization: Joi.string().allow('', null).optional(),
+  bio: Joi.string().allow('', null).optional(),
+  consultationFee: Joi.number().allow(null).optional(),
   services: Joi.array().items(Joi.string()).optional(),
-  workingHours: Joi.object().optional(),
-  clinicName: Joi.string().optional(),
+  workingHours: Joi.object().unknown(true).optional(),
+  clinicName: Joi.string().allow('', null).optional(),
 });
 
 export const createUserController = async (
