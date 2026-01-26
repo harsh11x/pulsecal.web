@@ -25,20 +25,21 @@ const createUserSchema = Joi.object({
   isEmailVerified: Joi.boolean().optional(),
 });
 
+// Permissive schema - allow any profile fields
 const updateProfileSchema = Joi.object({
-  firstName: Joi.string().allow('').optional(),
-  lastName: Joi.string().allow('').optional(),
-  phone: Joi.string().allow('', null).optional(),
-  dateOfBirth: Joi.alternatives().try(Joi.date(), Joi.string().allow('', null)).optional(),
-  profileImage: Joi.string().allow('', null).optional(),
-  clinicAddress: Joi.string().allow('', null).optional(),
-  specialization: Joi.string().allow('', null).optional(),
-  bio: Joi.string().allow('', null).optional(),
-  consultationFee: Joi.number().allow(null).optional(),
-  services: Joi.array().items(Joi.string()).optional(),
-  workingHours: Joi.object().unknown(true).optional(),
-  clinicName: Joi.string().allow('', null).optional(),
-});
+  firstName: Joi.any(),
+  lastName: Joi.any(),
+  phone: Joi.any(),
+  dateOfBirth: Joi.any(),
+  profileImage: Joi.any(),
+  clinicAddress: Joi.any(),
+  specialization: Joi.any(),
+  bio: Joi.any(),
+  consultationFee: Joi.any(),
+  services: Joi.any(),
+  workingHours: Joi.any(),
+  clinicName: Joi.any(),
+}).unknown(true);
 
 export const createUserController = async (
   req: AuthRequest,
