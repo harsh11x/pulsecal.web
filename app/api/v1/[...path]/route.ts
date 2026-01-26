@@ -120,3 +120,4 @@ export async function PATCH(
     const pathArray = Array.isArray(params.path) ? params.path : [params.path];
     return handleProxy(request, pathArray);
 }
+
