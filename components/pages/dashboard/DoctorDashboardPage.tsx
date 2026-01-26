@@ -105,7 +105,6 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
     const interval = setInterval(fetchDashboardData, 60000)
 
     return () => {
-      clearTimeout(timer)
       clearInterval(interval)
       socketService.off("appointment:new")
       socketService.off("appointment:update")
