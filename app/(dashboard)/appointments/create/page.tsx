@@ -219,16 +219,15 @@ export default function CreateAppointmentPage() {
               />
             </div>
 
-            <div className="flex gap-4 pt-4">
+            <div className="flex gap-4 pt-4 justify-end">
               <Button
                 type="button"
                 variant="outline"
-                className="w-full"
                 onClick={() => router.back()}
               >
                 Cancel
               </Button>
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button type="submit" disabled={loading}>
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Create Appointment
               </Button>

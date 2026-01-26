@@ -72,7 +72,13 @@ export const syncProfileController = async (
       onboardingCompleted,
     } = req.body;
 
-    logger.info({ userId, fields: Object.keys(req.body) }, 'Syncing user profile');
+    logger.info({ userId, fields: Object.keys(req.body), requestedRole: role }, 'Syncing user profile');
+
+    // Get current user to check existing role
+    const currentUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true, onboardingCompleted: true },
+    });
 
     // Update User table fields
     const userUpdateData: Record<string, any> = {};
@@ -86,8 +92,32 @@ export const syncProfileController = async (
     if (typeof onboardingCompleted === 'boolean') {
       userUpdateData.onboardingCompleted = onboardingCompleted;
     }
+    
+    // ROLE ENFORCEMENT: Only allow role change if:
+    // 1. User has no role set yet (first time setup), OR
+    // 2. User hasn't completed onboarding (still in setup phase)
+    // Once onboarding is completed, role is LOCKED
     if (role && ['PATIENT', 'DOCTOR', 'RECEPTIONIST', 'ADMIN'].includes(role)) {
-      userUpdateData.role = role;
+      const currentRole = currentUser?.role;
+      const hasCompletedOnboarding = currentUser?.onboardingCompleted === true;
+      
+      if (currentRole && hasCompletedOnboarding && currentRole !== role) {
+        // User is trying to change their role after onboarding - DENY
+        logger.warn(
+          { userId, currentRole, requestedRole: role },
+          'Attempted role change denied - user has completed onboarding'
+        );
+        throw new AppError(
+          `Cannot change role from ${currentRole} to ${role}. Your account is registered as ${currentRole}. Please use a different account if you need a different role.`,
+          403
+        );
+      }
+      
+      // Allow role set/change only if not yet onboarded
+      if (!hasCompletedOnboarding) {
+        userUpdateData.role = role;
+        logger.info({ userId, newRole: role }, 'Role set during onboarding');
+      }
     }
 
     // Update user if there's data to update
@@ -110,8 +140,11 @@ export const syncProfileController = async (
       await updateProfile(userId, profileUpdateData);
     }
 
+    // Get the final role (either updated or existing)
+    const finalRole = userUpdateData.role || currentUser?.role;
+
     // If role is DOCTOR, ensure DoctorProfile exists
-    if (role === 'DOCTOR') {
+    if (finalRole === 'DOCTOR') {
       const existingDoctorProfile = await prisma.doctorProfile.findUnique({
         where: { userId },
       });
@@ -128,9 +161,22 @@ export const syncProfileController = async (
       }
     }
 
+    // If role is PATIENT, ensure PatientProfile exists
+    if (finalRole === 'PATIENT') {
+      const existingPatientProfile = await prisma.patientProfile.findUnique({
+        where: { userId },
+      });
+
+      if (!existingPatientProfile) {
+        await prisma.patientProfile.create({
+          data: { userId },
+        });
+      }
+    }
+
     // Get updated profile
     const updatedProfile = await getProfile(userId);
-    logger.info({ userId }, 'Profile synced successfully');
+    logger.info({ userId, role: updatedProfile.role }, 'Profile synced successfully');
     sendSuccess(res, updatedProfile, 'Profile synced successfully');
   } catch (error: any) {
     logger.error(

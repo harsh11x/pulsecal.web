@@ -29,7 +29,10 @@ const createAppointmentSchema = Joi.object({
   scheduledAt: Joi.date().required(),
   duration: Joi.number().optional(),
   reason: Joi.string().optional(),
+  notes: Joi.string().optional(),
   paymentId: Joi.string().optional(),
+  status: Joi.string().optional(),
+  type: Joi.string().optional(),
 })
   .xor('patientId', 'patientDetails');
 

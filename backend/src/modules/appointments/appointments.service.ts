@@ -10,6 +10,9 @@ export const createAppointment = async (data: {
   scheduledAt: Date;
   duration?: number;
   reason?: string;
+  notes?: string;
+  status?: string;
+  paymentStatus?: string;
 }) => {
   const appointment = await prisma.appointment.create({
     data: {
@@ -18,7 +21,9 @@ export const createAppointment = async (data: {
       scheduledAt: data.scheduledAt,
       duration: data.duration || 30,
       reason: data.reason,
-      status: 'SCHEDULED',
+      notes: data.notes,
+      status: data.status || 'SCHEDULED',
+      paymentStatus: data.paymentStatus,
     },
     include: {
       patient: {
