@@ -1,7 +1,9 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from "axios"
 import { getIdToken } from "@/lib/firebaseAuth"
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api/v1"
+// ALWAYS use relative URL to go through Next.js proxy
+// This avoids mixed content errors (HTTPS frontend -> HTTP backend)
+const API_BASE_URL = "/api/v1"
 
 class ApiService {
   private api: AxiosInstance
