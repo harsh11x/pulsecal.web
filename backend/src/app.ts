@@ -15,6 +15,11 @@ const app: Express = express();
 // Trust Proxy (Required for AWS Load Balancers)
 app.set('trust proxy', 1);
 
+// Version check endpoint
+app.get('/version', (_req, res) => {
+  res.json({ version: '2.0.1', deployed: new Date().toISOString(), noValidation: true });
+});
+
 // Request ID Injection
 app.use((req, _res, next) => {
   req.id = uuidv4();
