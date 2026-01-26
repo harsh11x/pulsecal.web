@@ -287,55 +287,66 @@ export const updateProfile = async (
 };
 
 export const getAllUsers = async (req: any) => {
-  const { page = 1, limit = 10 } = req.query || {};
-  const { role, search } = req.query || {};
-  
-  const pageNum = Math.max(1, parseInt(page as string, 10) || 1);
-  const limitNum = Math.min(100, Math.max(1, parseInt(limit as string, 10) || 10));
-  const skip = (pageNum - 1) * limitNum;
+  try {
+    const { page = 1, limit = 10 } = req.query || {};
+    const { role, search } = req.query || {};
+    
+    const pageNum = Math.max(1, parseInt(page as string, 10) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit as string, 10) || 10));
+    const skip = (pageNum - 1) * limitNum;
 
-  const where: any = {};
-  if (role) {
-    where.role = role;
-  }
-  if (search) {
-    where.OR = [
-      { firstName: { contains: search as string, mode: 'insensitive' } },
-      { lastName: { contains: search as string, mode: 'insensitive' } },
-      { email: { contains: search as string, mode: 'insensitive' } },
-    ];
-  }
+    const where: any = {};
+    if (role) {
+      // Handle case-insensitive role matching
+      where.role = (role as string).toUpperCase();
+    }
+    if (search) {
+      where.OR = [
+        { firstName: { contains: search as string, mode: 'insensitive' } },
+        { lastName: { contains: search as string, mode: 'insensitive' } },
+        { email: { contains: search as string, mode: 'insensitive' } },
+      ];
+    }
 
-  const [users, total] = await Promise.all([
-    prisma.user.findMany({
-      where,
-      skip,
-      take: limitNum,
-      orderBy: {
-        createdAt: 'desc',
+    logger.info({ where, pageNum, limitNum }, 'Fetching users with filters');
+
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        skip,
+        take: limitNum,
+        orderBy: {
+          createdAt: 'desc',
+        },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+          isActive: true,
+          createdAt: true,
+          clinicId: true,
+        },
+      }),
+      prisma.user.count({ where }),
+    ]);
+
+    logger.info({ count: users.length, total }, 'Users fetched successfully');
+
+    return {
+      data: users,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum),
       },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-      },
-    }),
-    prisma.user.count({ where }),
-  ]);
-
-  return {
-    data: users,
-    pagination: {
-      page: pageNum,
-      limit: limitNum,
-      total,
-      totalPages: Math.ceil(total / limitNum),
-    },
-  };
+    };
+  } catch (error: any) {
+    logger.error({ error: error.message, stack: error.stack }, 'Error in getAllUsers service');
+    throw error;
+  }
 };
 
 export const getUserById = async (userId: string) => {

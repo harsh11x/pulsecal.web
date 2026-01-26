@@ -142,13 +142,19 @@ export const getDoctorAvailabilityController = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { id } = req.params;
+    // Use req.params.id if provided (for public endpoints), otherwise use authenticated user's ID
+    const doctorId = req.params.id || req.user?.id;
+    if (!doctorId) {
+      throw new AppError('Doctor ID required', 400);
+    }
     const { date } = req.query;
     const dateObj = date ? new Date(date as string) : new Date();
-    const availability = await getDoctorAvailability(id, dateObj);
+    
+    logger.info({ doctorId, date }, 'Fetching doctor availability');
+    const availability = await getDoctorAvailability(doctorId, dateObj);
     sendSuccess(res, availability, 'Availability retrieved successfully');
   } catch (err: any) {
-    logger.error({ error: err.message }, 'Error in getDoctorAvailabilityController');
+    logger.error({ error: err.message, doctorId: req.params.id || req.user?.id }, 'Error in getDoctorAvailabilityController');
     next(err);
   }
 };
