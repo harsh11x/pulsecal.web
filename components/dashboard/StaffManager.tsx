@@ -213,7 +213,7 @@ export default function StaffManager() {
                                 </select>
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="password">Temporary Password</Label>
+                                <Label htmlFor="password">Password</Label>
                                 <Input
                                     id="password"
                                     type="password"
@@ -221,7 +221,11 @@ export default function StaffManager() {
                                     onChange={(e) => setNewStaff({ ...newStaff, password: e.target.value })}
                                     required
                                     minLength={6}
+                                    placeholder="Min 6 characters"
                                 />
+                                <p className="text-xs text-muted-foreground">
+                                    The staff member will use this password along with their email to log in.
+                                </p>
                             </div>
                             <DialogFooter>
                                 <Button type="submit" disabled={actionLoading}>

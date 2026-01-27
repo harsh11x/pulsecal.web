@@ -24,15 +24,16 @@ export default function NotificationSettings() {
     const handleSave = async () => {
         setLoading(true)
         try {
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 800))
-
-            // In a real app, you would save this to the backend
-            // await userService.updateNotificationSettings(settings)
+            // Save notification settings to user profile
+            const { apiService } = await import("@/services/api")
+            await apiService.post("/auth/sync-profile", {
+                notificationSettings: settings
+            })
 
             toast.success("Notification preferences saved")
-        } catch (error) {
-            toast.error("Failed to save preferences")
+        } catch (error: any) {
+            console.error("Failed to save preferences:", error)
+            toast.error(error.response?.data?.message || "Failed to save preferences")
         } finally {
             setLoading(false)
         }

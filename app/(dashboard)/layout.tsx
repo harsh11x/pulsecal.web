@@ -11,41 +11,38 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { ShieldAlert } from "lucide-react"
 
-// Define role-based route access
+// Define role-based route access - paths must match actual route structure
 const ROLE_ROUTES: Record<string, string[]> = {
   patient: [
     "/dashboard",
     "/appointments",
-    "/medical-records",
-    "/prescriptions",
-    "/insurance",
+    "/health/medical-records",
+    "/health/prescriptions",
+    "/services/insurance",
+    "/services/payments",
+    "/services/maps",
     "/profile",
-    "/settings",
-    "/chat",
-    "/health-analytics",
+    "/notifications",
+    "/doctors",
   ],
   doctor: [
     "/dashboard",
     "/appointments",
     "/patients",
-    "/prescriptions",
-    "/medical-records",
+    "/health/prescriptions",
+    "/health/medical-records",
     "/profile",
-    "/settings",
-    "/analytics",
-    "/staff",
-    "/chat",
-    "/queue",
+    "/notifications",
     "/subscription",
+    "/services/payments",
+    "/doctors",
   ],
   receptionist: [
     "/dashboard",
     "/appointments",
     "/patients",
-    "/queue",
     "/profile",
-    "/settings",
-    "/chat",
+    "/notifications",
   ],
   admin: [
     "/dashboard",
@@ -53,18 +50,20 @@ const ROLE_ROUTES: Record<string, string[]> = {
     "/patients",
     "/users",
     "/clinics",
-    "/analytics",
-    "/settings",
     "/profile",
+    "/notifications",
+    "/subscription",
   ],
 }
 
 // Routes that are restricted by role (only these roles can access)
 const RESTRICTED_ROUTES: Record<string, string[]> = {
-  "/staff": ["doctor", "admin"],
+  "/dashboard/staff": ["doctor", "admin"],
+  "/dashboard/schedule": ["doctor", "admin"],
+  "/dashboard/analytics": ["doctor", "admin"],
+  "/dashboard/reports": ["doctor", "admin"],
   "/queue": ["doctor", "receptionist", "admin"],
   "/subscription": ["doctor", "admin"],
-  "/analytics": ["doctor", "admin"],
   "/patients": ["doctor", "receptionist", "admin"],
   "/clinics": ["admin"],
   "/users": ["admin"],
@@ -73,17 +72,28 @@ const RESTRICTED_ROUTES: Record<string, string[]> = {
 function isRouteAllowedForRole(pathname: string, role: string): boolean {
   const normalizedRole = role.toLowerCase()
   
-  // Check restricted routes first
+  // Common routes accessible by all authenticated users
+  const commonRoutes = [
+    "/dashboard",
+    "/profile",
+    "/notifications",
+  ]
+  
+  // Check if it's a common route (but check restricted sub-routes first)
+  // e.g., /dashboard is common but /dashboard/staff is restricted
   for (const [restrictedPath, allowedRoles] of Object.entries(RESTRICTED_ROUTES)) {
     if (pathname.startsWith(restrictedPath)) {
       return allowedRoles.includes(normalizedRole)
     }
   }
   
-  // All users can access common routes like /dashboard, /profile, /settings
-  const commonRoutes = ["/dashboard", "/profile", "/settings", "/chat"]
-  if (commonRoutes.some(route => pathname.startsWith(route))) {
-    return true
+  // Allow common routes for all authenticated users
+  if (commonRoutes.some(route => pathname === route || pathname.startsWith(route + "/"))) {
+    // But still check if it's a restricted sub-route
+    const isRestricted = Object.keys(RESTRICTED_ROUTES).some(r => pathname.startsWith(r))
+    if (!isRestricted) {
+      return true
+    }
   }
   
   // Check if route is in allowed routes for this role

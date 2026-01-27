@@ -19,8 +19,12 @@ export default function CreateAppointmentPage() {
   const router = useRouter()
   const { user } = useAppSelector((state) => state.auth)
   const [loading, setLoading] = useState(false)
-  const [patients, setPatients] = useState<any[]>([])
-  const [loadingPatients, setLoadingPatients] = useState(true)
+  const [loadingSchedule, setLoadingSchedule] = useState(true)
+
+  // Schedule settings from doctor's profile
+  const [workingHours, setWorkingHours] = useState({ start: "09:00", end: "17:00" })
+  const [slotDuration, setSlotDuration] = useState(30)
+  const [blockedSlots, setBlockedSlots] = useState<{startTime: string, endTime: string}[]>([])
 
   const [formData, setFormData] = useState({
     patientDetails: {
@@ -36,14 +40,87 @@ export default function CreateAppointmentPage() {
     type: "in-person"
   })
 
-  // Removed fetchPatients as we do manual entry now
+  // Fetch doctor's schedule when component mounts or date changes
+  useEffect(() => {
+    fetchDoctorSchedule()
+  }, [formData.date])
+
+  const fetchDoctorSchedule = async () => {
+    try {
+      setLoadingSchedule(true)
+      const response: any = await apiService.get("/doctor-profiles/me")
+      const profile = response
+
+      if (profile?.workingHours) {
+        // Get default settings first
+        const defaults = profile.workingHours.defaultSettings
+        if (defaults) {
+          if (defaults.workingHours) {
+            setWorkingHours({
+              start: defaults.workingHours.start || "09:00",
+              end: defaults.workingHours.end || "17:00"
+            })
+          }
+          if (defaults.slotDuration) {
+            setSlotDuration(defaults.slotDuration)
+          }
+        } else {
+          // Fallback to day-specific settings
+          const selectedDate = formData.date || new Date()
+          const dayName = selectedDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
+          const daySchedule = profile.workingHours[dayName]
+          if (daySchedule) {
+            setWorkingHours({
+              start: daySchedule.start || "09:00",
+              end: daySchedule.end || "17:00"
+            })
+          }
+        }
+
+        // Load blocked slots for selected date
+        if (formData.date) {
+          const dateKey = format(formData.date, "yyyy-MM-dd")
+          if (profile.workingHours.exceptions && profile.workingHours.exceptions[dateKey]) {
+            const savedBlockedSlots = profile.workingHours.exceptions[dateKey]
+            setBlockedSlots(Array.isArray(savedBlockedSlots) ? savedBlockedSlots : [])
+          } else {
+            setBlockedSlots([])
+          }
+        }
+      }
+    } catch (error) {
+      console.warn("Failed to fetch doctor schedule:", error)
+      // Use defaults if fetch fails
+    } finally {
+      setLoadingSchedule(false)
+    }
+  }
 
   const generateTimeSlots = () => {
-    const slots = []
-    for (let i = 9; i < 17; i++) {
-      slots.push(`${i.toString().padStart(2, '0')}:00`)
-      slots.push(`${i.toString().padStart(2, '0')}:30`)
+    const slots: string[] = []
+    const [startHour, startMin] = workingHours.start.split(":").map(Number)
+    const [endHour, endMin] = workingHours.end.split(":").map(Number)
+
+    let currentHour = startHour
+    let currentMin = startMin
+
+    while (currentHour < endHour || (currentHour === endHour && currentMin < endMin)) {
+      const slotStart = `${String(currentHour).padStart(2, "0")}:${String(currentMin).padStart(2, "0")}`
+      
+      // Check if this slot is blocked
+      const isBlocked = blockedSlots.some(b => b.startTime === slotStart)
+      
+      if (!isBlocked) {
+        slots.push(slotStart)
+      }
+
+      currentMin += slotDuration
+      if (currentMin >= 60) {
+        currentMin -= 60
+        currentHour += 1
+      }
     }
+
     return slots
   }
 

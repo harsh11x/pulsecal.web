@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
-import { userService } from "@/services/user.service"
-import { Lock, Loader2 } from "lucide-react"
+import { Lock, Loader2, AlertCircle } from "lucide-react"
+import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth"
+import { getAuthInstance } from "@/lib/firebase"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function SecuritySettings() {
     const [loading, setLoading] = useState(false)
@@ -36,12 +38,44 @@ export default function SecuritySettings() {
 
         setLoading(true)
         try {
-            await userService.changePassword(passwords.current, passwords.new)
-            toast.success("Password changed successfully")
+            const auth = getAuthInstance()
+            const user = auth.currentUser
+
+            if (!user || !user.email) {
+                toast.error("No user logged in. Please sign in again.")
+                return
+            }
+
+            // Check if user signed in with Google (no password)
+            const providerData = user.providerData
+            const hasPasswordProvider = providerData.some(p => p.providerId === "password")
+            
+            if (!hasPasswordProvider) {
+                toast.error("You signed in with Google. Password changes are not available for Google accounts.")
+                return
+            }
+
+            // Re-authenticate user with current password
+            const credential = EmailAuthProvider.credential(user.email, passwords.current)
+            await reauthenticateWithCredential(user, credential)
+
+            // Update password
+            await updatePassword(user, passwords.new)
+            
+            toast.success("Password changed successfully!")
             setPasswords({ current: "", new: "", confirm: "" })
         } catch (error: any) {
             console.error("Password change error:", error)
-            toast.error(error.message || "Failed to change password")
+            
+            if (error.code === "auth/wrong-password") {
+                toast.error("Current password is incorrect")
+            } else if (error.code === "auth/requires-recent-login") {
+                toast.error("Please sign out and sign in again before changing your password")
+            } else if (error.code === "auth/weak-password") {
+                toast.error("Password is too weak. Please use a stronger password.")
+            } else {
+                toast.error(error.message || "Failed to change password")
+            }
         } finally {
             setLoading(false)
         }
