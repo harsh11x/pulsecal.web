@@ -70,6 +70,7 @@ export const syncProfileController = async (
       profileImage,
       role,
       onboardingCompleted,
+      clinicId,
     } = req.body;
 
     logger.info({ userId, fields: Object.keys(req.body), requestedRole: role }, 'Syncing user profile');
@@ -77,7 +78,7 @@ export const syncProfileController = async (
     // Get current user to check existing role
     const currentUser = await prisma.user.findUnique({
       where: { id: userId },
-      select: { role: true, onboardingCompleted: true },
+      select: { role: true, onboardingCompleted: true, clinicId: true },
     });
 
     // Update User table fields
@@ -91,6 +92,15 @@ export const syncProfileController = async (
     if (profileImage !== undefined) userUpdateData.profileImage = profileImage;
     if (typeof onboardingCompleted === 'boolean') {
       userUpdateData.onboardingCompleted = onboardingCompleted;
+    }
+    // Allow setting clinicId for doctors during onboarding or if not already set
+    if (clinicId !== undefined) {
+      // Verify clinic exists before setting
+      const clinic = await prisma.clinic.findUnique({ where: { id: clinicId } });
+      if (clinic) {
+        userUpdateData.clinicId = clinicId;
+        logger.info({ userId, clinicId }, 'Setting user clinicId');
+      }
     }
     
     // ROLE ENFORCEMENT: Only allow role change if:

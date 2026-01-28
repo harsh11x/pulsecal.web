@@ -39,7 +39,9 @@ export default function AppointmentsListPage() {
   const fetchAppointments = async () => {
     try {
       const response: any = await apiService.get("/appointments")
-      setAppointments(response.data || [])
+      // apiService unwraps the response, so data could be in response directly or response.appointments
+      const appointmentsList = response?.appointments || response?.data?.appointments || response?.data || response || []
+      setAppointments(Array.isArray(appointmentsList) ? appointmentsList : [])
     } catch (error) {
       console.error("Failed to fetch appointments:", error)
       toast.error("Failed to load appointments")

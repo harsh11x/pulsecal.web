@@ -16,32 +16,32 @@ import Joi from 'joi';
 import prisma from '../../config/database';
 
 const createAppointmentSchema = Joi.object({
-  patientId: Joi.string().optional(),
+  patientId: Joi.string().optional().allow('', null),
   patientDetails: Joi.object({
     firstName: Joi.string().required(),
     lastName: Joi.string().required(),
     phone: Joi.string().required(),
-    email: Joi.string().email().optional(),
-    dob: Joi.date().optional(),
-    gender: Joi.string().optional(),
+    email: Joi.string().email().optional().allow('', null),
+    dob: Joi.date().optional().allow(null),
+    gender: Joi.string().optional().allow('', null),
   }).optional(),
   doctorId: Joi.string().required(),
   scheduledAt: Joi.date().required(),
   duration: Joi.number().optional(),
-  reason: Joi.string().optional(),
-  notes: Joi.string().optional(),
-  paymentId: Joi.string().optional(),
-  status: Joi.string().optional(),
-  type: Joi.string().optional(),
+  reason: Joi.string().optional().allow('', null),
+  notes: Joi.string().optional().allow('', null),
+  paymentId: Joi.string().optional().allow('', null),
+  status: Joi.string().optional().allow('', null),
+  type: Joi.string().optional().allow('', null),
 })
   .xor('patientId', 'patientDetails');
 
 const updateAppointmentSchema = Joi.object({
   scheduledAt: Joi.date().optional(),
   duration: Joi.number().optional(),
-  reason: Joi.string().optional(),
-  notes: Joi.string().optional(),
-  status: Joi.string().optional(),
+  reason: Joi.string().optional().allow('', null),
+  notes: Joi.string().optional().allow('', null),
+  status: Joi.string().optional().allow('', null),
 });
 
 const rescheduleSchema = Joi.object({

@@ -8,7 +8,9 @@ import {
 } from './clinics.service';
 import { sendSuccess, sendPaginated } from '../../utils/apiResponse';
 import { AppError } from '../../middlewares/error.middleware';
+import { AuthRequest } from '../../middlewares/auth.middleware';
 import Joi from 'joi';
+import prisma from '../../config/database';
 
 const clinicSchema = Joi.object({
   name: Joi.string().required(),
@@ -24,7 +26,7 @@ const clinicSchema = Joi.object({
 });
 
 export const createClinicController = async (
-  req: Request,
+  req: AuthRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
@@ -34,6 +36,15 @@ export const createClinicController = async (
       throw new AppError(error.details[0].message, 400);
     }
     const clinic = await createClinic(value);
+
+    // Associate the creating user (doctor) with the clinic
+    if (req.user?.id) {
+      await prisma.user.update({
+        where: { id: req.user.id },
+        data: { clinicId: clinic.id },
+      });
+    }
+
     sendSuccess(res, clinic, 'Clinic created successfully', 201);
   } catch (err) {
     next(err);
