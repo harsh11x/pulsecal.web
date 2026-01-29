@@ -114,7 +114,6 @@ export const createAppointmentController = async (
       ...value,
       patientId,
       status: (req.user?.role === 'DOCTOR' || req.user?.role === 'RECEPTIONIST') ? 'CONFIRMED' : 'PENDING',
-      paymentStatus: (req.user?.role === 'DOCTOR' || req.user?.role === 'RECEPTIONIST') ? 'WAIVED' : 'PENDING'
     });
 
     // Emit real-time notification

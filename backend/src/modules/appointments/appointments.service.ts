@@ -2,7 +2,7 @@ import prisma from '../../config/database';
 import { getPaginationParams, getSortParams } from '../../utils/helpers';
 import { AppError } from '../../middlewares/error.middleware';
 
-import { Prisma, AppointmentStatus, PaymentStatus } from '@prisma/client';
+import { Prisma, AppointmentStatus } from '@prisma/client';
 
 export const createAppointment = async (data: {
   patientId: string;
@@ -12,7 +12,6 @@ export const createAppointment = async (data: {
   reason?: string;
   notes?: string;
   status?: string;
-  paymentStatus?: string;
 }) => {
   const appointment = await prisma.appointment.create({
     data: {
@@ -23,7 +22,6 @@ export const createAppointment = async (data: {
       reason: data.reason,
       notes: data.notes,
       status: (data.status || 'SCHEDULED') as AppointmentStatus,
-      paymentStatus: data.paymentStatus as PaymentStatus | undefined,
     },
     include: {
       patient: {
