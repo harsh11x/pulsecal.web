@@ -19,9 +19,9 @@ const createAppointmentSchema = Joi.object({
   patientId: Joi.string().optional().allow('', null),
   patientDetails: Joi.object({
     firstName: Joi.string().required(),
-    lastName: Joi.string().required(),
+    lastName: Joi.string().optional().allow('', null, '').default(''),
     phone: Joi.string().required(),
-    email: Joi.string().email().optional().allow('', null),
+    email: Joi.string().optional().allow('', null),
     dob: Joi.date().optional().allow(null),
     gender: Joi.string().optional().allow('', null),
   }).optional(),
@@ -33,8 +33,7 @@ const createAppointmentSchema = Joi.object({
   paymentId: Joi.string().optional().allow('', null),
   status: Joi.string().optional().allow('', null),
   type: Joi.string().optional().allow('', null),
-})
-  .xor('patientId', 'patientDetails');
+});
 
 const updateAppointmentSchema = Joi.object({
   scheduledAt: Joi.date().optional(),
@@ -58,10 +57,17 @@ export const createAppointmentController = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { error, value } = createAppointmentSchema.validate(req.body);
+    console.log('Received appointment data:', JSON.stringify(req.body, null, 2));
+    const { error, value } = createAppointmentSchema.validate(req.body, {
+      abortEarly: false,
+      allowUnknown: true,
+      stripUnknown: true,
+    });
     if (error) {
+      console.log('Validation error:', error.details);
       throw new AppError(error.details[0].message, 400);
     }
+    console.log('Validated value:', JSON.stringify(value, null, 2));
 
     let patientId = value.patientId;
 
@@ -84,7 +90,7 @@ export const createAppointmentController = async (
         patient = await prisma.user.create({
           data: {
             firstName,
-            lastName,
+            lastName: lastName || '',
             phone,
             email: email || undefined,
             role: 'PATIENT',
