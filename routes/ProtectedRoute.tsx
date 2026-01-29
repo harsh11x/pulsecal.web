@@ -25,7 +25,10 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
 
     // Role check
     if (!isLoading && user && allowedRoles) {
-      if (!allowedRoles.includes(user.role)) {
+      const userRole = user.role.toUpperCase()
+      const allowed = allowedRoles.map(r => r.toUpperCase())
+
+      if (!allowed.includes(userRole)) {
         router.push('/dashboard') // Or unauthorized page
       }
     }

@@ -77,15 +77,34 @@ export function AddPrescriptionDialog({ open, onOpenChange, onSuccess }: AddPres
         setLoading(true)
 
         try {
-            const payload = {
-                patientId: formData.patientId,
-                date: formData.date,
-                medicines: medicines.filter(m => m.name.trim() !== ""),
-                notes: formData.notes
+            const validMedicines = medicines.filter(m => m.name.trim() !== "")
+
+            if (validMedicines.length === 0) {
+                toast.error("Please add at least one medicine")
+                setLoading(false)
+                return
             }
 
-            await apiService.post("/prescriptions", payload)
-            toast.success("Prescription added successfully")
+            // Loop through medicines and create individual prescriptions
+            // This matches the backend schema which is one medication per prescription record
+            const promises = validMedicines.map(medicine => {
+                const payload = {
+                    patientId: formData.patientId,
+                    // Backend doesn't support 'date', it uses createdAt. 
+                    // Store notes as instructions
+                    medicationName: medicine.name,
+                    dosage: medicine.dosage || "As directed",
+                    frequency: medicine.frequency || "Daily",
+                    quantity: medicine.duration ? parseInt(medicine.duration) : 1, // Store duration as quantity for now or 1
+                    instructions: formData.notes,
+                    refills: 0
+                }
+                return apiService.post("/prescriptions", payload)
+            })
+
+            await Promise.all(promises)
+
+            toast.success("Prescription(s) added successfully")
             onSuccess()
             onOpenChange(false)
             // Reset form
@@ -98,7 +117,8 @@ export function AddPrescriptionDialog({ open, onOpenChange, onSuccess }: AddPres
             setMedicines([{ name: "", dosage: "", frequency: "", duration: "" }])
         } catch (error: any) {
             console.error("Failed to add prescription:", error)
-            toast.error(error.message || "Failed to add prescription")
+            const msg = error.response?.data?.message || error.message || "Failed to add prescription"
+            toast.error(msg)
         } finally {
             setLoading(false)
         }

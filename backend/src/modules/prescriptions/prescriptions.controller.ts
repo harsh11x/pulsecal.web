@@ -14,7 +14,7 @@ import Joi from 'joi';
 
 const createPrescriptionSchema = Joi.object({
   patientId: Joi.string().required(),
-  doctorId: Joi.string().required(),
+  doctorId: Joi.string().optional(), // Inferred from auth
   appointmentId: Joi.string().optional(),
   medicationName: Joi.string().required(),
   dosage: Joi.string().required(),
@@ -25,15 +25,7 @@ const createPrescriptionSchema = Joi.object({
   expiresAt: Joi.date().optional(),
 });
 
-const updatePrescriptionSchema = Joi.object({
-  medicationName: Joi.string().optional(),
-  dosage: Joi.string().optional(),
-  frequency: Joi.string().optional(),
-  quantity: Joi.number().optional(),
-  refills: Joi.number().optional(),
-  instructions: Joi.string().optional(),
-  status: Joi.string().optional(),
-});
+// ... (omitted code)
 
 export const createPrescriptionController = async (
   req: AuthRequest,
@@ -45,6 +37,12 @@ export const createPrescriptionController = async (
     if (error) {
       throw new AppError(error.details[0].message, 400);
     }
+
+    // Auto-assign doctorId
+    if (req.user?.id) {
+      value.doctorId = req.user.id;
+    }
+
     const prescription = await createPrescription(value);
     sendSuccess(res, prescription, 'Prescription created successfully', 201);
   } catch (err) {

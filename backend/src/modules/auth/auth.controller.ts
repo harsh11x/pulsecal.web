@@ -19,18 +19,18 @@ export const getProfileController = async (
 
     const userId: string = req.user.id;
     logger.info({ userId }, 'Fetching user profile');
-    
+
     try {
       const userProfile = await getProfile(userId);
       logger.info({ userId }, 'Profile fetched successfully');
       sendSuccess(res, userProfile, 'Profile retrieved successfully');
     } catch (profileError: any) {
       logger.error(
-        { 
-          error: profileError.message, 
+        {
+          error: profileError.message,
           stack: profileError.stack,
-          userId 
-        }, 
+          userId
+        },
         'Error fetching profile'
       );
       throw profileError;
@@ -94,25 +94,29 @@ export const syncProfileController = async (
     if (typeof onboardingCompleted === 'boolean') {
       userUpdateData.onboardingCompleted = onboardingCompleted;
     }
-    
+
     // Handle settings - merge with existing settings
     // Note: settings field requires migration. Check if it exists on the user model.
     if (settings !== undefined || notificationSettings !== undefined) {
       const userAny = currentUser as any;
-      const existingSettings = (userAny?.settings as Record<string, any>) || {};
+      const existingSettings = (userAny?.settings && typeof userAny.settings === 'object') ? userAny.settings : {};
       const newSettings = { ...existingSettings };
-      
+
       if (settings) {
-        Object.assign(newSettings, settings);
+        // Handle case where settings might be a string (JSON) or object
+        const settingsObj = typeof settings === 'string' ? JSON.parse(settings) : settings;
+        Object.assign(newSettings, settingsObj);
       }
       if (notificationSettings) {
-        newSettings.notifications = notificationSettings;
+        // Handle case where notificationSettings might be a string
+        const notifyObj = typeof notificationSettings === 'string' ? JSON.parse(notificationSettings) : notificationSettings;
+        newSettings.notifications = notifyObj;
       }
-      
+
       userUpdateData.settings = newSettings;
       logger.info({ userId }, 'Updating user settings');
     }
-    
+
     // Allow setting clinicId for doctors during onboarding or if not already set
     if (clinicId !== undefined) {
       // Verify clinic exists before setting
@@ -122,7 +126,7 @@ export const syncProfileController = async (
         logger.info({ userId, clinicId }, 'Setting user clinicId');
       }
     }
-    
+
     // ROLE ENFORCEMENT: Only allow role change if:
     // 1. User has no role set yet (first time setup), OR
     // 2. User hasn't completed onboarding (still in setup phase)
@@ -130,7 +134,7 @@ export const syncProfileController = async (
     if (role && ['PATIENT', 'DOCTOR', 'RECEPTIONIST', 'ADMIN'].includes(role)) {
       const currentRole = currentUser?.role;
       const hasCompletedOnboarding = currentUser?.onboardingCompleted === true;
-      
+
       if (currentRole && hasCompletedOnboarding && currentRole !== role) {
         // User is trying to change their role after onboarding - DENY
         logger.warn(
@@ -142,7 +146,7 @@ export const syncProfileController = async (
           403
         );
       }
-      
+
       // Allow role set/change only if not yet onboarded
       if (!hasCompletedOnboarding) {
         userUpdateData.role = role;
@@ -210,11 +214,11 @@ export const syncProfileController = async (
     sendSuccess(res, updatedProfile, 'Profile synced successfully');
   } catch (error: any) {
     logger.error(
-      { 
-        error: error.message, 
+      {
+        error: error.message,
         stack: error.stack,
-        userId: req.user?.id 
-      }, 
+        userId: req.user?.id
+      },
       'Error in syncProfileController'
     );
     next(error);

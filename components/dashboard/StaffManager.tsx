@@ -43,10 +43,14 @@ export default function StaffManager() {
         try {
             setLoading(true)
             // Fetch both receptionists and doctors in parallel
-            const [receptionists, doctors] = await Promise.all([
+            // Handle both array (legacy) and paginated { data, pagination } structures
+            const [receptionistsData, doctorsData] = await Promise.all([
                 userService.getAllUsers("receptionist"),
                 userService.getAllUsers("doctor")
-            ])
+            ]) as [any, any]
+
+            const receptionists = Array.isArray(receptionistsData) ? receptionistsData : (receptionistsData?.data || [])
+            const doctors = Array.isArray(doctorsData) ? doctorsData : (doctorsData?.data || [])
 
             // Filter by clinicId and combine
             const myReceptionists = receptionists.filter((u: User) => u.clinicId === currentUser.clinicId)
@@ -70,17 +74,18 @@ export default function StaffManager() {
             const payload = {
                 ...newStaff,
                 clinicId: currentUser.clinicId,
-                role: newStaff.role.toUpperCase() as "RECEPTIONIST" | "DOCTOR", // Ensure uppercase for backend enum
+                role: newStaff.role.toUpperCase(), // Backend expects uppercase
                 isActive: true,
-                isEmailVerified: true // Auto-verify for simplicity
-            }
+                isEmailVerified: true
+            } as any
+
 
             console.log("Creating staff member with payload:", payload)
             const response: any = await userService.createUser(payload)
             console.log("Create staff response:", response)
-            
+
             const createdUser = response
-            
+
             toast.success(`${newStaff.role === 'doctor' ? 'Doctor' : 'Receptionist'} added successfully`)
             setIsAddDialogOpen(false)
             setNewStaff({
@@ -97,7 +102,7 @@ export default function StaffManager() {
             console.error("Add staff error - Full error:", error)
             console.error("Error response:", error.response)
             console.error("Error config:", error.config)
-            
+
             // Handle network errors specifically
             if (error.code === "ERR_NETWORK" || error.message?.includes("Network Error") || !error.response) {
                 const networkError = error.response?.data?.details || error.response?.data?.error || error.message || "Cannot connect to backend server. Please check if the server is running."

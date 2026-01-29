@@ -32,6 +32,8 @@ export default function ClinicManager({ clinicId }: ClinicManagerProps) {
     useEffect(() => {
         if (clinicId) {
             fetchClinicDetails()
+        } else {
+            setFetching(false)
         }
     }, [clinicId])
 
