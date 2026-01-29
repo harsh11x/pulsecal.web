@@ -80,7 +80,6 @@ export const syncProfileController = async (
     // Get current user to check existing role and settings
     const currentUser = await prisma.user.findUnique({
       where: { id: userId },
-      select: { role: true, onboardingCompleted: true, clinicId: true, settings: true },
     });
 
     // Update User table fields
@@ -97,8 +96,10 @@ export const syncProfileController = async (
     }
     
     // Handle settings - merge with existing settings
+    // Note: settings field requires migration. Check if it exists on the user model.
     if (settings !== undefined || notificationSettings !== undefined) {
-      const existingSettings = (currentUser?.settings as Record<string, any>) || {};
+      const userAny = currentUser as any;
+      const existingSettings = (userAny?.settings as Record<string, any>) || {};
       const newSettings = { ...existingSettings };
       
       if (settings) {

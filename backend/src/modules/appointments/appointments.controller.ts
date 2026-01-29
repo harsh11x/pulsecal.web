@@ -119,11 +119,12 @@ export const createAppointmentController = async (
 
     // Emit real-time notification
     const { emitNewAppointment } = await import('../../utils/socketEmitter');
+    const appointmentWithPatient = appointment as any;
     emitNewAppointment({
       id: appointment.id,
       doctorId: appointment.doctorId,
       patientId: appointment.patientId || '',
-      patientName: appointment.patient ? `${appointment.patient.firstName} ${appointment.patient.lastName}` : 'Unknown Patient',
+      patientName: appointmentWithPatient.patient ? `${appointmentWithPatient.patient.firstName} ${appointmentWithPatient.patient.lastName}` : 'Unknown Patient',
       scheduledAt: appointment.scheduledAt,
       reason: appointment.reason || undefined,
     });

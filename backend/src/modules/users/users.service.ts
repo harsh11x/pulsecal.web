@@ -110,22 +110,10 @@ export const getProfile = async (userId: string) => {
       throw new AppError('Invalid user ID', 400);
     }
 
+    // Fetch user with all fields (includes settings if migration has been run)
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        phone: true,
-        dateOfBirth: true,
-        role: true,
-        isEmailVerified: true,
-        onboardingCompleted: true,
-        clinicId: true,
-        profileImage: true,
-        settings: true,
-        createdAt: true,
+      include: {
         patientProfile: {
           select: {
             id: true,
@@ -156,8 +144,11 @@ export const getProfile = async (userId: string) => {
       throw new AppError('User not found', 404);
     }
 
+    // Return sanitized user data (exclude sensitive fields)
+    const { password, mfaSecret, emailVerificationToken, passwordResetToken, ...safeUser } = user;
+
     logger.info({ userId, role: user.role }, 'Profile retrieved successfully');
-    return user;
+    return safeUser;
   } catch (error: any) {
     if (error instanceof AppError) {
       throw error;
