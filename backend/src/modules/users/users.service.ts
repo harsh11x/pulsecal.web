@@ -124,6 +124,7 @@ export const getProfile = async (userId: string) => {
         onboardingCompleted: true,
         clinicId: true,
         profileImage: true,
+        settings: true,
         createdAt: true,
         patientProfile: {
           select: {

@@ -71,14 +71,16 @@ export const syncProfileController = async (
       role,
       onboardingCompleted,
       clinicId,
+      settings,
+      notificationSettings,
     } = req.body;
 
     logger.info({ userId, fields: Object.keys(req.body), requestedRole: role }, 'Syncing user profile');
 
-    // Get current user to check existing role
+    // Get current user to check existing role and settings
     const currentUser = await prisma.user.findUnique({
       where: { id: userId },
-      select: { role: true, onboardingCompleted: true, clinicId: true },
+      select: { role: true, onboardingCompleted: true, clinicId: true, settings: true },
     });
 
     // Update User table fields
@@ -93,6 +95,23 @@ export const syncProfileController = async (
     if (typeof onboardingCompleted === 'boolean') {
       userUpdateData.onboardingCompleted = onboardingCompleted;
     }
+    
+    // Handle settings - merge with existing settings
+    if (settings !== undefined || notificationSettings !== undefined) {
+      const existingSettings = (currentUser?.settings as Record<string, any>) || {};
+      const newSettings = { ...existingSettings };
+      
+      if (settings) {
+        Object.assign(newSettings, settings);
+      }
+      if (notificationSettings) {
+        newSettings.notifications = notificationSettings;
+      }
+      
+      userUpdateData.settings = newSettings;
+      logger.info({ userId }, 'Updating user settings');
+    }
+    
     // Allow setting clinicId for doctors during onboarding or if not already set
     if (clinicId !== undefined) {
       // Verify clinic exists before setting

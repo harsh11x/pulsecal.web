@@ -1,21 +1,44 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { Bell, Loader2 } from "lucide-react"
 import { toast } from "sonner"
+import { apiService } from "@/services/api"
 
 export default function NotificationSettings() {
     const [loading, setLoading] = useState(false)
+    const [loadingSettings, setLoadingSettings] = useState(true)
     const [settings, setSettings] = useState({
         emailNotifications: true,
         appointmentReminders: true,
         marketingEmails: false,
         securityAlerts: true
     })
+
+    // Load saved settings on mount
+    useEffect(() => {
+        const fetchSettings = async () => {
+            try {
+                const response: any = await apiService.get("/auth/profile")
+                const savedSettings = response?.settings?.notifications
+                if (savedSettings) {
+                    setSettings(prev => ({
+                        ...prev,
+                        ...savedSettings
+                    }))
+                }
+            } catch (error) {
+                console.warn("Failed to load notification settings:", error)
+            } finally {
+                setLoadingSettings(false)
+            }
+        }
+        fetchSettings()
+    }, [])
 
     const handleToggle = (key: keyof typeof settings) => {
         setSettings(prev => ({ ...prev, [key]: !prev[key] }))
@@ -24,8 +47,6 @@ export default function NotificationSettings() {
     const handleSave = async () => {
         setLoading(true)
         try {
-            // Save notification settings to user profile
-            const { apiService } = await import("@/services/api")
             await apiService.post("/auth/sync-profile", {
                 notificationSettings: settings
             })
@@ -37,6 +58,16 @@ export default function NotificationSettings() {
         } finally {
             setLoading(false)
         }
+    }
+
+    if (loadingSettings) {
+        return (
+            <Card>
+                <CardContent className="flex items-center justify-center py-12">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                </CardContent>
+            </Card>
+        )
     }
 
     return (
