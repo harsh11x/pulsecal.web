@@ -121,10 +121,17 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch today's stats
+      // Fetch receptionist stats (clinic-scoped) - single source for counts
       const statsResponse: any = await apiService.get("/receptionists/stats")
       if (statsResponse?.stats) {
-        setTodayStats(statsResponse.stats)
+        const s = statsResponse.stats
+        setTodayStats({
+          appointments: s.appointments ?? s.totalBooked ?? 0,
+          completed: s.completed ?? 0,
+          waiting: s.waiting ?? 0,
+          cancelled: s.cancelled ?? 0,
+          inProgress: s.inProgress ?? 0,
+        })
       } else {
         setTodayStats({ appointments: 0, completed: 0, waiting: 0, cancelled: 0, inProgress: 0 })
       }
@@ -133,19 +140,19 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
         setClinicInfo(statsResponse.clinic)
       }
 
-      // Fetch queue
+      // Fetch queue (clinic-scoped by backend using user's clinicId)
       const queueResponse: any = await apiService.get("/receptionists/queue")
-      setQueue(queueResponse || [])
+      setQueue(Array.isArray(queueResponse) ? queueResponse : [])
 
-      // Fetch today's appointments
+      // Fetch today's appointments (clinic-scoped by backend)
       const todayResponse: any = await apiService.get("/appointments?date=today")
-      const todayApts = todayResponse || []
-      setTodayAppointments(Array.isArray(todayApts) ? todayApts : todayApts.appointments || [])
+      const todayApts = todayResponse?.appointments ?? todayResponse
+      setTodayAppointments(Array.isArray(todayApts) ? todayApts : [])
 
-      // Fetch all appointments for the clinic
-      const allResponse: any = await apiService.get("/appointments")
-      const allApts = allResponse || []
-      setAllAppointments(Array.isArray(allApts) ? allApts : allApts.appointments || [])
+      // Fetch all appointments for the clinic (clinic-scoped, paginated)
+      const allResponse: any = await apiService.get("/appointments?limit=500")
+      const allApts = allResponse?.appointments ?? allResponse
+      setAllAppointments(Array.isArray(allApts) ? allApts : [])
     } catch (error: any) {
       console.error("Failed to fetch dashboard data:", error)
       if (error.response?.status !== 403) {

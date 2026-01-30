@@ -2,27 +2,29 @@ import prisma from '../../config/database';
 import { AppError } from '../../middlewares/error.middleware';
 
 /**
- * Get receptionist dashboard stats
+ * Get receptionist dashboard stats - only for their clinic
  */
-export const getReceptionistStats = async (_receptionistId: string) => {
+export const getReceptionistStats = async (receptionistId: string, clinicId?: string | null) => {
   const now = new Date();
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const endOfDay = new Date(now);
   endOfDay.setHours(23, 59, 59, 999);
 
-  // Get receptionist's clinic (assuming they're linked via clinicId in user or separate table)
-  // For now, we'll get all appointments for today that receptionist can manage
-  // In a real system, you'd have a ReceptionistProfile table with clinicId
-
-  // Get today's appointments
-  const todayAppointments = await prisma.appointment.findMany({
-    where: {
-      scheduledAt: {
-        gte: startOfDay,
-        lte: endOfDay,
-      },
-      deletedAt: null,
+  // Only appointments for doctors in this receptionist's clinic
+  const where: any = {
+    scheduledAt: {
+      gte: startOfDay,
+      lte: endOfDay,
     },
+    deletedAt: null,
+  };
+
+  if (clinicId) {
+    where.doctor = { clinicId };
+  }
+
+  const todayAppointments = await prisma.appointment.findMany({
+    where,
     include: {
       patient: {
         select: {
@@ -37,6 +39,7 @@ export const getReceptionistStats = async (_receptionistId: string) => {
           id: true,
           firstName: true,
           lastName: true,
+          clinicId: true,
         },
       },
     },
@@ -45,20 +48,32 @@ export const getReceptionistStats = async (_receptionistId: string) => {
     },
   });
 
+  const totalCount = todayAppointments.length;
   const stats = {
-    totalBooked: todayAppointments.length,
+    appointments: totalCount,
+    totalBooked: totalCount,
     completed: todayAppointments.filter(apt => apt.status === 'COMPLETED').length,
     waiting: todayAppointments.filter(apt =>
-      ['SCHEDULED', 'CONFIRMED'].includes(apt.status)
+      ['SCHEDULED', 'CONFIRMED', 'CHECKED_IN'].includes(apt.status)
     ).length,
     inProgress: todayAppointments.filter(apt => apt.status === 'IN_PROGRESS').length,
     cancelled: todayAppointments.filter(apt => apt.status === 'CANCELLED').length,
     noShow: todayAppointments.filter(apt => apt.status === 'NO_SHOW').length,
   };
 
+  // Fetch clinic info if clinicId provided
+  let clinic = null;
+  if (clinicId) {
+    clinic = await prisma.clinic.findUnique({
+      where: { id: clinicId },
+      select: { id: true, name: true, address: true, city: true, phone: true, email: true },
+    });
+  }
+
   return {
     stats,
     appointments: todayAppointments,
+    clinic,
   };
 };
 

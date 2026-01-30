@@ -47,11 +47,12 @@ export const getReceptionistStatsController = async (
 ): Promise<void> => {
   try {
     const receptionistId = req.user?.id;
+    const clinicId = req.user?.clinicId;
     if (!receptionistId) {
       throw new AppError('User not authenticated', 401);
     }
 
-    const stats = await getReceptionistStats(receptionistId);
+    const stats = await getReceptionistStats(receptionistId, clinicId);
     sendSuccess(res, stats, 'Stats retrieved successfully');
   } catch (err) {
     next(err);
@@ -64,8 +65,9 @@ export const getQueueStatusController = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { clinicId } = req.query;
-    const queue = await getQueueStatus(clinicId as string);
+    // Use receptionist's clinicId so queue is scoped to their clinic
+    const clinicId = (req.query.clinicId as string) || req.user?.clinicId;
+    const queue = await getQueueStatus(clinicId);
     sendSuccess(res, queue, 'Queue status retrieved successfully');
   } catch (err) {
     next(err);
