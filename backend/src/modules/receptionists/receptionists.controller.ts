@@ -67,7 +67,7 @@ export const getQueueStatusController = async (
   try {
     // Use receptionist's clinicId so queue is scoped to their clinic
     const clinicId = (req.query.clinicId as string) || req.user?.clinicId;
-    const queue = await getQueueStatus(clinicId);
+    const queue = await getQueueStatus(clinicId ?? undefined);
     sendSuccess(res, queue, 'Queue status retrieved successfully');
   } catch (err) {
     next(err);

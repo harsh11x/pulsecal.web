@@ -4,7 +4,7 @@ import { AppError } from '../../middlewares/error.middleware';
 /**
  * Get receptionist dashboard stats - only for their clinic
  */
-export const getReceptionistStats = async (receptionistId: string, clinicId?: string | null) => {
+export const getReceptionistStats = async (_receptionistId: string, clinicId?: string | null) => {
   const now = new Date();
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const endOfDay = new Date(now);
