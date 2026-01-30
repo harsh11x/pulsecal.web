@@ -44,7 +44,8 @@ export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
         console.log("✅ Firebase sign in successful")
         toast.success("Signed in successfully!")
 
-        // Existing users always go to dashboard
+        // Give auth state listener time to run and set user before navigating (fixes patient login)
+        await new Promise((r) => setTimeout(r, 1500))
         router.push("/dashboard")
       } else {
         // Sign up with email and password
@@ -105,6 +106,7 @@ export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
           toast.info("Account already exists. Signing you in...")
           await signIn(formData.email, formData.password)
           toast.success("Signed in successfully!")
+          await new Promise((r) => setTimeout(r, 1500))
           router.push("/dashboard")
           return
         } catch (signInError: any) {

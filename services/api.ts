@@ -39,6 +39,8 @@ class ApiService {
         const originalRequest = error.config
 
         // Handle 401 Unauthorized errors
+        // Skip redirect for /auth/profile so the auth listener can use minimal user on failure
+        const isProfileRequest = originalRequest.url?.includes("/auth/profile")
         if (error.response?.status === 401 && !originalRequest._retry) {
           originalRequest._retry = true
 
@@ -60,16 +62,16 @@ class ApiService {
               // Retry the original request
               return this.api(originalRequest)
             } else {
-              // No token available, redirect to login
+              // No token available - only redirect if not a profile request (let auth listener handle profile 401)
               console.error("No token available after refresh attempt")
-              if (typeof window !== "undefined" && !window.location.pathname.includes("/auth")) {
+              if (!isProfileRequest && typeof window !== "undefined" && !window.location.pathname.includes("/auth")) {
                 window.location.href = `/auth/login?redirect=${encodeURIComponent(window.location.pathname)}`
               }
             }
           } catch (refreshError) {
             console.error("Token refresh failed:", refreshError)
-            // Redirect to login on failed refresh
-            if (typeof window !== "undefined" && !window.location.pathname.includes("/auth")) {
+            // Don't redirect for profile request - let auth listener use minimal user
+            if (!isProfileRequest && typeof window !== "undefined" && !window.location.pathname.includes("/auth")) {
               window.location.href = `/auth/login?redirect=${encodeURIComponent(window.location.pathname)}`
             }
           }

@@ -45,71 +45,77 @@ function AuthStateListener({ children }: { children: React.ReactNode }) {
             // Use onIdTokenChanged to catch token refreshes as well as sign-in/out
             unsubscribe = onIdTokenChanged(auth, async (firebaseUser: User | null) => {
               if (firebaseUser) {
-                // User is signed in or token refreshed
-                try {
-                  // Get the token directly from the user object
-                  const token = await firebaseUser.getIdToken()
-
-                  if (token) {
-                    // Update default headers for all future requests
-                    // @ts-ignore - Accessing private property
-                    if (apiService['api']) {
-                      apiService['api'].defaults.headers.common["Authorization"] = `Bearer ${token}`
+                // User is signed in or token refreshed - retry token a few times (patient login can be slow)
+                let token: string | null = null
+                for (let attempt = 0; attempt < 3; attempt++) {
+                  try {
+                    token = await firebaseUser.getIdToken(attempt > 0)
+                    if (token) break
+                  } catch (e) {
+                    if (attempt === 2) {
+                      console.warn("Failed to get token after retries:", e)
+                      dispatch(setLoading(false))
+                      return
                     }
+                    await new Promise((r) => setTimeout(r, 400))
+                  }
+                }
 
-                    try {
-                      const profileResponse: any = await apiService.get("/auth/profile")
-                      const userProfile = profileResponse
+                if (token) {
+                  // Update default headers for all future requests
+                  // @ts-ignore - Accessing private property
+                  if (apiService['api']) {
+                    apiService['api'].defaults.headers.common["Authorization"] = `Bearer ${token}`
+                  }
 
-                      if (userProfile && userProfile.id) {
-                        const userData = {
-                          id: userProfile.id,
-                          email: userProfile.email,
-                          firstName: userProfile.firstName,
-                          lastName: userProfile.lastName,
-                          phone: userProfile.phone,
-                          dateOfBirth: userProfile.dateOfBirth,
-                          role: (userProfile.role || "PATIENT").toLowerCase() as "patient" | "doctor" | "receptionist" | "admin",
-                          isActive: userProfile.isActive !== false,
-                          isEmailVerified: userProfile.isEmailVerified || false,
-                          profileImage: userProfile.profileImage,
-                          onboardingCompleted: userProfile.onboardingCompleted || false,
-                          clinicId: userProfile.clinicId,
-                        }
-                        dispatch(setUser(userData))
-                      }
-                    } catch (profileError: any) {
-                      console.warn("Failed to fetch user profile:", profileError?.message || profileError)
+                  try {
+                    const profileResponse: any = await apiService.get("/auth/profile")
+                    const userProfile = profileResponse
 
-                      // Fallback: Get role from ID token claims
-                      let firebaseRole = "patient"
-                      try {
-                        const idTokenResult = await firebaseUser.getIdTokenResult()
-                        if (idTokenResult.claims.role) {
-                          firebaseRole = (idTokenResult.claims.role as string).toLowerCase()
-                        }
-                      } catch (e) {
-                        console.error("Failed to get ID token result:", e)
-                      }
-
-                      // Create minimal user from Firebase data
+                    if (userProfile && userProfile.id) {
                       const userData = {
-                        id: firebaseUser.uid,
-                        email: firebaseUser.email || "",
-                        firstName: firebaseUser.displayName?.split(" ")[0] || "User",
-                        lastName: firebaseUser.displayName?.split(" ").slice(1).join(" ") || "",
-                        role: firebaseRole as "patient" | "doctor" | "receptionist" | "admin",
-                        isActive: true,
-                        isEmailVerified: firebaseUser.emailVerified || false,
-                        profileImage: firebaseUser.photoURL || undefined,
-                        onboardingCompleted: false,
+                        id: userProfile.id,
+                        email: userProfile.email,
+                        firstName: userProfile.firstName,
+                        lastName: userProfile.lastName,
+                        phone: userProfile.phone,
+                        dateOfBirth: userProfile.dateOfBirth,
+                        role: (userProfile.role || "PATIENT").toLowerCase() as "patient" | "doctor" | "receptionist" | "admin",
+                        isActive: userProfile.isActive !== false,
+                        isEmailVerified: userProfile.isEmailVerified || false,
+                        profileImage: userProfile.profileImage,
+                        onboardingCompleted: userProfile.onboardingCompleted || false,
+                        clinicId: userProfile.clinicId,
                       }
                       dispatch(setUser(userData))
                     }
+                  } catch (profileError: any) {
+                    console.warn("Failed to fetch user profile:", profileError?.message || profileError)
+
+                    // Fallback: use minimal user from Firebase so patient can still reach dashboard
+                    let firebaseRole = "patient"
+                    try {
+                      const idTokenResult = await firebaseUser.getIdTokenResult()
+                      if (idTokenResult.claims.role) {
+                        firebaseRole = (idTokenResult.claims.role as string).toLowerCase()
+                      }
+                    } catch (e) {
+                      console.error("Failed to get ID token result:", e)
+                    }
+
+                    const userData = {
+                      id: firebaseUser.uid,
+                      email: firebaseUser.email || "",
+                      firstName: firebaseUser.displayName?.split(" ")[0] || "User",
+                      lastName: firebaseUser.displayName?.split(" ").slice(1).join(" ") || "",
+                      role: firebaseRole as "patient" | "doctor" | "receptionist" | "admin",
+                      isActive: true,
+                      isEmailVerified: firebaseUser.emailVerified || false,
+                      profileImage: firebaseUser.photoURL || undefined,
+                      onboardingCompleted: false,
+                    }
+                    dispatch(setUser(userData))
                   }
-                } catch (tokenError) {
-                  console.warn("Failed to get token:", tokenError)
-                  dispatch(logout())
                 }
               } else {
                 // User is signed out
