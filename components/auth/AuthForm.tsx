@@ -58,13 +58,13 @@ export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
 
         // Prevent Receptionist Signup
         if (userRole === "RECEPTIONIST") {
-            toast.error("Receptionist signup is restricted. Please contact your clinic administrator.")
-            setLoading(false)
-            return
+          toast.error("Receptionist signup is restricted. Please contact your clinic administrator.")
+          setLoading(false)
+          return
         }
 
         // Sync profile with backend
-        await syncUserProfile(
+        const syncResult = await syncUserProfile(
           formData.firstName,
           formData.lastName,
           undefined, // phone
@@ -73,7 +73,11 @@ export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
           userRole || "PATIENT"
         )
 
-        toast.success("Account created successfully!")
+        if (syncResult?.success === true && syncResult?.message?.includes('profile sync will retry')) {
+          toast.warning("Account created, but profile setup is pending. Some features may be unavailable temporarily.")
+        } else {
+          toast.success("Account created successfully!")
+        }
 
         // Call onSuccess callback if provided
         if (onSuccess) {

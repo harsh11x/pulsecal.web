@@ -25,6 +25,16 @@ const createPrescriptionSchema = Joi.object({
   expiresAt: Joi.date().optional(),
 });
 
+const updatePrescriptionSchema = Joi.object({
+  medicationName: Joi.string().optional(),
+  dosage: Joi.string().optional(),
+  frequency: Joi.string().optional(),
+  quantity: Joi.number().optional(),
+  refills: Joi.number().optional(),
+  instructions: Joi.string().optional(),
+  expiresAt: Joi.date().optional(),
+});
+
 // ... (omitted code)
 
 export const createPrescriptionController = async (
