@@ -10,6 +10,9 @@ import { signIn, signUp, syncUserProfile, checkLoginMethods } from "@/lib/fireba
 import { toast } from "sonner"
 import { Separator } from "@/components/ui/separator"
 import { Loader2, Eye, EyeOff } from "lucide-react"
+import { useAppDispatch } from "@/app/hooks"
+import { setUser } from "@/app/features/authSlice"
+import { apiService } from "@/services/api"
 
 interface AuthFormProps {
   mode: "signin" | "signup"
@@ -19,6 +22,7 @@ interface AuthFormProps {
 
 export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
   const router = useRouter()
+  const dispatch = useAppDispatch()
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -80,16 +84,49 @@ export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
           toast.success("Account created successfully!")
         }
 
+        // Fetch profile and dispatch to Redux so onboarding has user data
+        try {
+          const profileResponse: any = await apiService.get("/auth/profile")
+          const userProfile = profileResponse
+          if (userProfile?.id) {
+            dispatch(setUser({
+              id: userProfile.id,
+              email: userProfile.email,
+              firstName: userProfile.firstName || formData.firstName,
+              lastName: userProfile.lastName || formData.lastName,
+              phone: userProfile.phone,
+              dateOfBirth: userProfile.dateOfBirth,
+              role: (userProfile.role || "PATIENT").toLowerCase() as "patient" | "doctor" | "receptionist" | "admin",
+              isActive: userProfile.isActive !== false,
+              isEmailVerified: userProfile.isEmailVerified || false,
+              profileImage: userProfile.profileImage,
+              onboardingCompleted: userProfile.onboardingCompleted || false,
+              clinicId: userProfile.clinicId,
+            }))
+          }
+        } catch (profileErr) {
+          // Fallback: minimal user so onboarding can still show
+          dispatch(setUser({
+            id: userCredential.user.uid,
+            email: userCredential.user.email || formData.email,
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            role: (userRole || "PATIENT").toLowerCase() as "patient" | "doctor" | "receptionist" | "admin",
+            isActive: true,
+            isEmailVerified: false,
+            onboardingCompleted: false,
+          }))
+        }
+
         // Call onSuccess callback if provided
         if (onSuccess) {
           onSuccess()
         }
 
-        // Route based on role
+        // Route based on role - always go to onboarding for new signups
         if (userRole === "DOCTOR") {
           router.push("/onboarding?role=doctor")
         } else {
-          // Default to patient onboarding
           router.push("/onboarding?role=patient")
         }
       }

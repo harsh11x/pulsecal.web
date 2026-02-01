@@ -69,21 +69,29 @@ function OnboardingContent() {
             return
           }
         } catch (apiError: any) {
-          // Network/timeout errors - fallback to Firebase
-          if (apiError.code === "ERR_NETWORK" ||
+          // Network/timeout/auth errors - fallback to Firebase user
+          const isNetworkError = apiError.code === "ERR_NETWORK" ||
             apiError.message?.includes("Network Error") ||
             apiError.message?.includes("timeout") ||
-            apiError.message === "Request timeout") {
-            console.warn("Backend not available - using Firebase user")
+            apiError.message === "Request timeout"
+          const isAuthError = apiError.response?.status === 401 || apiError.response?.status === 403
+          if (isNetworkError || isAuthError) {
+            console.warn("Backend not available or auth issue - using Firebase user", apiError.message)
             await createFirebaseUser()
             return
           }
-          throw apiError
+          // For other errors (e.g. 500), still try Firebase fallback rather than throwing
+          console.warn("Profile fetch failed, trying Firebase fallback:", apiError.message)
+          await createFirebaseUser()
         }
       } catch (error: any) {
         console.error("Failed to fetch user profile:", error)
-        // Try Firebase fallback
-        await createFirebaseUser()
+        try {
+          await createFirebaseUser()
+        } catch (fallbackError) {
+          console.error("Firebase fallback also failed:", fallbackError)
+          if (isMounted) setLoading(false)
+        }
       }
     }
 
@@ -114,11 +122,11 @@ function OnboardingContent() {
         console.error("Failed to get Firebase user:", firebaseError)
       }
 
-      // If we can't get user profile, redirect to login after a delay
+      // If we can't get user profile, redirect to home after a delay
       if (isMounted) {
         setTimeout(() => {
-          window.location.href = "https://pulsecal.com"
-        }, 1000)
+          window.location.href = "/"
+        }, 1500)
       }
     }
 
@@ -131,7 +139,7 @@ function OnboardingContent() {
     }
 
     // If user already completed onboarding, redirect to dashboard
-    if (user.onboardingCompleted) {
+    if (user?.onboardingCompleted) {
       router.push("/dashboard")
       return
     }
