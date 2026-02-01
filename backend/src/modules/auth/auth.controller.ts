@@ -96,25 +96,32 @@ export const syncProfileController = async (
     }
 
     // Handle settings - merge with existing settings
-    // Note: settings field requires migration. Check if it exists on the user model.
     if (settings !== undefined || notificationSettings !== undefined) {
-      const userAny = currentUser as any;
-      const existingSettings = (userAny?.settings && typeof userAny.settings === 'object') ? userAny.settings : {};
-      const newSettings = { ...existingSettings };
+      try {
+        const userAny = currentUser as any;
+        const existingSettings = (userAny?.settings && typeof userAny.settings === 'object') ? userAny.settings : {};
+        const newSettings = { ...existingSettings };
 
-      if (settings) {
-        // Handle case where settings might be a string (JSON) or object
-        const settingsObj = typeof settings === 'string' ? JSON.parse(settings) : settings;
-        Object.assign(newSettings, settingsObj);
-      }
-      if (notificationSettings) {
-        // Handle case where notificationSettings might be a string
-        const notifyObj = typeof notificationSettings === 'string' ? JSON.parse(notificationSettings) : notificationSettings;
-        newSettings.notifications = notifyObj;
-      }
+        if (settings) {
+          const settingsObj = typeof settings === 'string' ? JSON.parse(settings) : settings;
+          if (settingsObj && typeof settingsObj === 'object') {
+            Object.assign(newSettings, settingsObj);
+          }
+        }
+        if (notificationSettings !== undefined) {
+          const notifyObj = typeof notificationSettings === 'string'
+            ? (() => { try { return JSON.parse(notificationSettings); } catch { return {}; } })()
+            : notificationSettings;
+          if (notifyObj && typeof notifyObj === 'object') {
+            newSettings.notifications = notifyObj;
+          }
+        }
 
-      userUpdateData.settings = newSettings;
-      logger.info({ userId }, 'Updating user settings');
+        userUpdateData.settings = newSettings;
+        logger.info({ userId }, 'Updating user settings');
+      } catch (settingsErr: any) {
+        logger.warn({ userId, err: settingsErr.message }, 'Failed to merge settings, skipping');
+      }
     }
 
     // Allow setting clinicId for doctors during onboarding or if not already set

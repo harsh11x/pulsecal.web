@@ -209,6 +209,18 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
     }
   }
 
+  const handleMarkCompleted = async (appointmentId: string) => {
+    try {
+      await apiService.put(`/appointments/${appointmentId}`, {
+        status: "COMPLETED"
+      })
+      toast.success("Appointment marked as completed")
+      fetchDashboardData()
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Failed to mark as completed")
+    }
+  }
+
   const handleRescheduleAppointment = async () => {
     if (!rescheduleId || !newScheduleDate || !newScheduleTime) {
       toast.error("Please select both date and time")
@@ -507,10 +519,20 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
                                 <CheckCircle className="h-3 w-3 mr-1" /> Accept
                               </Button>
                             )}
-                            {(apt.status === "SCHEDULED" || apt.status === "CONFIRMED") && (
+                            {(apt.status === "SCHEDULED" || apt.status === "CONFIRMED" || apt.status === "IN_PROGRESS") && (
                               <>
-                                <Button size="sm" variant="ghost" onClick={() => handleCheckIn(apt.id)}>
-                                  Check In
+                                {apt.status !== "IN_PROGRESS" && (
+                                  <Button size="sm" variant="ghost" onClick={() => handleCheckIn(apt.id)}>
+                                    Check In
+                                  </Button>
+                                )}
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  className="bg-green-600 hover:bg-green-700"
+                                  onClick={() => handleMarkCompleted(apt.id)}
+                                >
+                                  <CheckCircle className="h-3 w-3 mr-1" /> Complete
                                 </Button>
                                 <Button
                                   size="sm"
@@ -607,8 +629,16 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
                                 <CheckCircle className="h-3 w-3 mr-1" /> Accept
                               </Button>
                             )}
-                            {(apt.status === "SCHEDULED" || apt.status === "CONFIRMED") && (
+                            {(apt.status === "SCHEDULED" || apt.status === "CONFIRMED" || apt.status === "IN_PROGRESS") && (
                               <>
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  className="bg-green-600 hover:bg-green-700"
+                                  onClick={() => handleMarkCompleted(apt.id)}
+                                >
+                                  <CheckCircle className="h-3 w-3 mr-1" /> Complete
+                                </Button>
                                 <Button
                                   size="sm"
                                   variant="ghost"

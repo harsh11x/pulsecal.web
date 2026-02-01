@@ -1,6 +1,6 @@
 import { Response, NextFunction } from 'express';
 import Joi from 'joi';
-import { getReceptionistStats, getQueueStatus, linkReceptionistToClinic, registerOfflinePatient } from './receptionists.service';
+import { getReceptionistStats, getQueueStatus, getClinicDoctors, linkReceptionistToClinic, registerOfflinePatient } from './receptionists.service';
 import { sendSuccess } from '../../utils/apiResponse';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { AppError } from '../../middlewares/error.middleware';
@@ -54,6 +54,24 @@ export const getReceptionistStatsController = async (
 
     const stats = await getReceptionistStats(receptionistId, clinicId);
     sendSuccess(res, stats, 'Stats retrieved successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getClinicDoctorsController = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const clinicId = req.user?.clinicId;
+    if (!clinicId) {
+      throw new AppError('Receptionist must belong to a clinic', 403);
+    }
+
+    const doctors = await getClinicDoctors(clinicId);
+    sendSuccess(res, doctors, 'Clinic doctors retrieved successfully');
   } catch (err) {
     next(err);
   }

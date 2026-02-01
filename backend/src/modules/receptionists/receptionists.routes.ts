@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   getReceptionistStatsController,
   getQueueStatusController,
+  getClinicDoctorsController,
   linkReceptionistController,
   registerPatientController
 } from './receptionists.controller';
@@ -14,6 +15,7 @@ const router = Router();
 router.post('/', authenticate, linkReceptionistController);
 router.get('/stats', authenticate, requireReceptionist, getReceptionistStatsController);
 router.get('/queue', authenticate, requireReceptionist, getQueueStatusController);
+router.get('/doctors', authenticate, requireReceptionist, getClinicDoctorsController);
 router.post(
   '/patients',
   authenticate,

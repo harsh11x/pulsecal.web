@@ -9,17 +9,31 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Calendar } from "@/components/ui/calendar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
 import { apiService } from "@/services/api"
 import { toast } from "sonner"
 import { format, addDays } from "date-fns"
-import { Loader2, Calendar as CalendarIcon, Clock, User } from "lucide-react"
+import { Loader2, Calendar as CalendarIcon, Clock, User, Stethoscope } from "lucide-react"
 import { useAppSelector } from "@/app/hooks"
+
+interface ClinicDoctor {
+  id: string
+  firstName: string
+  lastName: string
+  email?: string
+  doctorProfile?: { specialization?: string; consultationFee?: number }
+}
 
 export default function CreateAppointmentPage() {
   const router = useRouter()
   const { user } = useAppSelector((state) => state.auth)
+  const isReceptionist = user?.role === "RECEPTIONIST"
   const [loading, setLoading] = useState(false)
   const [loadingSchedule, setLoadingSchedule] = useState(true)
+
+  // Clinic doctors (for receptionists)
+  const [clinicDoctors, setClinicDoctors] = useState<ClinicDoctor[]>([])
+  const [selectedDoctorId, setSelectedDoctorId] = useState<string | null>(null)
 
   // Schedule settings from doctor's profile
   const [workingHours, setWorkingHours] = useState({ start: "09:00", end: "17:00" })
@@ -40,15 +54,35 @@ export default function CreateAppointmentPage() {
     type: "in-person"
   })
 
-  // Fetch doctor's schedule when component mounts or date changes
+  // Fetch clinic doctors for receptionists
+  useEffect(() => {
+    if (isReceptionist) {
+      apiService.get("/receptionists/doctors").then((data: any) => {
+        const doctors = Array.isArray(data) ? data : (data?.doctors ?? [])
+        setClinicDoctors(doctors)
+        if (doctors.length === 1) setSelectedDoctorId(doctors[0].id)
+      }).catch(() => toast.error("Failed to load clinic doctors"))
+    }
+  }, [isReceptionist])
+
+  // Fetch doctor's schedule when component mounts or date changes (for doctors, use selected doctor for receptionists)
   useEffect(() => {
     fetchDoctorSchedule()
-  }, [formData.date])
+  }, [formData.date, selectedDoctorId])
 
   const fetchDoctorSchedule = async () => {
     try {
       setLoadingSchedule(true)
-      const response: any = await apiService.get("/doctor-profiles/me")
+      // Receptionists use selected doctor's profile; doctors use their own
+      const doctorId = isReceptionist ? selectedDoctorId : user?.id
+      if (isReceptionist && !doctorId) {
+        setLoadingSchedule(false)
+        return
+      }
+
+      const response: any = isReceptionist
+        ? await apiService.get(`/doctors/${doctorId}`).catch(() => ({}))
+        : await apiService.get("/doctor-profiles/me")
       const profile = response
 
       if (profile?.workingHours) {
@@ -127,8 +161,13 @@ export default function CreateAppointmentPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    const doctorId = isReceptionist ? selectedDoctorId : user?.id
     if (!formData.patientDetails.firstName || !formData.patientDetails.phone || !formData.date || !formData.time) {
       toast.error("Please fill in required fields (Name, Phone, Date, Time)")
+      return
+    }
+    if (isReceptionist && !doctorId) {
+      toast.error("Please select a doctor")
       return
     }
 
@@ -141,7 +180,7 @@ export default function CreateAppointmentPage() {
 
       const appointmentData = {
         patientDetails: formData.patientDetails,
-        doctorId: user?.id,
+        doctorId: doctorId!,
         scheduledAt: scheduledAt.toISOString(),
         reason: formData.reason,
         notes: formData.notes,
@@ -176,6 +215,50 @@ export default function CreateAppointmentPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
 
+
+            {/* Doctor Selection (Receptionists only) */}
+            {isReceptionist && clinicDoctors.length > 0 && (
+              <div className="space-y-4 border p-4 rounded-md bg-muted/20">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Stethoscope className="h-4 w-4" />
+                  Select Doctor
+                </h3>
+                <p className="text-sm text-muted-foreground">Choose the doctor for this appointment</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {clinicDoctors.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className={`flex items-start space-x-3 rounded-lg border p-3 cursor-pointer transition-colors ${
+                        selectedDoctorId === doc.id ? "border-primary bg-primary/5" : "hover:bg-muted/50"
+                      }`}
+                      onClick={() => setSelectedDoctorId(doc.id)}
+                    >
+                      <Checkbox
+                        id={`doctor-${doc.id}`}
+                        checked={selectedDoctorId === doc.id}
+                        onCheckedChange={(checked) => setSelectedDoctorId(checked ? doc.id : null)}
+                      />
+                      <div className="flex-1">
+                        <label
+                          htmlFor={`doctor-${doc.id}`}
+                          className="text-sm font-medium leading-none cursor-pointer"
+                        >
+                          Dr. {doc.firstName} {doc.lastName}
+                        </label>
+                        {doc.doctorProfile?.specialization && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {doc.doctorProfile.specialization}
+                            {doc.doctorProfile.consultationFee != null && (
+                              <> • ₹{doc.doctorProfile.consultationFee}</>
+                            )}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Patient Details (Manual Entry) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20">

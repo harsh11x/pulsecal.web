@@ -59,13 +59,12 @@ export default function RescheduleAppointment({ params }: { params: { id: string
       // Note: This needs to be adjusted for timezone handling in a real production app
       const dateTime = new Date(`${date}T${time}:00`)
 
-      await apiService.put(`/appointments/${params.id}`, {
-        scheduledAt: dateTime.toISOString(),
-        status: "scheduled" // Reset status if it was cancelled/etc
+      await apiService.post(`/appointments/${params.id}/reschedule`, {
+        scheduledAt: dateTime.toISOString()
       })
 
       toast.success("Appointment rescheduled successfully")
-      router.push("/dashboard") // Or back to appointment details
+      router.push("/dashboard")
     } catch (error: any) {
       console.error("Reschedule error:", error)
       toast.error(error.message || "Failed to reschedule appointment")

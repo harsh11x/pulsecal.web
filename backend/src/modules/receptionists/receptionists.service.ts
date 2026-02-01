@@ -121,6 +121,34 @@ export const getQueueStatus = async (clinicId?: string) => {
 };
 
 /**
+ * Get all doctors in the receptionist's clinic
+ */
+export const getClinicDoctors = async (clinicId: string) => {
+  const doctors = await prisma.user.findMany({
+    where: {
+      clinicId,
+      role: 'DOCTOR',
+      isActive: true,
+      deletedAt: null,
+    },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      doctorProfile: {
+        select: {
+          specialization: true,
+          consultationFee: true,
+        },
+      },
+    },
+  });
+
+  return doctors;
+};
+
+/**
  * Link receptionist to clinic
  */
 export const linkReceptionistToClinic = async (

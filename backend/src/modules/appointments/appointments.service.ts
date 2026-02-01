@@ -268,7 +268,7 @@ export const rescheduleAppointment = async (
     where: { id: appointmentId },
     data: {
       scheduledAt: newScheduledAt,
-      status: 'RESCHEDULED',
+      status: 'SCHEDULED', // Keep as SCHEDULED so it shows in lists for the new date
     },
     include: {
       patient: {
