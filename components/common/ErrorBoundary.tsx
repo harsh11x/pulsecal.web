@@ -3,10 +3,12 @@
 import React from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { AlertCircle } from "lucide-react"
+import { AlertCircle, RefreshCw } from "lucide-react"
 
 interface ErrorBoundaryProps {
   children: React.ReactNode
+  fallback?: React.ReactNode
+  onReset?: () => void
 }
 
 interface ErrorBoundaryState {
@@ -25,20 +27,29 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("[v0] Error caught by boundary:", error, errorInfo)
+    console.error("Error caught by boundary:", error, errorInfo)
+  }
+
+  reset = () => {
+    this.setState({ hasError: false, error: null })
+    this.props.onReset?.()
   }
 
   render() {
     if (this.state.hasError) {
+      if (this.props.fallback) {
+        return this.props.fallback
+      }
       return (
-        <div className="flex items-center justify-center min-h-screen p-6">
+        <div className="flex flex-col items-center justify-center min-h-[300px] p-6">
           <Alert variant="destructive" className="max-w-md">
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Something went wrong</AlertTitle>
+            <AlertTitle>Couldn&apos;t load this section</AlertTitle>
             <AlertDescription className="mt-2">
-              <p className="mb-4">An unexpected error occurred. Please try refreshing the page.</p>
-              <Button variant="outline" onClick={() => window.location.reload()}>
-                Refresh Page
+              <p className="mb-4">Something went wrong. You can try again or continue using the rest of the dashboard.</p>
+              <Button variant="outline" onClick={this.reset} className="gap-2">
+                <RefreshCw className="h-4 w-4" />
+                Try Again
               </Button>
             </AlertDescription>
           </Alert>

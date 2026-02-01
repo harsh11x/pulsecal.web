@@ -5,6 +5,7 @@ import type React from "react"
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useAppSelector } from "@/app/hooks"
 import { Navbar } from "./Navbar"
 import { Sidebar } from "./Sidebar"
 import { MobileNav } from "./MobileNav"
@@ -15,6 +16,8 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
+  const user = useAppSelector((state) => state.auth.user)
+  const isPatient = user?.role?.toLowerCase() === "patient"
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const router = useRouter()
 
@@ -48,10 +51,10 @@ export function AppLayout({ children }: AppLayoutProps) {
                     + New Appointment
                   </button>
                   <button
-                    onClick={() => router.push('/health/medical-records?action=new')}
+                    onClick={() => router.push(isPatient ? '/health/medical-records/create' : '/health/medical-records?action=new')}
                     className="text-sm text-left p-2 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors cursor-pointer w-full"
                   >
-                    + Add Patient record
+                    {isPatient ? "+ Add Medical Record" : "+ Add Patient record"}
                   </button>
                   <button
                     onClick={() => router.push('/notifications')}

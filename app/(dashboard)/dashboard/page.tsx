@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import { useEffect, Suspense, useState } from "react"
 import nextDynamic from "next/dynamic"
 import { store } from "@/app/store"
+import { ErrorBoundary } from "@/components/common/ErrorBoundary"
 
 // Dynamically import dashboard pages to prevent static generation - client only
 const PatientDashboardPage = nextDynamic(() => import("@/components/pages/dashboard/PatientDashboardPage"), { ssr: false })
@@ -74,13 +75,15 @@ function DashboardContent() {
   }
 
   return (
-    <Suspense fallback={
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    }>
-      {renderDashboard()}
-    </Suspense>
+    <ErrorBoundary>
+      <Suspense fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      }>
+        {renderDashboard()}
+      </Suspense>
+    </ErrorBoundary>
   )
 }
 

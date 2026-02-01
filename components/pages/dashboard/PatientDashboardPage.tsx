@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Calendar, MapPin, Stethoscope, FileText, Clock, User, Plus, Heart, Activity } from "lucide-react"
 import Link from "next/link"
 import { DoctorDiscoveryMap } from "@/components/doctors/DoctorDiscoveryMap"
+import { ErrorBoundary } from "@/components/common/ErrorBoundary"
 import { useEffect, useState } from "react"
 import { apiService } from "@/services/api"
 import { toast } from "sonner"
@@ -29,7 +30,8 @@ interface Appointment {
 
 interface Prescription {
   id: string
-  medication: string
+  medication?: string
+  medicationName?: string
   dosage?: string
   frequency?: string
   status: string
@@ -124,6 +126,21 @@ export default function PatientDashboardPage({ user }: PatientDashboardPageProps
     } finally {
       setLoading(false)
     }
+  }
+
+  const safeFormatDate = (dateStr: string | undefined) => {
+    if (!dateStr) return "—"
+    try {
+      const d = new Date(dateStr)
+      return isNaN(d.getTime()) ? "—" : format(d, "MMM d, yyyy")
+    } catch { return "—" }
+  }
+  const safeFormatTime = (dateStr: string | undefined) => {
+    if (!dateStr) return "—"
+    try {
+      const d = new Date(dateStr)
+      return isNaN(d.getTime()) ? "—" : format(d, "h:mm a")
+    } catch { return "—" }
   }
 
   const getStatusBadge = (status: string) => {
@@ -270,11 +287,11 @@ export default function PatientDashboardPage({ user }: PatientDashboardPageProps
                             <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground mt-3">
                               <div className="flex items-center gap-1">
                                 <Calendar className="h-3 w-3" />
-                                {format(new Date(apt.scheduledAt), "MMM d, yyyy")}
+                                {safeFormatDate(apt.scheduledAt)}
                               </div>
                               <div className="flex items-center gap-1">
                                 <Clock className="h-3 w-3" />
-                                {format(new Date(apt.scheduledAt), "h:mm a")}
+                                {safeFormatTime(apt.scheduledAt)}
                               </div>
                               {apt.clinic && (
                                 <div className="col-span-2 flex items-center gap-1">
@@ -401,7 +418,7 @@ export default function PatientDashboardPage({ user }: PatientDashboardPageProps
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
                               <Stethoscope className="h-4 w-4 text-primary" />
-                              <p className="font-semibold">{prescription.medication}</p>
+                              <p className="font-semibold">{prescription.medication || prescription.medicationName || "Prescription"}</p>
                               <Badge variant="default" className="text-xs">Active</Badge>
                             </div>
                             {prescription.dosage && (
@@ -438,7 +455,9 @@ export default function PatientDashboardPage({ user }: PatientDashboardPageProps
             </CardHeader>
             <CardContent>
               <div className="h-[600px] rounded-lg overflow-hidden border">
-                <DoctorDiscoveryMap />
+                <ErrorBoundary>
+                  <DoctorDiscoveryMap />
+                </ErrorBoundary>
               </div>
             </CardContent>
           </Card>
