@@ -119,7 +119,7 @@ export function DoctorDiscoveryMap() {
       if (userLocation) {
         params.latitude = userLocation.lat
         params.longitude = userLocation.lng
-        params.radius = radius[0] * 1000 // Convert km to meters
+        params.radius = radius[0] // Backend expects km
       }
 
       if (specializationFilter && specializationFilter !== "All Specializations") {

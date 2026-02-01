@@ -36,7 +36,7 @@ export const searchDoctors = async (params: {
   search?: string;
   reason?: string; // symptom/disease (e.g. fever, cough) - matches specialization & services
 }) => {
-  const {
+  let {
     latitude,
     longitude,
     radius = 10,
@@ -52,6 +52,9 @@ export const searchDoctors = async (params: {
     search,
     reason, // symptom/disease/reason search (e.g. fever, cough)
   } = params;
+
+  // Cap radius at 50km to prevent accidental global results (e.g. wrong unit)
+  if (radius > 50) radius = 50;
 
   const skip = (page - 1) * limit;
 

@@ -77,7 +77,8 @@ export const getClinics = async (req: {
   const { orderBy, order } = getSortParams(req as never);
   const lat = req.query.latitude ? parseFloat(req.query.latitude) : undefined;
   const lng = req.query.longitude ? parseFloat(req.query.longitude) : undefined;
-  const radius = req.query.radius ? parseFloat(req.query.radius) : 10;
+  let radius = req.query.radius ? parseFloat(req.query.radius) : 10;
+  if (radius > 50) radius = 50; // Cap at 50km to prevent global results
 
   const where: any = {
     isActive: true,

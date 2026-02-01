@@ -49,6 +49,7 @@ export default function PatientDashboardPage({ user }: PatientDashboardPageProps
   const [activePrescriptions, setActivePrescriptions] = useState<Prescription[]>([])
   const [loading, setLoading] = useState(true)
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [userCity, setUserCity] = useState<string | null>(null)
   const [nearbyClinics, setNearbyClinics] = useState<any[]>([])
   const [nearbyDoctors, setNearbyDoctors] = useState<any[]>([])
 
@@ -61,6 +62,21 @@ export default function PatientDashboardPage({ user }: PatientDashboardPageProps
     }
   }, [])
 
+  // Reverse geocode to get city for extra filtering
+  useEffect(() => {
+    if (!userLocation) return
+    fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${userLocation.lat}&lon=${userLocation.lng}&format=json`,
+      { headers: { Accept: "application/json" } }
+    )
+      .then((r) => r.json())
+      .then((data) => {
+        const city = data?.address?.city || data?.address?.town || data?.address?.village || data?.address?.county
+        if (city) setUserCity(city)
+      })
+      .catch(() => {})
+  }, [userLocation])
+
   useEffect(() => {
     fetchDashboardData()
   }, [user])
@@ -71,17 +87,18 @@ export default function PatientDashboardPage({ user }: PatientDashboardPageProps
       latitude: String(userLocation.lat),
       longitude: String(userLocation.lng),
       radius: "10",
-      limit: "10",
+      limit: "15",
     })
+    if (userCity) params.set("city", userCity)
     apiService.get(`/clinics?${params}`).then((r: any) => {
       const list = Array.isArray(r) ? r : (r?.clinics ?? r?.data ?? [])
       setNearbyClinics(list)
     }).catch(() => {})
-    apiService.get(`/doctors/search?${params}&limit=10`).then((r: any) => {
+    apiService.get(`/doctors/search?${params}&limit=15`).then((r: any) => {
       const list = Array.isArray(r) ? r : (r?.doctors ?? r?.data ?? [])
       setNearbyDoctors(list)
     }).catch(() => {})
-  }, [userLocation])
+  }, [userLocation, userCity])
 
   useEffect(() => {
     // Socket connection for real-time updates
