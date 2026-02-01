@@ -50,6 +50,15 @@ export const createClinic = async (data: {
   return clinic;
 };
 
+const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+  const R = 6371; // Earth's radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
 export const getClinics = async (req: {
   query: {
     page?: string;
@@ -59,24 +68,26 @@ export const getClinics = async (req: {
     city?: string;
     state?: string;
     search?: string;
+    latitude?: string;
+    longitude?: string;
+    radius?: string; // km, default 10
   };
 }) => {
   const { page, limit, skip } = getPaginationParams(req as never);
   const { orderBy, order } = getSortParams(req as never);
+  const lat = req.query.latitude ? parseFloat(req.query.latitude) : undefined;
+  const lng = req.query.longitude ? parseFloat(req.query.longitude) : undefined;
+  const radius = req.query.radius ? parseFloat(req.query.radius) : 10;
 
-  const where: {
-    city?: string;
-    state?: string;
-    OR?: Array<{
-      name?: { contains: string; mode: 'insensitive' };
-      address?: { contains: string; mode: 'insensitive' };
-    }>;
-    isActive?: boolean;
-    deletedAt?: null;
-  } = {
+  const where: any = {
     isActive: true,
     deletedAt: null,
   };
+
+  if (lat !== undefined && lng !== undefined) {
+    where.latitude = { not: null };
+    where.longitude = { not: null };
+  }
 
   if (req.query.city) {
     where.city = req.query.city;
@@ -93,18 +104,53 @@ export const getClinics = async (req: {
     ];
   }
 
-  const [clinics, total] = await Promise.all([
-    prisma.clinic.findMany({
-      where,
-      skip,
-      take: limit,
-      orderBy: { [orderBy]: order },
-    }),
-    prisma.clinic.count({ where }),
-  ]);
+  let clinics = await prisma.clinic.findMany({
+    where,
+    skip: lat && lng ? 0 : skip,
+    take: lat && lng ? 500 : limit,
+    orderBy: { [orderBy]: order },
+    include: {
+      staff: {
+        where: { role: 'DOCTOR', isActive: true },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          doctorProfile: {
+            select: {
+              specialization: true,
+              consultationFee: true,
+              services: true,
+              workingHours: true,
+              clinicLatitude: true,
+              clinicLongitude: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  // Filter by 10km radius if lat/lng provided
+  if (lat !== undefined && lng !== undefined) {
+    clinics = clinics.filter((c) => {
+      const clat = c.latitude ? Number(c.latitude) : null;
+      const clng = c.longitude ? Number(c.longitude) : null;
+      if (!clat || !clng) return false;
+      return calculateDistance(lat, lng, clat, clng) <= radius;
+    }).map((c) => {
+      const clat = c.latitude ? Number(c.latitude) : 0;
+      const clng = c.longitude ? Number(c.longitude) : 0;
+      const distance = calculateDistance(lat, lng, clat, clng);
+      return { ...c, distance: Math.round(distance * 10) / 10 };
+    }).sort((a, b) => (a.distance || 0) - (b.distance || 0));
+  }
+
+  const total = clinics.length;
+  const paginatedClinics = lat && lng ? clinics.slice(skip, skip + limit) : clinics;
 
   return {
-    clinics,
+    clinics: paginatedClinics,
     pagination: {
       page,
       limit,
@@ -117,6 +163,28 @@ export const getClinics = async (req: {
 export const getClinicById = async (clinicId: string) => {
   const clinic = await prisma.clinic.findUnique({
     where: { id: clinicId },
+    include: {
+      staff: {
+        where: { role: 'DOCTOR', isActive: true, deletedAt: null },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+          profileImage: true,
+          doctorProfile: {
+            select: {
+              specialization: true,
+              consultationFee: true,
+              services: true,
+              workingHours: true,
+              bio: true,
+            },
+          },
+        },
+      },
+    },
   });
 
   if (!clinic) {

@@ -32,8 +32,9 @@ export const searchDoctors = async (params: {
   city?: string;
   page?: number;
   limit?: number;
-  services?: string; // Specific services filter
-  search?: string; // Generic search (name, clinic, services)
+  services?: string;
+  search?: string;
+  reason?: string; // symptom/disease (e.g. fever, cough) - matches specialization & services
 }) => {
   const {
     latitude,
@@ -49,6 +50,7 @@ export const searchDoctors = async (params: {
     limit = 50,
     services,
     search,
+    reason, // symptom/disease/reason search (e.g. fever, cough)
   } = params;
 
   const skip = (page - 1) * limit;
@@ -83,7 +85,6 @@ export const searchDoctors = async (params: {
   if (search) {
       const searchLower = search.toLowerCase();
       where.OR = [
-          // Search in User Name
           {
               user: {
                   OR: [
@@ -92,9 +93,8 @@ export const searchDoctors = async (params: {
                   ]
               }
           },
-          // Search in Clinic Name
           { clinicName: { contains: searchLower, mode: 'insensitive' } },
-          // Search in Services (Array contains)
+          { specialization: { contains: searchLower, mode: 'insensitive' } },
           { services: { has: search } }
       ];
   }
@@ -169,8 +169,18 @@ export const searchDoctors = async (params: {
   // Filter by city if provided
   if (city) {
     filteredDoctors = filteredDoctors.filter((doctor) => {
-      // Assuming clinicAddress contains city info
       return doctor.clinicAddress?.toLowerCase().includes(city.toLowerCase());
+    });
+  }
+
+  // Filter by reason/symptom (matches specialization or services array)
+  if (reason) {
+    const reasonLower = reason.toLowerCase();
+    filteredDoctors = filteredDoctors.filter((doctor) => {
+      const specMatch = doctor.specialization?.toLowerCase().includes(reasonLower);
+      const servicesMatch = Array.isArray(doctor.services) &&
+        doctor.services.some((s: string) => s.toLowerCase().includes(reasonLower));
+      return specMatch || servicesMatch;
     });
   }
 

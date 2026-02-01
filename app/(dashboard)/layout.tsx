@@ -24,6 +24,7 @@ const ROLE_ROUTES: Record<string, string[]> = {
     "/profile",
     "/notifications",
     "/doctors",
+    "/clinic",
   ],
   doctor: [
     "/dashboard",

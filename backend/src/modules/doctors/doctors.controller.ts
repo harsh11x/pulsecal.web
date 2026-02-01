@@ -96,12 +96,13 @@ export const searchDoctorsController = async (
       limit,
       services,
       search,
+      reason,
     } = req.query;
 
     const result = await searchDoctors({
       latitude: latitude ? parseFloat(latitude as string) : undefined,
       longitude: longitude ? parseFloat(longitude as string) : undefined,
-      radius: radius ? parseFloat(radius as string) : undefined,
+      radius: radius ? parseFloat(radius as string) : 10,
       specialization: specialization as string,
       name: name as string,
       clinicName: clinicName as string,
@@ -109,9 +110,10 @@ export const searchDoctorsController = async (
       maxFee: maxFee ? parseFloat(maxFee as string) : undefined,
       city: city as string,
       page: page ? parseInt(page as string, 10) : 1,
-      limit: limit ? parseInt(limit as string, 10) : 10,
+      limit: limit ? parseInt(limit as string, 10) : 20,
       services: services as string,
       search: search as string,
+      reason: reason as string,
     });
 
     sendSuccess(res, result, 'Doctors retrieved successfully');

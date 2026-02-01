@@ -16,6 +16,7 @@ import {
   BarChart,
   Shield,
   Building2,
+  Stethoscope,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAppSelector } from "@/app/hooks"
@@ -49,6 +50,11 @@ const navItems: NavItem[] = [
     title: "Prescriptions",
     href: "/health/prescriptions",
     icon: Pill,
+  },
+  {
+    title: "Find Doctors",
+    href: "/appointments/create",
+    icon: Stethoscope,
   },
   {
     title: "Health Services",

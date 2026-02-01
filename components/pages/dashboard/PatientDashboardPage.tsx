@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { StatsCard } from "@/components/dashboard/StatsCard"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Calendar, MapPin, Stethoscope, FileText, Clock, User, Plus, Heart, Activity } from "lucide-react"
+import { Calendar, MapPin, Stethoscope, FileText, Clock, User, Plus, Heart, Activity, Building2, IndianRupee, Search } from "lucide-react"
 import Link from "next/link"
 import { DoctorDiscoveryMap } from "@/components/doctors/DoctorDiscoveryMap"
 import { ErrorBoundary } from "@/components/common/ErrorBoundary"
@@ -48,10 +48,42 @@ export default function PatientDashboardPage({ user }: PatientDashboardPageProps
   const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([])
   const [activePrescriptions, setActivePrescriptions] = useState<Prescription[]>([])
   const [loading, setLoading] = useState(true)
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [nearbyClinics, setNearbyClinics] = useState<any[]>([])
+  const [nearbyDoctors, setNearbyDoctors] = useState<any[]>([])
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (p) => setUserLocation({ lat: p.coords.latitude, lng: p.coords.longitude }),
+        () => {}
+      )
+    }
+  }, [])
 
   useEffect(() => {
     fetchDashboardData()
+  }, [user])
 
+  useEffect(() => {
+    if (!userLocation) return
+    const params = new URLSearchParams({
+      latitude: String(userLocation.lat),
+      longitude: String(userLocation.lng),
+      radius: "10",
+      limit: "10",
+    })
+    apiService.get(`/clinics?${params}`).then((r: any) => {
+      const list = Array.isArray(r) ? r : (r?.clinics ?? r?.data ?? [])
+      setNearbyClinics(list)
+    }).catch(() => {})
+    apiService.get(`/doctors/search?${params}&limit=10`).then((r: any) => {
+      const list = Array.isArray(r) ? r : (r?.doctors ?? r?.data ?? [])
+      setNearbyDoctors(list)
+    }).catch(() => {})
+  }, [userLocation])
+
+  useEffect(() => {
     // Socket connection for real-time updates
     const connectSocket = async () => {
       await socketService.connect()
@@ -73,7 +105,7 @@ export default function PatientDashboardPage({ user }: PatientDashboardPageProps
       socketService.off("appointment:new")
       socketService.off("appointment:update")
     }
-  }, [user])
+  }, [])
 
   const fetchDashboardData = async () => {
     setLoading(true)
@@ -186,7 +218,7 @@ export default function PatientDashboardPage({ user }: PatientDashboardPageProps
       value: "Good",
       trend: { value: 0, label: "Based on recent visits", isPositive: true },
       icon: Heart,
-      color: "pink" as const,
+      color: "purple" as const,
       description: "Overall health status",
     },
   ]
@@ -231,11 +263,116 @@ export default function PatientDashboardPage({ user }: PatientDashboardPageProps
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="appointments" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="appointments">Appointments</TabsTrigger>
+          <TabsTrigger value="nearby">Nearby</TabsTrigger>
           <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
           <TabsTrigger value="doctors">Find Doctors</TabsTrigger>
         </TabsList>
+
+        {/* Nearby Clinics & Doctors Tab */}
+        <TabsContent value="nearby" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                Nearby (10 km)
+              </CardTitle>
+              <CardDescription>
+                Clinics and doctors in your area. Enable location to see results.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {!userLocation ? (
+                <p className="text-center py-8 text-muted-foreground">
+                  Enable location access to see nearby clinics and doctors.
+                </p>
+              ) : (
+                <>
+                  <div>
+                    <h3 className="font-semibold mb-3 flex items-center gap-2">
+                      <Building2 className="h-4 w-4" />
+                      Clinics
+                    </h3>
+                    {nearbyClinics.length === 0 ? (
+                      <p className="text-muted-foreground text-sm py-4">No clinics found nearby.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {nearbyClinics.map((c: any) => (
+                          <Card key={c.id} className="hover:shadow-md transition-shadow">
+                            <CardContent className="p-4">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <Link href={`/clinic/${c.id}`} className="font-semibold hover:underline">
+                                    {c.name}
+                                  </Link>
+                                  <p className="text-sm text-muted-foreground">{c.address}, {c.city}</p>
+                                  {c.distance != null && (
+                                    <p className="text-xs text-muted-foreground">{c.distance} km away</p>
+                                  )}
+                                </div>
+                                <Button asChild size="sm" variant="outline">
+                                  <Link href={`/clinic/${c.id}`}>View doctors</Link>
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-3 flex items-center gap-2">
+                      <Stethoscope className="h-4 w-4" />
+                      Doctors
+                    </h3>
+                    {nearbyDoctors.length === 0 ? (
+                      <p className="text-muted-foreground text-sm py-4">No doctors found nearby.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {nearbyDoctors.map((d: any) => {
+                          const docId = d.user?.id ?? d.id
+                          return (
+                            <Card key={docId} className="hover:shadow-md transition-shadow">
+                              <CardContent className="p-4">
+                                <div className="flex justify-between items-center">
+                                  <div>
+                                    <p className="font-semibold">
+                                      Dr. {d.user?.firstName ?? d.firstName} {d.user?.lastName ?? d.lastName}
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">{d.specialization} · {d.clinicName || "Clinic"}</p>
+                                    {d.distance != null && (
+                                      <p className="text-xs text-muted-foreground">{d.distance} km away</p>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-medium flex items-center gap-0.5">
+                                      <IndianRupee className="h-3 w-3" />
+                                      {Number(d.consultationFee || 0)}
+                                    </span>
+                                    <Button asChild size="sm">
+                                      <Link href={`/doctors/${docId}/book`}>Book</Link>
+                                    </Button>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  <Button asChild variant="outline" className="w-full">
+                    <Link href="/appointments/create">
+                      <Search className="mr-2 h-4 w-4" />
+                      Search by symptom (fever, cough, etc.)
+                    </Link>
+                  </Button>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* Upcoming Appointments Tab */}
         <TabsContent value="appointments" className="space-y-4">
@@ -343,13 +480,13 @@ export default function PatientDashboardPage({ user }: PatientDashboardPageProps
                   </Link>
                 </Button>
                 <Button asChild variant="outline" className="w-full justify-start">
-                  <Link href="/health/records">
+                  <Link href="/health/medical-records">
                     <FileText className="mr-2 h-4 w-4" />
                     Medical Records
                   </Link>
                 </Button>
                 <Button asChild variant="outline" className="w-full justify-start">
-                  <Link href="/prescriptions">
+                  <Link href="/health/prescriptions">
                     <Stethoscope className="mr-2 h-4 w-4" />
                     My Prescriptions
                   </Link>
@@ -399,7 +536,7 @@ export default function PatientDashboardPage({ user }: PatientDashboardPageProps
                   <CardDescription>Your current medications</CardDescription>
                 </div>
                 <Button asChild variant="outline" size="sm">
-                  <Link href="/prescriptions">View All</Link>
+                  <Link href="/health/prescriptions">View All</Link>
                 </Button>
               </div>
             </CardHeader>
@@ -434,7 +571,7 @@ export default function PatientDashboardPage({ user }: PatientDashboardPageProps
                             )}
                           </div>
                           <Button variant="outline" size="sm" asChild>
-                            <Link href={`/prescriptions/${prescription.id}`}>View</Link>
+                            <Link href={`/health/prescriptions/${prescription.id}`}>View</Link>
                           </Button>
                         </div>
                       </CardContent>

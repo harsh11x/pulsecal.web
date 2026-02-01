@@ -15,6 +15,7 @@ import { toast } from "sonner"
 import { format, addDays } from "date-fns"
 import { Loader2, Calendar as CalendarIcon, Clock, User, Stethoscope } from "lucide-react"
 import { useAppSelector } from "@/app/hooks"
+import { PatientBookFlow } from "@/components/appointments/PatientBookFlow"
 
 interface ClinicDoctor {
   id: string
@@ -27,7 +28,16 @@ interface ClinicDoctor {
 export default function CreateAppointmentPage() {
   const router = useRouter()
   const { user } = useAppSelector((state) => state.auth)
+  const isPatient = user?.role === "PATIENT"
   const isReceptionist = user?.role === "RECEPTIONIST"
+
+  if (isPatient) {
+    return (
+      <div className="container mx-auto py-8">
+        <PatientBookFlow />
+      </div>
+    )
+  }
   const [loading, setLoading] = useState(false)
   const [loadingSchedule, setLoadingSchedule] = useState(true)
 
