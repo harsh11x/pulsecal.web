@@ -74,45 +74,53 @@ export default function PatientDashboardPage({ user }: PatientDashboardPageProps
   }, [user])
 
   const fetchDashboardData = async () => {
+    setLoading(true)
+    let appointments: Appointment[] = []
+    let prescriptions: Prescription[] = []
+
     try {
-      setLoading(true)
-
-      // Fetch patient stats
-      const statsResponse: any = await apiService.get("/patients/stats")
-      setStatsData(statsResponse || { upcomingAppointments: 0, activePrescriptions: 0, medicalRecords: 0 })
-
-      // Fetch upcoming appointments
-      const appointmentsResponse: any = await apiService.get("/appointments")
-      const allAppointments = appointmentsResponse || []
-      const appointments = Array.isArray(allAppointments) ? allAppointments : allAppointments.appointments || []
-      
-      // Filter for upcoming appointments only
-      const upcoming = appointments
-        .filter((apt: Appointment) => 
-          ["SCHEDULED", "CONFIRMED", "CHECKED_IN"].includes(apt.status) &&
-          new Date(apt.scheduledAt) >= new Date()
-        )
-        .sort((a: Appointment, b: Appointment) => 
-          new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
-        )
-        .slice(0, 5)
-      
-      setUpcomingAppointments(upcoming)
-
-      // Fetch active prescriptions
+      // Fetch upcoming appointments (independent - don't fail entire dashboard if this fails)
       try {
-        const prescriptionsResponse: any = await apiService.get("/prescriptions?status=ACTIVE")
-        const prescriptions = prescriptionsResponse || []
-        setActivePrescriptions(Array.isArray(prescriptions) ? prescriptions.slice(0, 5) : [])
-      } catch (error) {
-        console.error("Failed to fetch prescriptions:", error)
+        const appointmentsResponse: any = await apiService.get("/appointments")
+        const raw = appointmentsResponse
+        const allAppointments = Array.isArray(raw) ? raw : raw?.appointments || []
+        appointments = allAppointments
+          .filter((apt: Appointment) =>
+            ["SCHEDULED", "CONFIRMED", "CHECKED_IN"].includes(apt.status) &&
+            new Date(apt.scheduledAt) >= new Date()
+          )
+          .sort((a: Appointment, b: Appointment) =>
+            new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
+          )
+          .slice(0, 5)
+        setUpcomingAppointments(appointments)
+      } catch (aptErr: any) {
+        console.warn("Failed to fetch appointments:", aptErr?.message)
+        setUpcomingAppointments([])
+      }
+
+      // Fetch active prescriptions (independent)
+      try {
+        const prescriptionsResponse: any = await apiService.get("/prescriptions")
+        const raw = prescriptionsResponse
+        const allRx = Array.isArray(raw) ? raw : raw?.prescriptions || raw?.data || []
+        prescriptions = (Array.isArray(allRx) ? allRx : []).slice(0, 5)
+        setActivePrescriptions(prescriptions)
+      } catch (rxErr: any) {
+        console.warn("Failed to fetch prescriptions:", rxErr?.message)
         setActivePrescriptions([])
       }
+
+      // Compute stats from fetched data (no /patients/stats endpoint needed)
+      setStatsData({
+        upcomingAppointments: appointments.length,
+        activePrescriptions: prescriptions.length,
+        medicalRecords: 0, // Would need medical-records API if needed
+      })
     } catch (error: any) {
-      console.error("Failed to fetch dashboard data:", error)
-      if (error.response?.status !== 403) {
-        toast.error("Failed to load dashboard data")
-      }
+      console.error("Dashboard data error:", error)
+      setStatsData({ upcomingAppointments: 0, activePrescriptions: 0, medicalRecords: 0 })
+      toast.error("Some data couldn't be loaded. You can still use the dashboard.")
     } finally {
       setLoading(false)
     }
