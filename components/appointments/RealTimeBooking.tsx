@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { toast } from "sonner"
 import { useAppSelector } from "@/app/hooks"
+import { apiService } from "@/services/api"
 import { io } from "socket.io-client"
 
 interface Slot {
@@ -214,8 +215,16 @@ export function RealTimeBooking({ doctorId, doctorName, consultationFee, onBooki
                         />
                     </div>
 
+                    {consultationFee != null && consultationFee > 0 && (
+                        <div className="rounded-lg bg-muted/50 p-3 text-sm">
+                            <span className="font-medium">Consultation fee: ₹{consultationFee}</span>
+                            <p className="text-muted-foreground text-xs mt-1">Pay at clinic or complete payment to confirm.</p>
+                        </div>
+                    )}
                     <Button className="w-full" size="lg" onClick={handleBook} disabled={loading || !reason}>
-                        {loading ? "Booking..." : `Confirm Booking ${consultationFee ? `(₹${consultationFee})` : ""}`}
+                        {loading ? "Booking..." : consultationFee != null && consultationFee > 0
+                            ? `Proceed to Book (₹${consultationFee})`
+                            : "Confirm Booking"}
                     </Button>
                 </div>
             )}

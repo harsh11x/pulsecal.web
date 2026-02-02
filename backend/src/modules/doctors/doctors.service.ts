@@ -58,16 +58,18 @@ export const searchDoctors = async (params: {
 
   const skip = (page - 1) * limit;
 
-  // Build where clause
+  // Build where clause - only require coords when doing location-based search
   const where: any = {
     user: {
       role: 'DOCTOR',
       isActive: true,
       onboardingCompleted: true,
     },
-    clinicLatitude: { not: null },
-    clinicLongitude: { not: null },
   };
+  if (latitude !== undefined && longitude !== undefined) {
+    where.clinicLatitude = { not: null };
+    where.clinicLongitude = { not: null };
+  }
 
   if (specialization) {
     where.specialization = specialization;

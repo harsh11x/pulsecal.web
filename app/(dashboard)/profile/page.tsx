@@ -50,7 +50,8 @@ export default function ProfilePage() {
     return { line: fullAddress, city: "", state: "", pincode: "" }
   }
 
-  const existingAddress = (user as any)?.doctorProfile?.clinicAddress || ""
+  const isDoctor = user?.role === "DOCTOR"
+  const existingAddress = isDoctor ? ((user as any)?.doctorProfile?.clinicAddress || "") : ""
   const parsed = parseAddress(existingAddress)
 
   const [formData, setFormData] = useState({
@@ -86,8 +87,8 @@ export default function ProfilePage() {
         firstName: formData.firstName,
         lastName: formData.lastName,
         phone: formData.phone,
-        clinicAddress: fullClinicAddress
       }
+      if (isDoctor) payload.clinicAddress = fullClinicAddress
       
       // Only include dateOfBirth if it's provided and valid
       // Backend expects Date object, but Joi will parse ISO string
@@ -114,11 +115,13 @@ export default function ProfilePage() {
         ...updatedUser,
         id: user?.id || updatedUser.id,
         role: user?.role || updatedUser.role,
-        doctorProfile: {
-          ...(user as any)?.doctorProfile,
-          ...(updatedUser as any)?.doctorProfile,
-          clinicAddress: fullClinicAddress
-        }
+        ...(isDoctor ? {
+          doctorProfile: {
+            ...(user as any)?.doctorProfile,
+            ...(updatedUser as any)?.doctorProfile,
+            clinicAddress: fullClinicAddress
+          }
+        } : {})
       }
 
       dispatch(setUser(optimisticUser))
@@ -249,6 +252,7 @@ export default function ProfilePage() {
             </div>
           </div>
 
+          {isDoctor && (
           <div className="space-y-4 pt-4 border-t">
             <h3 className="text-lg font-semibold">Clinic Address</h3>
 
@@ -308,6 +312,7 @@ export default function ProfilePage() {
               />
             </div>
           </div>
+          )}
 
           <div className="pt-4">
             <Button type="submit" disabled={loading}>

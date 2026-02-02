@@ -24,16 +24,21 @@ export default function QueueStatusPage() {
     const fetchQueue = async () => {
         try {
             setLoading(true)
-            // Get today's appointments
             const response: any = await apiService.get("/appointments?date=today")
-            const data = response?.data || []
+            const raw = Array.isArray(response) ? response : (response?.appointments ?? response?.data ?? [])
+            const data = raw.map((a: any) => ({
+                ...a,
+                patientName: a.patient ? `${a.patient.firstName || ''} ${a.patient.lastName || ''}`.trim() : a.patientName || 'N/A',
+                time: a.scheduledAt ? format(new Date(a.scheduledAt), 'h:mm a') : '',
+                patientImage: a.patient?.profileImage,
+            }))
             setAppointments(data)
 
-            // Calculate stats
+            const statusVal = (s: string) => (a: any) => (a.status || '').toUpperCase() === (s || '').toUpperCase()
             setStats({
-                waiting: data.filter((a: any) => a.status === 'confirmed' || a.status === 'checked_in').length,
-                inProgress: data.filter((a: any) => a.status === 'in_progress').length,
-                completed: data.filter((a: any) => a.status === 'completed').length,
+                waiting: data.filter((a: any) => statusVal('CONFIRMED')(a) || statusVal('SCHEDULED')(a)).length,
+                inProgress: data.filter((a: any) => statusVal('IN_PROGRESS')(a)).length,
+                completed: data.filter((a: any) => statusVal('COMPLETED')(a)).length,
                 total: data.length
             })
         } catch (error) {
@@ -53,7 +58,14 @@ export default function QueueStatusPage() {
 
     const updateStatus = async (id: string, status: string) => {
         try {
-            await apiService.patch(`/appointments/${id}/status`, { status })
+            const statusMap: Record<string, string> = {
+                checked_in: 'CONFIRMED',
+                confirmed: 'CONFIRMED',
+                in_progress: 'IN_PROGRESS',
+                completed: 'COMPLETED',
+            }
+            const upper = statusMap[status.toLowerCase()] ?? status.toUpperCase().replace(/-/g, '_')
+            await apiService.put(`/appointments/${id}`, { status: upper })
             toast.success(`Appointment marked as ${status.replace('_', ' ')}`)
             fetchQueue()
         } catch (error) {
@@ -81,9 +93,10 @@ export default function QueueStatusPage() {
         )
     }
 
-    const waitingPatients = appointments.filter(a => ['confirmed', 'checked_in'].includes(a.status))
-    const inProgressPatients = appointments.filter(a => a.status === 'in_progress')
-    const completedPatients = appointments.filter(a => a.status === 'completed')
+    const s = (x: string) => (a: any) => (a.status || '').toUpperCase() === x.toUpperCase()
+    const waitingPatients = appointments.filter(a => ['CONFIRMED', 'CHECKED_IN', 'SCHEDULED'].some(st => s(st)(a)))
+    const inProgressPatients = appointments.filter(a => s('IN_PROGRESS')(a))
+    const completedPatients = appointments.filter(a => s('COMPLETED')(a))
 
     return (
         <div className="space-y-6 p-6">
@@ -211,7 +224,7 @@ export default function QueueStatusPage() {
                                                 </div>
                                             </div>
                                             <div className="flex gap-2">
-                                                {patient.status === 'confirmed' && (
+                                                {(patient.status || '').toUpperCase() === 'SCHEDULED' && (
                                                     <Button size="sm" variant="outline" onClick={() => updateStatus(patient.id, 'checked_in')}>
                                                         Check In
                                                     </Button>

@@ -4,6 +4,7 @@ import {
   getQueueController,
   getQueueStatusController,
   callNextPatientController,
+  updateQueueEntryController,
   completeQueueEntryController,
   removeFromQueueController,
 } from './queue.controller';
@@ -18,6 +19,7 @@ router.post('/', authenticate, checkSubscriptionStatus as any, checkFeatureAcces
 router.get('/', authenticate, checkSubscriptionStatus as any, checkFeatureAccess('QUEUE_MANAGEMENT') as any, getQueueController);
 router.get('/status', authenticate, checkSubscriptionStatus as any, checkFeatureAccess('QUEUE_MANAGEMENT') as any, getQueueStatusController);
 router.post('/next', authenticate, checkSubscriptionStatus as any, checkFeatureAccess('QUEUE_MANAGEMENT') as any, requireDoctor, callNextPatientController);
+router.put('/:id', authenticate, checkSubscriptionStatus as any, checkFeatureAccess('QUEUE_MANAGEMENT') as any, requireReceptionist, updateQueueEntryController);
 router.post('/:id/complete', authenticate, checkSubscriptionStatus as any, checkFeatureAccess('QUEUE_MANAGEMENT') as any, requireReceptionist, completeQueueEntryController);
 router.delete('/:id', authenticate, checkSubscriptionStatus as any, checkFeatureAccess('QUEUE_MANAGEMENT') as any, removeFromQueueController);
 

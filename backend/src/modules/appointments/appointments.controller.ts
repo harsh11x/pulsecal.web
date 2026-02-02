@@ -71,6 +71,11 @@ export const createAppointmentController = async (
 
     let patientId = value.patientId;
 
+    // Patient self-booking: use logged-in user as patient
+    if (!patientId && req.user?.role === 'PATIENT') {
+      patientId = req.user.id;
+    }
+
     // Handle Manual Patient Entry (Find or Create)
     if (value.patientDetails) {
       const { firstName, lastName, phone, email, dob } = value.patientDetails;
@@ -116,10 +121,14 @@ export const createAppointmentController = async (
 
     // Doctor/Receptionist bookings are confirmed by default
 
+    if (!patientId) {
+      throw new AppError('Patient is required for appointment', 400);
+    }
+
     const appointment = await createAppointment({
       ...value,
       patientId,
-      status: (req.user?.role === 'DOCTOR' || req.user?.role === 'RECEPTIONIST') ? 'CONFIRMED' : 'PENDING',
+      status: (req.user?.role === 'DOCTOR' || req.user?.role === 'RECEPTIONIST') ? 'CONFIRMED' : 'SCHEDULED',
     });
 
     // Emit real-time notification

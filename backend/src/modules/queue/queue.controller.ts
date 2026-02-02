@@ -5,6 +5,7 @@ import {
   getQueueStatus,
   callNextPatient,
   completeQueueEntry,
+  updateQueueEntryStatus,
   removeFromQueue,
 } from './queue.service';
 import { sendSuccess } from '../../utils/apiResponse';
@@ -83,6 +84,27 @@ export const callNextPatientController = async (
     const clinicId = req.query.clinicId as string | undefined;
     const queueEntry = await callNextPatient(req.user.id, clinicId);
     sendSuccess(res, queueEntry, 'Next patient called');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const updateQueueStatusSchema = Joi.object({
+  status: Joi.string().valid('waiting', 'checked_in', 'in_progress', 'completed', 'cancelled').required(),
+});
+
+export const updateQueueEntryController = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { error, value } = updateQueueStatusSchema.validate(req.body);
+    if (error) {
+      throw new AppError(error.details[0].message, 400);
+    }
+    const queueEntry = await updateQueueEntryStatus(req.params.id, value.status);
+    sendSuccess(res, queueEntry, 'Queue entry updated successfully');
   } catch (err) {
     next(err);
   }

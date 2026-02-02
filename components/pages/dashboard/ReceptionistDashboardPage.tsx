@@ -142,7 +142,14 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
 
       // Fetch queue (clinic-scoped by backend using user's clinicId)
       const queueResponse: any = await apiService.get("/receptionists/queue")
-      setQueue(Array.isArray(queueResponse) ? queueResponse : [])
+      const rawQueue = Array.isArray(queueResponse) ? queueResponse : []
+      const mapped = rawQueue.map((e: any) => ({
+        ...e,
+        patientName: e.patientName ?? (e.patient ? `${e.patient.firstName || ''} ${e.patient.lastName || ''}`.trim() : 'Unknown'),
+        phone: e.phone ?? e.patient?.phone,
+        reason: e.reason ?? 'Consultation',
+      }))
+      setQueue(mapped)
 
       // Fetch today's appointments (clinic-scoped by backend)
       const todayResponse: any = await apiService.get("/appointments?date=today")
@@ -317,12 +324,18 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Receptionist Dashboard</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">Receptionist Dashboard</h1>
           <p className="text-muted-foreground">Welcome back, {user?.firstName}! Manage your clinic operations</p>
+          {clinicInfo?.name && (
+            <p className="mt-1 flex items-center gap-1 text-sm font-medium">
+              <Building2 className="h-4 w-4" />
+              {clinicInfo.name}
+            </p>
+          )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-shrink-0 flex-wrap gap-2">
           <Button asChild variant="outline">
             <Link href="/appointments/calendar">
               <Calendar className="mr-2 h-4 w-4" />
@@ -339,7 +352,7 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
           <StatsCard
             key={stat.title}
@@ -456,8 +469,7 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
         {/* Today's Appointments Tab */}
         <TabsContent value="today" className="space-y-4">
           <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
+            <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <CardTitle>Today's Appointments</CardTitle>
                   <CardDescription>Manage scheduled appointments for today</CardDescription>
@@ -474,6 +486,7 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
                   <p className="text-muted-foreground">No appointments scheduled for today</p>
                 </div>
               ) : (
+                <div className="overflow-x-auto -mx-4 sm:mx-0">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -509,7 +522,7 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
                         </TableCell>
                         <TableCell>{getStatusBadge(apt.status)}</TableCell>
                         <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1">
+                          <div className="flex flex-wrap items-center justify-end gap-1">
                             {(apt.status === "PENDING" || apt.status === "REQUESTED") && (
                               <Button
                                 size="sm"
@@ -562,8 +575,9 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
                         </TableCell>
                       </TableRow>
                     ))}
-                  </TableBody>
+                    </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -594,8 +608,8 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
                   {allAppointments.map((apt) => (
                     <Card key={apt.id} className="hover:shadow-md transition-shadow">
                       <CardContent className="p-4">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-2">
                               <p className="font-semibold">
                                 {apt.patient ? `${apt.patient.firstName} ${apt.patient.lastName}` : apt.patientName || "N/A"}
@@ -619,7 +633,7 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
                               )}
                             </div>
                           </div>
-                          <div className="flex items-center gap-1">
+                          <div className="flex flex-wrap items-center gap-1 flex-shrink-0">
                             {(apt.status === "PENDING" || apt.status === "REQUESTED") && (
                               <Button
                                 size="sm"

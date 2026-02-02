@@ -132,7 +132,7 @@ export function DoctorDiscoveryMap() {
 
       try {
         const response: any = await apiService.get("/doctors/search", { params })
-        let doctorsData = response?.data?.doctors || response?.data || response || []
+        let doctorsData = response?.doctors ?? response?.data ?? (Array.isArray(response) ? response : [])
 
         if (!Array.isArray(doctorsData)) {
           doctorsData = [];

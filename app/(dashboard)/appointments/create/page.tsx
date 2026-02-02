@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Calendar } from "@/components/ui/calendar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { apiService } from "@/services/api"
 import { toast } from "sonner"
 import { format, addDays } from "date-fns"
@@ -234,7 +235,8 @@ export default function CreateAppointmentPage() {
                   Select Doctor
                 </h3>
                 <p className="text-sm text-muted-foreground">Choose the doctor for this appointment</p>
-                <div className="grid gap-3 sm:grid-cols-2">
+                <ScrollArea className="h-[180px] rounded-md border p-2">
+                <div className="grid gap-2 pr-4">
                   {clinicDoctors.map((doc) => (
                     <div
                       key={doc.id}
@@ -267,6 +269,7 @@ export default function CreateAppointmentPage() {
                     </div>
                   ))}
                 </div>
+                </ScrollArea>
               </div>
             )}
 

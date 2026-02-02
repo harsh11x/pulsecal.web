@@ -381,10 +381,15 @@ export const checkInAppointment = async (appointmentId: string) => {
   // Automatically add to queue upon check-in
   if (updated.doctorId && updated.patientId) {
     try {
+      const doctor = await prisma.user.findUnique({
+        where: { id: updated.doctorId },
+        select: { clinicId: true },
+      });
       const { addToQueue } = await import('../queue/queue.service');
       await addToQueue({
         patientId: updated.patientId,
         doctorId: updated.doctorId,
+        clinicId: doctor?.clinicId ?? undefined,
       });
     } catch (error) {
       console.error('Failed to add to queue on check-in:', error);

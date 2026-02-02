@@ -216,6 +216,37 @@ export const completeQueueEntry = async (queueEntryId: string) => {
   return queueEntry;
 };
 
+export const updateQueueEntryStatus = async (queueEntryId: string, status: string) => {
+  const valid = ['waiting', 'checked_in', 'in_progress', 'completed', 'cancelled'];
+  if (!valid.includes(status)) {
+    throw new AppError('Invalid queue status', 400);
+  }
+  const entry = await prisma.queueEntry.findUnique({
+    where: { id: queueEntryId },
+  });
+  if (!entry) {
+    throw new AppError('Queue entry not found', 404);
+  }
+  const data: any = { status };
+  if (status === 'completed') {
+    data.completedAt = new Date();
+  }
+  return prisma.queueEntry.update({
+    where: { id: queueEntryId },
+    data,
+    include: {
+      patient: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          phone: true,
+        },
+      },
+    },
+  });
+};
+
 export const removeFromQueue = async (queueEntryId: string) => {
   const queueEntry = await prisma.queueEntry.findUnique({
     where: { id: queueEntryId },
