@@ -470,14 +470,13 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
         <TabsContent value="today" className="space-y-4">
           <Card>
             <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <CardTitle>Today's Appointments</CardTitle>
-                  <CardDescription>Manage scheduled appointments for today</CardDescription>
-                </div>
-                <Badge variant="outline" className="text-lg px-3 py-1">
-                  {todayAppointments.length} Total
-                </Badge>
+              <div>
+                <CardTitle>Today's Appointments</CardTitle>
+                <CardDescription>Manage scheduled appointments for today</CardDescription>
               </div>
+              <Badge variant="outline" className="text-lg px-3 py-1">
+                {todayAppointments.length} Total
+              </Badge>
             </CardHeader>
             <CardContent>
               {todayAppointments.length === 0 ? (
