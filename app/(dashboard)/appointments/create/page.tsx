@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -65,16 +65,23 @@ export default function CreateAppointmentPage() {
     type: "in-person"
   })
 
+  const searchParams = useSearchParams()
+
   // Fetch clinic doctors for receptionists
   useEffect(() => {
     if (isReceptionist) {
       apiService.get("/receptionists/doctors").then((data: any) => {
         const doctors = Array.isArray(data) ? data : (data?.doctors ?? [])
         setClinicDoctors(doctors)
-        if (doctors.length === 1) setSelectedDoctorId(doctors[0].id)
+        const doctorFromUrl = searchParams?.get("doctor")
+        if (doctorFromUrl && doctors.some((d: { id: string }) => d.id === doctorFromUrl)) {
+          setSelectedDoctorId(doctorFromUrl)
+        } else if (doctors.length === 1) {
+          setSelectedDoctorId(doctors[0].id)
+        }
       }).catch(() => toast.error("Failed to load clinic doctors"))
     }
-  }, [isReceptionist])
+  }, [isReceptionist, searchParams])
 
   // Fetch doctor's schedule when component mounts or date changes (for doctors, use selected doctor for receptionists)
   useEffect(() => {

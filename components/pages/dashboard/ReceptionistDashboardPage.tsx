@@ -33,6 +33,8 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface ReceptionistDashboardPageProps {
   user: any
@@ -52,7 +54,8 @@ interface Appointment {
   id: string
   patientName?: string
   patient?: { firstName: string; lastName: string; phone?: string; email?: string }
-  doctor?: { firstName: string; lastName: string }
+  doctor?: { id?: string; firstName: string; lastName: string }
+  doctorId?: string
   scheduledAt: string
   status: string
   reason?: string
@@ -79,6 +82,8 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
     email: string
   } | null>(null)
 
+  const [clinicDoctors, setClinicDoctors] = useState<{ id: string; firstName: string; lastName: string; doctorProfile?: { specialization?: string; consultationFee?: number } }[]>([])
+  const [selectedDoctorFilter, setSelectedDoctorFilter] = useState<string>("all")
   const [cancelId, setCancelId] = useState<string | null>(null)
   const [rescheduleId, setRescheduleId] = useState<string | null>(null)
   const [newScheduleDate, setNewScheduleDate] = useState("")
@@ -160,6 +165,11 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
       const allResponse: any = await apiService.get("/appointments?limit=500")
       const allApts = allResponse?.appointments ?? allResponse
       setAllAppointments(Array.isArray(allApts) ? allApts : [])
+
+      // Fetch clinic doctors
+      const doctorsResponse: any = await apiService.get("/receptionists/doctors")
+      const docs = Array.isArray(doctorsResponse) ? doctorsResponse : (doctorsResponse?.doctors ?? doctorsResponse?.data ?? [])
+      setClinicDoctors(docs)
     } catch (error: any) {
       console.error("Failed to fetch dashboard data:", error)
       if (error.response?.status !== 403) {
@@ -249,6 +259,15 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
     }
   }
 
+  const filterByDoctor = (apt: Appointment) => {
+    if (selectedDoctorFilter === "all") return true
+    const doctorId = (apt as any).doctorId ?? (apt.doctor as any)?.id
+    return doctorId === selectedDoctorFilter
+  }
+
+  const filteredTodayAppointments = todayAppointments.filter(filterByDoctor)
+  const filteredAllAppointments = allAppointments.filter(filterByDoctor)
+
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { variant: any; label: string }> = {
       SCHEDULED: { variant: "default", label: "Scheduled" },
@@ -323,10 +342,10 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Receptionist Dashboard</h1>
+    <div className="space-y-4 sm:space-y-6 overflow-x-hidden px-2 sm:px-0">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-3xl font-bold">Receptionist Dashboard</h1>
           <p className="text-muted-foreground">Welcome back, {user?.firstName}! Manage your clinic operations</p>
           {clinicInfo?.name && (
             <p className="mt-1 flex items-center gap-1 text-sm font-medium">
@@ -335,7 +354,7 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
             </p>
           )}
         </div>
-        <div className="flex flex-shrink-0 flex-wrap gap-2">
+        <div className="flex flex-shrink-0 flex-wrap gap-2 w-full sm:w-auto">
           <Button asChild variant="outline">
             <Link href="/appointments/calendar">
               <Calendar className="mr-2 h-4 w-4" />
@@ -368,23 +387,23 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="queue" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="queue">Patient Queue</TabsTrigger>
-          <TabsTrigger value="today">Today's Schedule</TabsTrigger>
-          <TabsTrigger value="all">All Appointments</TabsTrigger>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-1 p-1 h-auto">
+          <TabsTrigger value="queue" className="text-xs sm:text-sm px-2">Patient Queue</TabsTrigger>
+          <TabsTrigger value="today" className="text-xs sm:text-sm px-2">Today&apos;s Schedule</TabsTrigger>
+          <TabsTrigger value="all" className="text-xs sm:text-sm px-2">All Appointments</TabsTrigger>
+          <TabsTrigger value="overview" className="text-xs sm:text-sm px-2">Overview</TabsTrigger>
         </TabsList>
 
         {/* Queue Management Tab */}
         <TabsContent value="queue" className="space-y-4">
           <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
+            <CardHeader className="pb-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
                   <CardTitle>Patient Queue</CardTitle>
                   <CardDescription>Manage patients waiting to see the doctor</CardDescription>
                 </div>
-                <Badge variant="outline" className="text-lg px-3 py-1">
+                <Badge variant="outline" className="text-base sm:text-lg px-2 sm:px-3 py-1 w-fit">
                   {queue.filter(q => q.status === "waiting" || q.status === "checked_in").length} Waiting
                 </Badge>
               </div>
@@ -402,36 +421,36 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
                       key={entry.id}
                       className={`transition-all hover:shadow-md ${entry.priority === "urgent" ? "border-red-300 bg-red-50/50" : ""}`}
                     >
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4 flex-1">
-                            <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg ${entry.status === "completed" ? "bg-green-100 text-green-700" :
+                      <CardContent className="p-3 sm:p-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex items-start gap-3 flex-1 min-w-0">
+                            <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-bold text-base sm:text-lg flex-shrink-0 ${entry.status === "completed" ? "bg-green-100 text-green-700" :
                               entry.status === "in_progress" ? "bg-blue-100 text-blue-700" :
                                 entry.status === "checked_in" ? "bg-purple-100 text-purple-700" :
                                   "bg-orange-100 text-orange-700"
                               }`}>
                               {index + 1}
                             </div>
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <p className="font-semibold text-lg">{entry.patientName}</p>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-1">
+                                <p className="font-semibold text-base sm:text-lg truncate">{entry.patientName}</p>
                                 {entry.priority === "urgent" && (
                                   <Badge variant="destructive" className="text-xs">Urgent</Badge>
                                 )}
-                                <Badge variant={entry.status === "completed" ? "default" : "outline"} className="text-xs">
+                                <Badge variant={entry.status === "completed" ? "default" : "outline"} className="text-xs w-fit">
                                   {entry.status.replace("_", " ").toUpperCase()}
                                 </Badge>
                               </div>
-                              <p className="text-sm text-muted-foreground mb-1">{entry.reason}</p>
+                              <p className="text-sm text-muted-foreground mb-1 line-clamp-2">{entry.reason}</p>
                               {entry.appointmentTime && (
-                                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs text-muted-foreground">
                                   <span className="flex items-center gap-1">
-                                    <Clock className="h-3 w-3" />
+                                    <Clock className="h-3 w-3 flex-shrink-0" />
                                     {entry.appointmentTime}
                                   </span>
                                   {entry.phone && (
-                                    <span className="flex items-center gap-1">
-                                      <Phone className="h-3 w-3" />
+                                    <span className="flex items-center gap-1 truncate">
+                                      <Phone className="h-3 w-3 flex-shrink-0" />
                                       {entry.phone}
                                     </span>
                                   )}
@@ -439,7 +458,7 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
                               )}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
                             {entry.status === "waiting" && (
                               <Button size="sm" onClick={() => handleQueueUpdate(entry.id, "checked_in")}>
                                 Check In
@@ -469,24 +488,43 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
         {/* Today's Appointments Tab */}
         <TabsContent value="today" className="space-y-4">
           <Card>
-            <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <CardTitle>Today's Appointments</CardTitle>
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pb-3">
+              <div className="min-w-0">
+                <CardTitle>Today&apos;s Appointments</CardTitle>
                 <CardDescription>Manage scheduled appointments for today</CardDescription>
               </div>
-              <Badge variant="outline" className="text-lg px-3 py-1">
-                {todayAppointments.length} Total
-              </Badge>
+              <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                {clinicDoctors.length > 0 && (
+                  <Select value={selectedDoctorFilter} onValueChange={setSelectedDoctorFilter}>
+                    <SelectTrigger className="w-full sm:w-[200px]">
+                      <SelectValue placeholder="All doctors" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All doctors</SelectItem>
+                      {clinicDoctors.map((d) => (
+                        <SelectItem key={d.id} value={d.id}>
+                          Dr. {d.firstName} {d.lastName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                <Badge variant="outline" className="text-base sm:text-lg px-2 sm:px-3 py-1 w-fit">
+                  {filteredTodayAppointments.length} of {todayAppointments.length}
+                </Badge>
+              </div>
             </CardHeader>
             <CardContent>
-              {todayAppointments.length === 0 ? (
+              {filteredTodayAppointments.length === 0 ? (
                 <div className="text-center py-12">
                   <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">No appointments scheduled for today</p>
+                  <p className="text-muted-foreground">
+                    {todayAppointments.length === 0 ? "No appointments scheduled for today" : "No appointments for selected doctor"}
+                  </p>
                 </div>
               ) : (
-                <div className="overflow-x-auto -mx-4 sm:mx-0">
-                <Table>
+                <div className="overflow-x-auto -mx-2 sm:mx-0 min-w-0">
+                <Table className="min-w-[600px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Time</TableHead>
@@ -499,19 +537,19 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {todayAppointments.map((apt) => (
-                      <TableRow key={apt.id}>
-                        <TableCell className="font-medium">
+                    {filteredTodayAppointments.map((apt) => (
+                      <TableRow key={apt.id} className="align-top">
+                        <TableCell className="font-medium whitespace-nowrap text-xs sm:text-sm py-2">
                           {format(new Date(apt.scheduledAt), "h:mm a")}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="text-xs sm:text-sm py-2">
                           {apt.patient ? `${apt.patient.firstName} ${apt.patient.lastName}` : apt.patientName || "N/A"}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="text-xs sm:text-sm py-2">
                           {apt.doctor ? `Dr. ${apt.doctor.firstName} ${apt.doctor.lastName}` : "N/A"}
                         </TableCell>
-                        <TableCell className="text-muted-foreground">{apt.reason || "General"}</TableCell>
-                        <TableCell>
+                        <TableCell className="text-muted-foreground text-xs sm:text-sm py-2 max-w-[80px] truncate">{apt.reason || "General"}</TableCell>
+                        <TableCell className="py-2">
                           {apt.patient?.phone && (
                             <div className="flex items-center gap-1 text-xs text-muted-foreground">
                               <Phone className="h-3 w-3" />
@@ -519,8 +557,8 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
                             </div>
                           )}
                         </TableCell>
-                        <TableCell>{getStatusBadge(apt.status)}</TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="py-2">{getStatusBadge(apt.status)}</TableCell>
+                        <TableCell className="text-right py-2">
                           <div className="flex flex-wrap items-center justify-end gap-1">
                             {(apt.status === "PENDING" || apt.status === "REQUESTED") && (
                               <Button
@@ -585,37 +623,56 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
         {/* All Appointments Tab */}
         <TabsContent value="all" className="space-y-4">
           <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
+            <CardHeader className="pb-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
                   <CardTitle>All Clinic Appointments</CardTitle>
                   <CardDescription>View and manage all appointments for your clinic</CardDescription>
                 </div>
-                <Badge variant="outline" className="text-lg px-3 py-1">
-                  {allAppointments.length} Total
-                </Badge>
+                <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                  {clinicDoctors.length > 0 && (
+                    <Select value={selectedDoctorFilter} onValueChange={setSelectedDoctorFilter}>
+                      <SelectTrigger className="w-full sm:w-[200px]">
+                        <SelectValue placeholder="All doctors" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All doctors</SelectItem>
+                        {clinicDoctors.map((d) => (
+                          <SelectItem key={d.id} value={d.id}>
+                            Dr. {d.firstName} {d.lastName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  <Badge variant="outline" className="text-base sm:text-lg px-2 sm:px-3 py-1 w-fit">
+                    {filteredAllAppointments.length} of {allAppointments.length}
+                  </Badge>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
-              {allAppointments.length === 0 ? (
+              {filteredAllAppointments.length === 0 ? (
                 <div className="text-center py-12">
                   <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">No appointments found</p>
+                  <p className="text-muted-foreground">
+                    {allAppointments.length === 0 ? "No appointments found" : "No appointments for selected doctor"}
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-3 max-h-[600px] overflow-y-auto">
-                  {allAppointments.map((apt) => (
+                  {filteredAllAppointments.map((apt) => (
                     <Card key={apt.id} className="hover:shadow-md transition-shadow">
-                      <CardContent className="p-4">
-                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                          <div className="flex-1 min-w-0">
+                      <CardContent className="p-3 sm:p-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="flex-1 min-w-0 space-y-2">
                             <div className="flex items-center gap-2 mb-2">
                               <p className="font-semibold">
                                 {apt.patient ? `${apt.patient.firstName} ${apt.patient.lastName}` : apt.patientName || "N/A"}
                               </p>
                               {getStatusBadge(apt.status)}
                             </div>
-                            <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-muted-foreground">
                               <div className="flex items-center gap-1">
                                 <Calendar className="h-3 w-3" />
                                 {format(new Date(apt.scheduledAt), "MMM d, yyyy")}
@@ -759,28 +816,74 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
                 )}
               </CardContent>
             </Card>
+
+            <Card className="md:col-span-2">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Clinic Doctors</CardTitle>
+                  <CardDescription>Doctors at your clinic – select when booking</CardDescription>
+                </div>
+                <Button asChild size="sm">
+                  <Link href="/appointments/create">
+                    <Plus className="mr-1 h-4 w-4" />
+                    Book
+                  </Link>
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {clinicDoctors.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-4 text-center">No doctors at this clinic</p>
+                ) : (
+                  <ScrollArea className="h-[200px] rounded-md border p-2">
+                    <div className="space-y-2 pr-4">
+                      {clinicDoctors.map((d) => (
+                        <div
+                          key={d.id}
+                          className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50 transition-colors"
+                        >
+                          <div>
+                            <p className="font-medium">Dr. {d.firstName} {d.lastName}</p>
+                            {d.doctorProfile?.specialization && (
+                              <p className="text-xs text-muted-foreground">{d.doctorProfile.specialization}</p>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            {d.doctorProfile?.consultationFee != null && (
+                              <p className="text-sm font-medium">₹{d.doctorProfile.consultationFee}</p>
+                            )}
+                            <Button asChild variant="ghost" size="sm" className="mt-1">
+                              <Link href={`/appointments/create?doctor=${d.id}`}>Book</Link>
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
           <Card>
             <CardHeader>
-              <CardTitle>Today's Summary</CardTitle>
-              <CardDescription>Quick overview of today's operations</CardDescription>
+              <CardTitle>Today&apos;s Summary</CardTitle>
+              <CardDescription>Quick overview of today&apos;s operations</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-4 md:grid-cols-4">
-                <div className="text-center p-4 border rounded-lg">
+              <div className="grid grid-cols-2 gap-2 sm:gap-4 md:grid-cols-4">
+                <div className="text-center p-3 sm:p-4 border rounded-lg">
                   <p className="text-2xl font-bold text-primary">{todayStats.appointments}</p>
                   <p className="text-sm text-muted-foreground">Total Appointments</p>
                 </div>
-                <div className="text-center p-4 border rounded-lg">
+                <div className="text-center p-3 sm:p-4 border rounded-lg">
                   <p className="text-2xl font-bold text-green-600">{todayStats.completed}</p>
                   <p className="text-sm text-muted-foreground">Completed</p>
                 </div>
-                <div className="text-center p-4 border rounded-lg">
+                <div className="text-center p-3 sm:p-4 border rounded-lg">
                   <p className="text-2xl font-bold text-orange-600">{todayStats.waiting}</p>
                   <p className="text-sm text-muted-foreground">Waiting</p>
                 </div>
-                <div className="text-center p-4 border rounded-lg">
+                <div className="text-center p-3 sm:p-4 border rounded-lg">
                   <p className="text-2xl font-bold text-red-600">{todayStats.cancelled}</p>
                   <p className="text-sm text-muted-foreground">Cancelled</p>
                 </div>

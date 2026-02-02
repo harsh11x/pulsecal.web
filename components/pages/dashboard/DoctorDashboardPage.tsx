@@ -248,13 +248,13 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
   ]
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Doctor Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back, Dr. {user?.lastName}</p>
+    <div className="space-y-4 sm:space-y-6 overflow-x-hidden">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold">Doctor Dashboard</h1>
+          <p className="text-muted-foreground text-sm sm:text-base">Welcome back, Dr. {user?.lastName}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           <Button asChild variant="outline">
             <Link href="/dashboard/settings">
               <Settings className="mr-2 h-4 w-4" />
@@ -270,7 +270,7 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
       </div>
 
       {/* Quick Stats */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         {dashboardStats.map((stat) => (
           <StatsCard
             key={stat.title}
@@ -285,13 +285,13 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
       </div>
 
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="schedule">Schedule</TabsTrigger>
-          <TabsTrigger value="services">Services</TabsTrigger>
-          <TabsTrigger value="clinic">Clinic</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="reports">Financial Reports</TabsTrigger>
+        <TabsList className="flex flex-wrap h-auto gap-1 p-1">
+          <TabsTrigger value="overview" className="text-xs sm:text-sm">Overview</TabsTrigger>
+          <TabsTrigger value="schedule" className="text-xs sm:text-sm">Schedule</TabsTrigger>
+          <TabsTrigger value="services" className="text-xs sm:text-sm">Services</TabsTrigger>
+          <TabsTrigger value="clinic" className="text-xs sm:text-sm">Clinic</TabsTrigger>
+          <TabsTrigger value="analytics" className="text-xs sm:text-sm">Analytics</TabsTrigger>
+          <TabsTrigger value="reports" className="text-xs sm:text-sm">Reports</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -307,8 +307,8 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
                     <p className="text-center text-muted-foreground py-4">No appointments scheduled for today</p>
                   ) : (
                     todayAppointments.map((apt) => (
-                      <div key={apt.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                        <div className="flex items-center gap-3">
+                      <div key={apt.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                        <div className="flex items-center gap-3 min-w-0">
                           <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                             <Clock className="h-5 w-5 text-primary" />
                           </div>
@@ -318,7 +318,7 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
                             <p className="text-xs text-muted-foreground">{apt.reason}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
                           <Badge variant={apt.status === "confirmed" ? "default" : "secondary"}>
                             {apt.status}
                           </Badge>

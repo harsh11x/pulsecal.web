@@ -249,22 +249,22 @@ export default function PatientDashboardPage({ user }: PatientDashboardPageProps
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Welcome back, {user?.firstName}!</h1>
-          <p className="text-muted-foreground">Here's what's happening with your health</p>
+    <div className="space-y-4 sm:space-y-6 overflow-x-hidden">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold">Welcome back, {user?.firstName}!</h1>
+          <p className="text-muted-foreground text-sm sm:text-base">Here&apos;s what&apos;s happening with your health</p>
         </div>
-        <Button asChild size="lg">
+        <Button asChild size="default" className="w-full sm:w-auto">
           <Link href="/appointments/create">
-            <Plus className="mr-2 h-5 w-5" />
+            <Plus className="mr-2 h-4 w-4" />
             Book Appointment
           </Link>
         </Button>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
           <StatsCard
             key={stat.title}
@@ -280,11 +280,11 @@ export default function PatientDashboardPage({ user }: PatientDashboardPageProps
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="appointments" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="appointments">Appointments</TabsTrigger>
-          <TabsTrigger value="nearby">Nearby</TabsTrigger>
-          <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
-          <TabsTrigger value="doctors">Find Doctors</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-1 p-1 h-auto">
+          <TabsTrigger value="appointments" className="text-xs sm:text-sm px-2">Appointments</TabsTrigger>
+          <TabsTrigger value="nearby" className="text-xs sm:text-sm px-2">Nearby</TabsTrigger>
+          <TabsTrigger value="prescriptions" className="text-xs sm:text-sm px-2">Prescriptions</TabsTrigger>
+          <TabsTrigger value="doctors" className="text-xs sm:text-sm px-2">Find Doctors</TabsTrigger>
         </TabsList>
 
         {/* Nearby Clinics & Doctors Tab */}
@@ -317,8 +317,8 @@ export default function PatientDashboardPage({ user }: PatientDashboardPageProps
                       <div className="space-y-2">
                         {nearbyClinics.map((c: any) => (
                           <Card key={c.id} className="hover:shadow-md transition-shadow">
-                            <CardContent className="p-4">
-                              <div className="flex justify-between items-start">
+                            <CardContent className="p-3 sm:p-4">
+                              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
                                 <div>
                                   <Link href={`/clinic/${c.id}`} className="font-semibold hover:underline">
                                     {c.name}
@@ -328,7 +328,7 @@ export default function PatientDashboardPage({ user }: PatientDashboardPageProps
                                     <p className="text-xs text-muted-foreground">{c.distance} km away</p>
                                   )}
                                 </div>
-                                <Button asChild size="sm" variant="outline">
+                                <Button asChild size="sm" variant="outline" className="w-full sm:w-auto">
                                   <Link href={`/clinic/${c.id}`}>View doctors</Link>
                                 </Button>
                               </div>
