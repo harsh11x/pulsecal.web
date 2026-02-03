@@ -1,6 +1,6 @@
 # PulseCal API Reference for Postman
 
-**Base URL:** `http://localhost:3001/api/v1` (or your backend URL)  
+**Base URL:** `http://13.205.127.21:3001/api/v1`  
 **Authentication:** Bearer token (Firebase ID token) in `Authorization` header  
 **Header:** `Authorization: Bearer <YOUR_FIREBASE_TOKEN>`
 
@@ -256,7 +256,7 @@
 ## Example Postman Setup
 
 1. **Environment variables:**
-   - `base_url`: `http://localhost:3001` (or your backend URL)
+   - `base_url`: `http://13.205.127.21:3001/api/v1`
    - `token`: Your Firebase ID token
 
 2. **Request URL:** `{{base_url}}/api/v1/appointments`

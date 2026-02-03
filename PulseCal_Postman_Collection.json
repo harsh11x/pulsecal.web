@@ -5,7 +5,7 @@
     "description": "PulseCal Healthcare API - Import this into Postman"
   },
   "variable": [
-    { "key": "base_url", "value": "http://localhost:3001/api/v1" },
+    { "key": "base_url", "value": "http://13.205.127.21:3001/api/v1" },
     { "key": "token", "value": "YOUR_FIREBASE_TOKEN" }
   ],
   "auth": {

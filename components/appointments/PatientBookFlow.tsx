@@ -55,10 +55,18 @@ export function PatientBookFlow() {
       if (userLocation) {
         params.set("latitude", String(userLocation.lat))
         params.set("longitude", String(userLocation.lng))
-        params.set("radius", "15")
+        params.set("radius", "50")
       }
       const data: any = await apiService.get(`/doctors/search?${params}`)
-      const list = data?.doctors ?? (Array.isArray(data) ? data : [])
+      let list = data?.doctors ?? (Array.isArray(data) ? data : [])
+      if (list.length === 0 && userLocation && !query) {
+        const fallbackParams = new URLSearchParams({ limit: "50" })
+        const fallback: any = await apiService.get(`/doctors/search?${fallbackParams}`)
+        list = fallback?.doctors ?? (Array.isArray(fallback) ? fallback : [])
+        if (list.length > 0) {
+          toast.info("No doctors nearby. Showing all doctors.")
+        }
+      }
       setDoctors(list)
       setSearched(true)
       if (list.length === 0 && query) {

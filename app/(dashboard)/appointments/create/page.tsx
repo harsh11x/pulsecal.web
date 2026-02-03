@@ -44,6 +44,7 @@ export default function CreateAppointmentPage() {
 
   // Clinic doctors (for receptionists)
   const [clinicDoctors, setClinicDoctors] = useState<ClinicDoctor[]>([])
+  const [loadingDoctors, setLoadingDoctors] = useState(true)
   const [selectedDoctorId, setSelectedDoctorId] = useState<string | null>(null)
 
   // Schedule settings from doctor's profile
@@ -70,8 +71,9 @@ export default function CreateAppointmentPage() {
   // Fetch clinic doctors for receptionists
   useEffect(() => {
     if (isReceptionist) {
+      setLoadingDoctors(true)
       apiService.get("/receptionists/doctors").then((data: any) => {
-        const doctors = Array.isArray(data) ? data : (data?.doctors ?? [])
+        const doctors = Array.isArray(data) ? data : (data?.doctors ?? data?.data ?? [])
         setClinicDoctors(doctors)
         const doctorFromUrl = searchParams?.get("doctor")
         if (doctorFromUrl && doctors.some((d: { id: string }) => d.id === doctorFromUrl)) {
@@ -79,7 +81,10 @@ export default function CreateAppointmentPage() {
         } else if (doctors.length === 1) {
           setSelectedDoctorId(doctors[0].id)
         }
-      }).catch(() => toast.error("Failed to load clinic doctors"))
+      }).catch(() => {
+        toast.error("Failed to load clinic doctors")
+        setClinicDoctors([])
+      }).finally(() => setLoadingDoctors(false))
     }
   }, [isReceptionist, searchParams])
 
@@ -236,48 +241,59 @@ export default function CreateAppointmentPage() {
 
 
             {/* Doctor Selection (Receptionists only) */}
-            {isReceptionist && clinicDoctors.length > 0 && (
+            {isReceptionist && (
               <div className="space-y-4 border p-4 rounded-md bg-muted/20">
                 <h3 className="font-semibold flex items-center gap-2">
                   <Stethoscope className="h-4 w-4" />
                   Select Doctor
                 </h3>
                 <p className="text-sm text-muted-foreground">Choose the doctor for this appointment</p>
-                <ScrollArea className="h-[180px] rounded-md border p-2">
-                <div className="grid gap-2 pr-4">
-                  {clinicDoctors.map((doc) => (
-                    <div
-                      key={doc.id}
-                      className={`flex items-start space-x-3 rounded-lg border p-3 cursor-pointer transition-colors ${
-                        selectedDoctorId === doc.id ? "border-primary bg-primary/5" : "hover:bg-muted/50"
-                      }`}
-                      onClick={() => setSelectedDoctorId(doc.id)}
-                    >
-                      <Checkbox
-                        id={`doctor-${doc.id}`}
-                        checked={selectedDoctorId === doc.id}
-                        onCheckedChange={(checked) => setSelectedDoctorId(checked ? doc.id : null)}
-                      />
-                      <div className="flex-1">
-                        <label
-                          htmlFor={`doctor-${doc.id}`}
-                          className="text-sm font-medium leading-none cursor-pointer"
+                {loadingDoctors ? (
+                  <div className="flex items-center gap-2 py-6 text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading doctors...
+                  </div>
+                ) : clinicDoctors.length === 0 ? (
+                  <div className="py-6 text-center text-muted-foreground text-sm border rounded-md bg-muted/30">
+                    No doctors in your clinic. Ensure you&apos;re linked to a clinic and it has doctors.
+                  </div>
+                ) : (
+                  <ScrollArea className="h-[180px] rounded-md border p-2">
+                    <div className="grid gap-2 pr-4">
+                      {clinicDoctors.map((doc) => (
+                        <div
+                          key={doc.id}
+                          className={`flex items-start space-x-3 rounded-lg border p-3 cursor-pointer transition-colors ${
+                            selectedDoctorId === doc.id ? "border-primary bg-primary/5" : "hover:bg-muted/50"
+                          }`}
+                          onClick={() => setSelectedDoctorId(doc.id)}
                         >
-                          Dr. {doc.firstName} {doc.lastName}
-                        </label>
-                        {doc.doctorProfile?.specialization && (
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {doc.doctorProfile.specialization}
-                            {doc.doctorProfile.consultationFee != null && (
-                              <> • ₹{doc.doctorProfile.consultationFee}</>
+                          <Checkbox
+                            id={`doctor-${doc.id}`}
+                            checked={selectedDoctorId === doc.id}
+                            onCheckedChange={(checked) => setSelectedDoctorId(checked ? doc.id : null)}
+                          />
+                          <div className="flex-1">
+                            <label
+                              htmlFor={`doctor-${doc.id}`}
+                              className="text-sm font-medium leading-none cursor-pointer"
+                            >
+                              Dr. {doc.firstName} {doc.lastName}
+                            </label>
+                            {doc.doctorProfile?.specialization && (
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                {doc.doctorProfile.specialization}
+                                {doc.doctorProfile.consultationFee != null && (
+                                  <> • ₹{doc.doctorProfile.consultationFee}</>
+                                )}
+                              </p>
                             )}
-                          </p>
-                        )}
-                      </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-                </ScrollArea>
+                  </ScrollArea>
+                )}
               </div>
             )}
 
