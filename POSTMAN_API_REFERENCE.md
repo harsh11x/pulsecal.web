@@ -7,249 +7,249 @@
 ---
 
 ## Auth
-| Method | Endpoint | Description |
+| Method | Full URL | Description |
 |--------|----------|-------------|
-| GET | `/auth/profile` | Get current user profile |
-| POST | `/auth/sync-profile` | Sync Firebase profile to backend |
+| GET | `http://13.205.127.21:3001/api/v1/auth/profile` | Get current user profile |
+| POST | `http://13.205.127.21:3001/api/v1/auth/sync-profile` | Sync Firebase profile to backend |
 
 ---
 
 ## Users
-| Method | Endpoint | Description |
+| Method | Full URL | Description |
 |--------|----------|-------------|
-| GET | `/users/profile` | Get user profile |
-| PUT | `/users/profile` | Update user profile |
-| POST | `/users` | Create user (Staff) |
-| GET | `/users` | Get all users (Staff) |
-| GET | `/users/:id` | Get user by ID (Staff) |
-| PATCH | `/users/:id/status` | Update user status (Admin) |
+| GET | `http://13.205.127.21:3001/api/v1/users/profile` | Get user profile |
+| PUT | `http://13.205.127.21:3001/api/v1/users/profile` | Update user profile |
+| POST | `http://13.205.127.21:3001/api/v1/users` | Create user (Staff) |
+| GET | `http://13.205.127.21:3001/api/v1/users` | Get all users (Staff) |
+| GET | `http://13.205.127.21:3001/api/v1/users/:id` | Get user by ID (Staff) |
+| PATCH | `http://13.205.127.21:3001/api/v1/users/:id/status` | Update user status (Admin) |
 
 ---
 
 ## Appointments
-| Method | Endpoint | Description |
+| Method | Full URL | Description |
 |--------|----------|-------------|
-| POST | `/appointments/self` | Patient self-booking (free) |
-| POST | `/appointments` | Create appointment (Doctor/Receptionist) |
-| GET | `/appointments` | List appointments (query: date, patientId, doctorId, status) |
-| GET | `/appointments/:id` | Get appointment by ID |
-| PUT | `/appointments/:id` | Update appointment |
-| POST | `/appointments/:id/reschedule` | Reschedule (body: { scheduledAt }) |
-| POST | `/appointments/:id/cancel` | Cancel (body: { cancellationReason? }) |
-| POST | `/appointments/:id/checkin` | Check-in patient |
-| DELETE | `/appointments/:id` | Delete appointment |
+| POST | `http://13.205.127.21:3001/api/v1/appointments/self` | Patient self-booking (free) |
+| POST | `http://13.205.127.21:3001/api/v1/appointments` | Create appointment (Doctor/Receptionist) |
+| GET | `http://13.205.127.21:3001/api/v1/appointments` | List appointments (query: date, patientId, doctorId, status) |
+| GET | `http://13.205.127.21:3001/api/v1/appointments/:id` | Get appointment by ID |
+| PUT | `http://13.205.127.21:3001/api/v1/appointments/:id` | Update appointment |
+| POST | `http://13.205.127.21:3001/api/v1/appointments/:id/reschedule` | Reschedule (body: { scheduledAt }) |
+| POST | `http://13.205.127.21:3001/api/v1/appointments/:id/cancel` | Cancel (body: { cancellationReason? }) |
+| POST | `http://13.205.127.21:3001/api/v1/appointments/:id/checkin` | Check-in patient |
+| DELETE | `http://13.205.127.21:3001/api/v1/appointments/:id` | Delete appointment |
 
 ---
 
 ## Doctors
-| Method | Endpoint | Description |
+| Method | Full URL | Description |
 |--------|----------|-------------|
-| GET | `/doctors/search` | Search doctors (query: search, reason, latitude, longitude, radius, limit) |
-| GET | `/doctors/:id` | Get doctor by ID |
-| GET | `/doctors/:id/availability` | Get availability (query: date) |
-| GET | `/doctors/:id/slots` | Get slots for booking (query: days) |
-| GET | `/doctors/schedule` | Get doctor schedule |
-| POST | `/doctors/schedule` | Update schedule (Doctor) |
-| GET | `/doctors/analytics` | Get analytics (Doctor) |
-| GET | `/doctors/financial-reports` | Get financial reports (Doctor) |
-| GET | `/doctors/clinic/staff` | Get clinic staff (Doctor) |
-| POST | `/doctors/subscription/create` | Create subscription order |
-| POST | `/doctors/subscription/verify` | Verify subscription payment |
+| GET | `http://13.205.127.21:3001/api/v1/doctors/search` | Search doctors (query: search, reason, latitude, longitude, radius, limit) |
+| GET | `http://13.205.127.21:3001/api/v1/doctors/:id` | Get doctor by ID |
+| GET | `http://13.205.127.21:3001/api/v1/doctors/:id/availability` | Get availability (query: date) |
+| GET | `http://13.205.127.21:3001/api/v1/doctors/:id/slots` | Get slots for booking (query: days) |
+| GET | `http://13.205.127.21:3001/api/v1/doctors/schedule` | Get doctor schedule |
+| POST | `http://13.205.127.21:3001/api/v1/doctors/schedule` | Update schedule (Doctor) |
+| GET | `http://13.205.127.21:3001/api/v1/doctors/analytics` | Get analytics (Doctor) |
+| GET | `http://13.205.127.21:3001/api/v1/doctors/financial-reports` | Get financial reports (Doctor) |
+| GET | `http://13.205.127.21:3001/api/v1/doctors/clinic/staff` | Get clinic staff (Doctor) |
+| POST | `http://13.205.127.21:3001/api/v1/doctors/subscription/create` | Create subscription order |
+| POST | `http://13.205.127.21:3001/api/v1/doctors/subscription/verify` | Verify subscription payment |
 
 ---
 
 ## Doctor Profiles
-| Method | Endpoint | Description |
+| Method | Full URL | Description |
 |--------|----------|-------------|
-| POST | `/doctor-profiles` | Create doctor profile |
-| GET | `/doctor-profiles/me` | Get my doctor profile |
-| PUT | `/doctor-profiles/me` | Update my profile |
-| PUT | `/doctor-profiles` | Update profile |
+| POST | `http://13.205.127.21:3001/api/v1/doctor-profiles` | Create doctor profile |
+| GET | `http://13.205.127.21:3001/api/v1/doctor-profiles/me` | Get my doctor profile |
+| PUT | `http://13.205.127.21:3001/api/v1/doctor-profiles/me` | Update my profile |
+| PUT | `http://13.205.127.21:3001/api/v1/doctor-profiles` | Update profile |
 
 ---
 
 ## Patient Profiles
-| Method | Endpoint | Description |
+| Method | Full URL | Description |
 |--------|----------|-------------|
-| POST | `/patient-profiles` | Create patient profile |
-| GET | `/patient-profiles` | Get my patient profile |
-| GET | `/patient-profiles/:id` | Get patient profile by ID (Staff) |
+| POST | `http://13.205.127.21:3001/api/v1/patient-profiles` | Create patient profile |
+| GET | `http://13.205.127.21:3001/api/v1/patient-profiles` | Get my patient profile |
+| GET | `http://13.205.127.21:3001/api/v1/patient-profiles/:id` | Get patient profile by ID (Staff) |
 
 ---
 
 ## Clinics
-| Method | Endpoint | Description |
+| Method | Full URL | Description |
 |--------|----------|-------------|
-| GET | `/clinics` | List clinics (query: latitude, longitude, radius, limit) |
-| GET | `/clinics/:id` | Get clinic by ID |
-| POST | `/clinics` | Create clinic |
-| PUT | `/clinics/:id` | Update clinic |
-| DELETE | `/clinics/:id` | Delete clinic (Admin) |
+| GET | `http://13.205.127.21:3001/api/v1/clinics` | List clinics (query: latitude, longitude, radius, limit) |
+| GET | `http://13.205.127.21:3001/api/v1/clinics/:id` | Get clinic by ID |
+| POST | `http://13.205.127.21:3001/api/v1/clinics` | Create clinic |
+| PUT | `http://13.205.127.21:3001/api/v1/clinics/:id` | Update clinic |
+| DELETE | `http://13.205.127.21:3001/api/v1/clinics/:id` | Delete clinic (Admin) |
 
 ---
 
 ## Receptionists
-| Method | Endpoint | Description |
+| Method | Full URL | Description |
 |--------|----------|-------------|
-| POST | `/receptionists` | Link receptionist to clinic (body: { clinicId }) |
-| GET | `/receptionists/stats` | Get receptionist stats |
-| GET | `/receptionists/queue` | Get queue status |
-| GET | `/receptionists/doctors` | Get clinic doctors |
-| POST | `/receptionists/patients` | Register offline patient |
+| POST | `http://13.205.127.21:3001/api/v1/receptionists` | Link receptionist to clinic (body: { clinicId }) |
+| GET | `http://13.205.127.21:3001/api/v1/receptionists/stats` | Get receptionist stats |
+| GET | `http://13.205.127.21:3001/api/v1/receptionists/queue` | Get queue status |
+| GET | `http://13.205.127.21:3001/api/v1/receptionists/doctors` | Get clinic doctors |
+| POST | `http://13.205.127.21:3001/api/v1/receptionists/patients` | Register offline patient |
 
 ---
 
 ## Payments
-| Method | Endpoint | Description |
+| Method | Full URL | Description |
 |--------|----------|-------------|
-| POST | `/payments/create-order` | Create Razorpay order (body: { appointmentId, amount }) |
-| POST | `/payments/verify` | Verify payment |
-| POST | `/payments/appointment/create-order` | Create order for patient booking (body: { doctorId, scheduledAt, amount, reason? }) |
-| POST | `/payments/appointment/verify` | Verify appointment payment |
-| POST | `/payments/create-subscription` | Create subscription |
-| POST | `/payments/verify-subscription` | Verify subscription |
-| POST | `/payments/cancel-subscription/:id` | Cancel subscription |
-| GET | `/payments` | List payments |
-| GET | `/payments/:id` | Get payment by ID |
-| PATCH | `/payments/:id/status` | Update payment status (Receptionist) |
-| DELETE | `/payments/:id` | Delete payment (Staff) |
+| POST | `http://13.205.127.21:3001/api/v1/payments/create-order` | Create Razorpay order (body: { appointmentId, amount }) |
+| POST | `http://13.205.127.21:3001/api/v1/payments/verify` | Verify payment |
+| POST | `http://13.205.127.21:3001/api/v1/payments/appointment/create-order` | Create order for patient booking (body: { doctorId, scheduledAt, amount, reason? }) |
+| POST | `http://13.205.127.21:3001/api/v1/payments/appointment/verify` | Verify appointment payment |
+| POST | `http://13.205.127.21:3001/api/v1/payments/create-subscription` | Create subscription |
+| POST | `http://13.205.127.21:3001/api/v1/payments/verify-subscription` | Verify subscription |
+| POST | `http://13.205.127.21:3001/api/v1/payments/cancel-subscription/:id` | Cancel subscription |
+| GET | `http://13.205.127.21:3001/api/v1/payments` | List payments |
+| GET | `http://13.205.127.21:3001/api/v1/payments/:id` | Get payment by ID |
+| PATCH | `http://13.205.127.21:3001/api/v1/payments/:id/status` | Update payment status (Receptionist) |
+| DELETE | `http://13.205.127.21:3001/api/v1/payments/:id` | Delete payment (Staff) |
 
 ---
 
 ## Payment Gateway (Doctor Onboarding)
-| Method | Endpoint | Description |
+| Method | Full URL | Description |
 |--------|----------|-------------|
-| POST | `/payment-gateway/create-order` | Create order (body: { plan, billingCycle? }) |
-| POST | `/payment-gateway/verify` | Verify payment |
+| POST | `http://13.205.127.21:3001/api/v1/payment-gateway/create-order` | Create order (body: { plan, billingCycle? }) |
+| POST | `http://13.205.127.21:3001/api/v1/payment-gateway/verify` | Verify payment |
 
 ---
 
 ## Medical Records
-| Method | Endpoint | Description |
+| Method | Full URL | Description |
 |--------|----------|-------------|
-| POST | `/medical-records` | Create medical record (Doctor) |
-| GET | `/medical-records` | List medical records |
-| GET | `/medical-records/:id` | Get medical record |
-| PUT | `/medical-records/:id` | Update (Doctor) |
-| DELETE | `/medical-records/:id` | Delete (Staff) |
+| POST | `http://13.205.127.21:3001/api/v1/medical-records` | Create medical record (Doctor) |
+| GET | `http://13.205.127.21:3001/api/v1/medical-records` | List medical records |
+| GET | `http://13.205.127.21:3001/api/v1/medical-records/:id` | Get medical record |
+| PUT | `http://13.205.127.21:3001/api/v1/medical-records/:id` | Update (Doctor) |
+| DELETE | `http://13.205.127.21:3001/api/v1/medical-records/:id` | Delete (Staff) |
 
 ---
 
 ## Prescriptions
-| Method | Endpoint | Description |
+| Method | Full URL | Description |
 |--------|----------|-------------|
-| POST | `/prescriptions` | Create prescription (Doctor) |
-| GET | `/prescriptions` | List prescriptions |
-| GET | `/prescriptions/:id` | Get prescription |
-| PUT | `/prescriptions/:id` | Update (Doctor) |
-| POST | `/prescriptions/:id/refill` | Request refill |
-| DELETE | `/prescriptions/:id` | Delete (Staff) |
+| POST | `http://13.205.127.21:3001/api/v1/prescriptions` | Create prescription (Doctor) |
+| GET | `http://13.205.127.21:3001/api/v1/prescriptions` | List prescriptions |
+| GET | `http://13.205.127.21:3001/api/v1/prescriptions/:id` | Get prescription |
+| PUT | `http://13.205.127.21:3001/api/v1/prescriptions/:id` | Update (Doctor) |
+| POST | `http://13.205.127.21:3001/api/v1/prescriptions/:id/refill` | Request refill |
+| DELETE | `http://13.205.127.21:3001/api/v1/prescriptions/:id` | Delete (Staff) |
 
 ---
 
 ## Insurance
-| Method | Endpoint | Description |
+| Method | Full URL | Description |
 |--------|----------|-------------|
-| POST | `/insurance` | Create/update insurance (Patient) |
-| GET | `/insurance` | Get insurance (Patient) |
-| DELETE | `/insurance` | Delete insurance (Patient) |
+| POST | `http://13.205.127.21:3001/api/v1/insurance` | Create/update insurance (Patient) |
+| GET | `http://13.205.127.21:3001/api/v1/insurance` | Get insurance (Patient) |
+| DELETE | `http://13.205.127.21:3001/api/v1/insurance` | Delete insurance (Patient) |
 
 ---
 
 ## Emergency Contacts
-| Method | Endpoint | Description |
+| Method | Full URL | Description |
 |--------|----------|-------------|
-| POST | `/emergency-contacts` | Create contact (Patient) |
-| GET | `/emergency-contacts` | List contacts (Patient) |
-| GET | `/emergency-contacts/:id` | Get contact |
-| PUT | `/emergency-contacts/:id` | Update (Patient) |
-| DELETE | `/emergency-contacts/:id` | Delete (Patient) |
+| POST | `http://13.205.127.21:3001/api/v1/emergency-contacts` | Create contact (Patient) |
+| GET | `http://13.205.127.21:3001/api/v1/emergency-contacts` | List contacts (Patient) |
+| GET | `http://13.205.127.21:3001/api/v1/emergency-contacts/:id` | Get contact |
+| PUT | `http://13.205.127.21:3001/api/v1/emergency-contacts/:id` | Update (Patient) |
+| DELETE | `http://13.205.127.21:3001/api/v1/emergency-contacts/:id` | Delete (Patient) |
 
 ---
 
 ## Reminders
-| Method | Endpoint | Description |
+| Method | Full URL | Description |
 |--------|----------|-------------|
-| POST | `/reminders` | Create reminder (Patient) |
-| GET | `/reminders` | List reminders |
-| GET | `/reminders/:id` | Get reminder |
-| PUT | `/reminders/:id` | Update (Patient) |
-| POST | `/reminders/:id/complete` | Mark complete (Patient) |
-| DELETE | `/reminders/:id` | Delete (Patient) |
+| POST | `http://13.205.127.21:3001/api/v1/reminders` | Create reminder (Patient) |
+| GET | `http://13.205.127.21:3001/api/v1/reminders` | List reminders |
+| GET | `http://13.205.127.21:3001/api/v1/reminders/:id` | Get reminder |
+| PUT | `http://13.205.127.21:3001/api/v1/reminders/:id` | Update (Patient) |
+| POST | `http://13.205.127.21:3001/api/v1/reminders/:id/complete` | Mark complete (Patient) |
+| DELETE | `http://13.205.127.21:3001/api/v1/reminders/:id` | Delete (Patient) |
 
 ---
 
 ## Chat
-| Method | Endpoint | Description |
+| Method | Full URL | Description |
 |--------|----------|-------------|
-| POST | `/chat/rooms` | Create chat room |
-| GET | `/chat/rooms` | List chat rooms |
-| GET | `/chat/rooms/:id` | Get chat room |
-| GET | `/chat/rooms/:roomId/messages` | Get messages |
-| POST | `/chat/rooms/:roomId/messages` | Send message |
-| POST | `/chat/rooms/:roomId/read` | Mark as read |
-| DELETE | `/chat/messages/:id` | Delete message |
+| POST | `http://13.205.127.21:3001/api/v1/chat/rooms` | Create chat room |
+| GET | `http://13.205.127.21:3001/api/v1/chat/rooms` | List chat rooms |
+| GET | `http://13.205.127.21:3001/api/v1/chat/rooms/:id` | Get chat room |
+| GET | `http://13.205.127.21:3001/api/v1/chat/rooms/:roomId/messages` | Get messages |
+| POST | `http://13.205.127.21:3001/api/v1/chat/rooms/:roomId/messages` | Send message |
+| POST | `http://13.205.127.21:3001/api/v1/chat/rooms/:roomId/read` | Mark as read |
+| DELETE | `http://13.205.127.21:3001/api/v1/chat/messages/:id` | Delete message |
 
 ---
 
 ## Queue
-| Method | Endpoint | Description |
+| Method | Full URL | Description |
 |--------|----------|-------------|
-| POST | `/queue` | Add to queue |
-| GET | `/queue` | Get queue |
-| GET | `/queue/status` | Get queue status |
-| POST | `/queue/next` | Call next patient (Doctor) |
-| PUT | `/queue/:id` | Update queue entry (Receptionist) |
-| POST | `/queue/:id/complete` | Complete entry (Receptionist) |
-| DELETE | `/queue/:id` | Remove from queue |
+| POST | `http://13.205.127.21:3001/api/v1/queue` | Add to queue |
+| GET | `http://13.205.127.21:3001/api/v1/queue` | Get queue |
+| GET | `http://13.205.127.21:3001/api/v1/queue/status` | Get queue status |
+| POST | `http://13.205.127.21:3001/api/v1/queue/next` | Call next patient (Doctor) |
+| PUT | `http://13.205.127.21:3001/api/v1/queue/:id` | Update queue entry (Receptionist) |
+| POST | `http://13.205.127.21:3001/api/v1/queue/:id/complete` | Complete entry (Receptionist) |
+| DELETE | `http://13.205.127.21:3001/api/v1/queue/:id` | Remove from queue |
 
 ---
 
 ## Health Analytics
-| Method | Endpoint | Description |
+| Method | Full URL | Description |
 |--------|----------|-------------|
-| POST | `/health-analytics` | Create metric (Patient) |
-| GET | `/health-analytics` | Get metrics |
-| GET | `/health-analytics/:id` | Get metric |
-| PUT | `/health-analytics/:id` | Update (Patient) |
-| DELETE | `/health-analytics/:id` | Delete (Patient) |
+| POST | `http://13.205.127.21:3001/api/v1/health-analytics` | Create metric (Patient) |
+| GET | `http://13.205.127.21:3001/api/v1/health-analytics` | Get metrics |
+| GET | `http://13.205.127.21:3001/api/v1/health-analytics/:id` | Get metric |
+| PUT | `http://13.205.127.21:3001/api/v1/health-analytics/:id` | Update (Patient) |
+| DELETE | `http://13.205.127.21:3001/api/v1/health-analytics/:id` | Delete (Patient) |
 
 ---
 
 ## Telemedicine
-| Method | Endpoint | Description |
+| Method | Full URL | Description |
 |--------|----------|-------------|
-| POST | `/telemedicine/:appointmentId` | Create session (Doctor) |
-| GET | `/telemedicine/:appointmentId` | Get session |
-| POST | `/telemedicine/:appointmentId/start` | Start session (Doctor) |
-| POST | `/telemedicine/:appointmentId/end` | End session (Doctor) |
+| POST | `http://13.205.127.21:3001/api/v1/telemedicine/:appointmentId` | Create session (Doctor) |
+| GET | `http://13.205.127.21:3001/api/v1/telemedicine/:appointmentId` | Get session |
+| POST | `http://13.205.127.21:3001/api/v1/telemedicine/:appointmentId/start` | Start session (Doctor) |
+| POST | `http://13.205.127.21:3001/api/v1/telemedicine/:appointmentId/end` | End session (Doctor) |
 
 ---
 
 ## Reviews
-| Method | Endpoint | Description |
+| Method | Full URL | Description |
 |--------|----------|-------------|
-| POST | `/reviews` | Create review (Patient) |
-| GET | `/reviews` | List reviews |
+| POST | `http://13.205.127.21:3001/api/v1/reviews` | Create review (Patient) |
+| GET | `http://13.205.127.21:3001/api/v1/reviews` | List reviews |
 
 ---
 
 ## Data Export
-| Method | Endpoint | Description |
+| Method | Full URL | Description |
 |--------|----------|-------------|
-| POST | `/data/export` | Export user data (Patient) |
-| GET | `/data/exports` | Get export history (Patient) |
-| DELETE | `/data/exports/:id` | Delete export (Patient) |
+| POST | `http://13.205.127.21:3001/api/v1/data/export` | Export user data (Patient) |
+| GET | `http://13.205.127.21:3001/api/v1/data/exports` | Get export history (Patient) |
+| DELETE | `http://13.205.127.21:3001/api/v1/data/exports/:id` | Delete export (Patient) |
 
 ---
 
 ## Admin
-| Method | Endpoint | Description |
+| Method | Full URL | Description |
 |--------|----------|-------------|
-| GET | `/admin/audit-logs` | Get audit logs |
-| GET | `/admin/stats` | Get system stats |
-| GET | `/admin/clinics` | Get all clinics |
-| GET | `/admin/clinics/:id` | Get clinic details |
+| GET | `http://13.205.127.21:3001/api/v1/admin/audit-logs` | Get audit logs |
+| GET | `http://13.205.127.21:3001/api/v1/admin/stats` | Get system stats |
+| GET | `http://13.205.127.21:3001/api/v1/admin/clinics` | Get all clinics |
+| GET | `http://13.205.127.21:3001/api/v1/admin/clinics/:id` | Get clinic details |
 
 ---
 
@@ -259,10 +259,12 @@
    - `base_url`: `http://13.205.127.21:3001/api/v1`
    - `token`: Your Firebase ID token
 
-2. **Request URL:** `{{base_url}}/api/v1/appointments`
+2. **Request URL (example):** `http://13.205.127.21:3001/api/v1/appointments`
 
 3. **Headers:**
-   - `Authorization`: `Bearer {{token}}`
+   - `Authorization`: `Bearer <YOUR_TOKEN>`
    - `Content-Type`: `application/json`
 
-4. **To get Firebase token:** Sign in via the PulseCal app, open browser DevTools → Network tab, inspect any API request, copy the `Authorization` header value.
+4. **Replace :id placeholders** with actual IDs when testing (e.g. `:id` → `abc123`).
+
+5. **To get Firebase token:** Sign in via the PulseCal app, open browser DevTools → Network tab, inspect any API request, copy the `Authorization` header value.
