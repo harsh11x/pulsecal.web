@@ -86,21 +86,15 @@ export const searchDoctors = async (params: {
      };
   }
 
-  // Generic Search (OR logic across multiple fields)
-  if (search) {
-      const searchLower = search.toLowerCase();
+  // Generic Search (OR logic) - doctor name, clinic, profession/specialization, symptom
+  const searchOrReason = search || reason;
+  if (searchOrReason) {
+      const term = (searchOrReason as string).toLowerCase().trim();
       where.OR = [
-          {
-              user: {
-                  OR: [
-                      { firstName: { contains: searchLower, mode: 'insensitive' } },
-                      { lastName: { contains: searchLower, mode: 'insensitive' } }
-                  ]
-              }
-          },
-          { clinicName: { contains: searchLower, mode: 'insensitive' } },
-          { specialization: { contains: searchLower, mode: 'insensitive' } },
-          { services: { has: search } }
+          { user: { OR: [{ firstName: { contains: term, mode: 'insensitive' } }, { lastName: { contains: term, mode: 'insensitive' } }] } },
+          { clinicName: { contains: term, mode: 'insensitive' } },
+          { specialization: { contains: term, mode: 'insensitive' } },
+          { services: { has: term } },
       ];
   }
 

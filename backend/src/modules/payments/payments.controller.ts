@@ -135,9 +135,9 @@ export const deletePaymentController = async (
 };
 
 
-// Razorpay One-Time Payment Integration (For Patients)
+// Razorpay One-Time Payment Integration (For Patients - existing appointment)
 const createRazorpayOrderSchema = Joi.object({
-  appointmentId: Joi.string().required(),
+  appointmentId: Joi.string().optional(),
   amount: Joi.number().required(),
   currency: Joi.string().default('INR'),
 });
@@ -158,18 +158,23 @@ export const createRazorpayOrderController = async (
     if (error) throw new AppError(error.details[0].message, 400);
 
     const options: any = {
-      amount: value.amount * 100, // Razorpay works in paise
+      amount: Math.round(value.amount * 100), // Razorpay works in paise
       currency: value.currency,
-      receipt: `rcpt_${value.appointmentId}`,
+      receipt: value.appointmentId ? `rcpt_${value.appointmentId}` : `rcpt_${Date.now()}_${req.user?.id?.substring(0, 5)}`,
       notes: {
-        appointmentId: value.appointmentId,
+        ...(value.appointmentId && { appointmentId: value.appointmentId }),
         patientId: req.user?.id
       }
     };
 
     const order = await razorpay.orders.create(options);
 
-    sendSuccess(res, order, 'Razorpay order created successfully');
+    sendSuccess(res, {
+      id: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      key: process.env.RAZORPAY_KEY_ID
+    }, 'Razorpay order created successfully');
   } catch (err: any) {
     next(new AppError(err.message, 500));
   }
@@ -197,38 +202,169 @@ export const verifyRazorpayPaymentController = async (
 
     // Payment Verified. Fetch Order to get notes (appointmentId)
     const order = await razorpay.orders.fetch(razorpay_order_id);
-    const appointmentId = order.notes?.appointmentId as string;
+    const appointmentId = order.notes?.appointmentId as string | undefined;
 
-    if (!appointmentId) throw new AppError('Appointment ID not found in order notes', 400);
+    if (appointmentId) {
+      // Existing appointment - update status and create payment
+      await prisma.appointment.update({
+        where: { id: appointmentId },
+        data: { status: 'CONFIRMED' }
+      });
 
-    // Update Appointment Status
-    await prisma.appointment.update({
-      where: { id: appointmentId },
-      data: { status: 'CONFIRMED' }
+      await createPayment({
+        patientId: req.user?.id!,
+        appointmentId,
+        amount: Number(order.amount) / 100,
+        currency: 'INR',
+        method: 'RAZORPAY_ONLINE',
+        transactionId: razorpay_payment_id,
+        razorpayOrderId: razorpay_order_id,
+        razorpayPaymentId: razorpay_payment_id,
+        razorpaySignature: razorpay_signature,
+        status: 'COMPLETED',
+        description: 'Consultation Fee',
+      });
+    }
+
+    sendSuccess(res, { paymentId: razorpay_payment_id, appointmentId }, 'Payment verified and appointment confirmed');
+
+  } catch (err: any) {
+    next(new AppError(err.message, 500));
+  }
+};
+
+// ========== Appointment Booking with Payment (Pay First, Then Create) ==========
+const createAppointmentOrderSchema = Joi.object({
+  doctorId: Joi.string().required(),
+  scheduledAt: Joi.date().required(),
+  duration: Joi.number().optional().default(30),
+  reason: Joi.string().optional().allow('', null),
+  notes: Joi.string().optional().allow('', null),
+  amount: Joi.number().required().min(1),
+});
+
+const verifyAppointmentPaymentSchema = Joi.object({
+  razorpay_order_id: Joi.string().required(),
+  razorpay_payment_id: Joi.string().required(),
+  razorpay_signature: Joi.string().required(),
+});
+
+export const createAppointmentOrderController = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (req.user?.role !== 'PATIENT') throw new AppError('Only patients can book appointments with payment', 403);
+
+    const { error, value } = createAppointmentOrderSchema.validate(req.body);
+    if (error) throw new AppError(error.details[0].message, 400);
+
+    const options: any = {
+      amount: Math.round(value.amount * 100),
+      currency: 'INR',
+      receipt: `apt_${Date.now()}_${req.user.id.substring(0, 5)}`,
+      notes: {
+        type: 'APPOINTMENT_BOOKING',
+        patientId: req.user.id,
+        doctorId: value.doctorId,
+        scheduledAt: value.scheduledAt,
+        duration: String(value.duration || 30),
+        reason: value.reason || '',
+        notes: value.notes || '',
+      }
+    };
+
+    const order = await razorpay.orders.create(options);
+
+    sendSuccess(res, {
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      key: process.env.RAZORPAY_KEY_ID
+    }, 'Order created. Complete payment to book appointment.', 201);
+  } catch (err: any) {
+    next(new AppError(err.message || 'Failed to create order', 500));
+  }
+};
+
+export const verifyAppointmentPaymentController = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (req.user?.role !== 'PATIENT') throw new AppError('Only patients can complete appointment payment', 403);
+
+    const { error, value } = verifyAppointmentPaymentSchema.validate(req.body);
+    if (error) throw new AppError(error.details[0].message, 400);
+
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = value;
+
+    const generatedSignature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || 'test_secret')
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest('hex');
+
+    if (generatedSignature !== razorpay_signature) {
+      throw new AppError('Invalid payment signature', 400);
+    }
+
+    const order = await razorpay.orders.fetch(razorpay_order_id);
+    const notes = order.notes || {};
+    if (notes.type !== 'APPOINTMENT_BOOKING' || notes.patientId !== req.user?.id) {
+      throw new AppError('Invalid order or unauthorized', 400);
+    }
+
+    const doctorId = notes.doctorId as string;
+    const scheduledAt = new Date(notes.scheduledAt as string);
+    const duration = parseInt(notes.duration as string, 10) || 30;
+    const reason = (notes.reason as string) || undefined;
+    const notesText = (notes.notes as string) || undefined;
+
+    const { createAppointment } = await import('../appointments/appointments.service');
+    const appointment = await createAppointment({
+      patientId: req.user!.id,
+      doctorId,
+      scheduledAt,
+      duration,
+      reason,
+      notes: notesText,
+      status: 'CONFIRMED',
     });
 
-    // Create Payment Record
     await createPayment({
-      patientId: req.user?.id!,
-      appointmentId: appointmentId,
+      patientId: req.user!.id,
+      doctorId,
+      appointmentId: appointment.id,
       amount: Number(order.amount) / 100,
       currency: 'INR',
       method: 'RAZORPAY_ONLINE',
       transactionId: razorpay_payment_id,
       razorpayOrderId: razorpay_order_id,
       razorpayPaymentId: razorpay_payment_id,
+      razorpaySignature: razorpay_signature,
       status: 'COMPLETED',
       description: 'Consultation Fee',
     });
 
-    // Notify Patient (and Doctor)
-    // const { emitPaymentSuccess } = await import('../../utils/socketEmitter');
-    // emitPaymentSuccess({ appointmentId });
+    const { emitNewAppointment } = await import('../../utils/socketEmitter');
+    const aptWithPatient = appointment as any;
+    emitNewAppointment({
+      id: appointment.id,
+      doctorId: appointment.doctorId,
+      patientId: appointment.patientId || '',
+      patientName: aptWithPatient.patient ? `${aptWithPatient.patient.firstName} ${aptWithPatient.patient.lastName}` : 'Unknown Patient',
+      scheduledAt: appointment.scheduledAt,
+      reason: appointment.reason || undefined,
+    });
 
-    sendSuccess(res, { paymentId: razorpay_payment_id }, 'Payment verified and appointment confirmed');
-
+    sendSuccess(res, {
+      appointment,
+      paymentId: razorpay_payment_id,
+    }, 'Appointment booked successfully', 201);
   } catch (err: any) {
-    next(new AppError(err.message, 500));
+    next(new AppError(err.message || 'Payment verification failed', 500));
   }
 };
 

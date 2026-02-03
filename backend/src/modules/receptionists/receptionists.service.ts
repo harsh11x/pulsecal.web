@@ -152,11 +152,10 @@ export const getClinicDoctors = async (clinicId: string) => {
  * Link receptionist to clinic
  */
 export const linkReceptionistToClinic = async (
-  _receptionistId: string,
+  receptionistId: string,
   clinicId: string,
   _verificationCode?: string
 ) => {
-  // Verify clinic exists
   const clinic = await prisma.clinic.findUnique({
     where: { id: clinicId },
   });
@@ -165,13 +164,10 @@ export const linkReceptionistToClinic = async (
     throw new AppError('Clinic not found', 404);
   }
 
-  // In a real system, you'd verify the code here
-  // For now, we'll just create a ReceptionistProfile entry
-  // Since we don't have a ReceptionistProfile model, we'll store it in user metadata
-  // or create a separate table
-
-  // Update user to link to clinic (you might want to add a clinicId field to User model)
-  // For now, we'll assume the receptionist is linked via a separate mechanism
+  await prisma.user.update({
+    where: { id: receptionistId },
+    data: { clinicId },
+  });
 
   return {
     message: 'Receptionist linked to clinic successfully',

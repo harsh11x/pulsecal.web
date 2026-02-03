@@ -17,52 +17,18 @@ export default function SubscriptionPage() {
     const [currentSubscription, setCurrentSubscription] = useState<any>(null)
     const [processing, setProcessing] = useState<string | null>(null)
 
-    // Plan Details (Mirroring Backend Config)
+    const planFeaturesMap: Record<string, string[]> = {
+        STARTER: ["Up to 3 Doctors", "1,000 Appointments/month", "Basic Prescriptions", "Medical Records", "Custom Branding", "Email Support", "Mobile App Access"],
+        BASIC: ["Up to 5 Doctors", "2,000 Appointments/month", "Full Prescriptions", "Medical Records", "Basic Analytics", "Email Support", "Mobile App Access"],
+        PROFESSIONAL: ["Up to 10 Doctors", "Unlimited Appointments", "Receptionist Access", "Queue Management", "Full Prescriptions", "Medical Records", "Full Analytics", "Custom Branding", "Email Support", "Mobile App Access"],
+        ENTERPRISE: ["Unlimited Doctors", "Unlimited Appointments", "Receptionist Access", "Queue Management", "Full Prescriptions", "Medical Records", "Export Analytics", "Custom Branding", "Email Support", "Mobile App Access"]
+    }
+
     const plans = [
-        {
-            id: "STARTER",
-            name: "Starter",
-            price: "₹999",
-            period: "/month",
-            description: "Perfect for individual practitioners starting out.",
-            features: [
-                "Up to 3 Doctors",
-                "1,000 Appointments/month",
-                "Basic Analytics",
-                "Email Support"
-            ],
-            recommended: false
-        },
-        {
-            id: "PROFESSIONAL",
-            name: "Professional",
-            price: "₹2,999",
-            period: "/month",
-            description: "Ideal for growing clinics with multiple staff.",
-            features: [
-                "Up to 10 Doctors",
-                "Unlimited Appointments",
-                "Advanced Analytics",
-                "Priority Support",
-                "Custom Branding"
-            ],
-            recommended: true
-        },
-        {
-            id: "ENTERPRISE",
-            name: "Enterprise",
-            price: "₹9,999",
-            period: "/month",
-            description: "For large hospitals and multi-location chains.",
-            features: [
-                "Unlimited Doctors",
-                "Unlimited Appointments",
-                "All Features Included",
-                "Dedicated Account Manager",
-                "API Access"
-            ],
-            recommended: false
-        }
+        { id: "STARTER", name: "Starter", price: "₹999", period: "/month", description: "Perfect for individual practitioners starting out.", features: planFeaturesMap.STARTER, recommended: false },
+        { id: "BASIC", name: "Basic", price: "₹1,499", period: "/month", description: "For small practices.", features: planFeaturesMap.BASIC, recommended: false },
+        { id: "PROFESSIONAL", name: "Professional", price: "₹2,999", period: "/month", description: "Ideal for growing clinics with multiple staff.", features: planFeaturesMap.PROFESSIONAL, recommended: true },
+        { id: "ENTERPRISE", name: "Enterprise", price: "₹9,999", period: "/month", description: "For large hospitals and multi-location chains.", features: planFeaturesMap.ENTERPRISE, recommended: false }
     ]
 
     useEffect(() => {
@@ -175,11 +141,25 @@ export default function SubscriptionPage() {
                 {/* Current Plan Status */}
                 <Card className="bg-primary/5 border-primary/20">
                     <CardHeader>
-                        <CardTitle className="text-xl">Current Plan: {currentSubscription?.plan}</CardTitle>
+                        <CardTitle className="text-xl">Your Plan: {currentSubscription?.plan || "Starter"}</CardTitle>
                         <CardDescription>
-                            Status: <Badge variant={currentSubscription?.status === 'ACTIVE' ? 'default' : 'destructive'} className="ml-2">{currentSubscription?.status}</Badge>
+                            Status: <Badge variant={currentSubscription?.status === 'ACTIVE' ? 'default' : 'destructive'} className="ml-2">{currentSubscription?.status || "PENDING"}</Badge>
+                            {currentSubscription?.expiresAt && (
+                                <span className="ml-2">• Expires: {new Date(currentSubscription.expiresAt).toLocaleDateString()}</span>
+                            )}
                         </CardDescription>
                     </CardHeader>
+                    <CardContent>
+                        <p className="text-sm font-medium mb-2">Plan Features:</p>
+                        <ul className="space-y-1.5 text-sm text-muted-foreground">
+                            {(planFeaturesMap[currentSubscription?.plan || "STARTER"] || planFeaturesMap.STARTER).map((f, i) => (
+                                <li key={i} className="flex items-center gap-2">
+                                    <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                                    {f}
+                                </li>
+                            ))}
+                        </ul>
+                    </CardContent>
                     <CardFooter>
                         {currentSubscription?.status === 'ACTIVE' && (
                             <Button variant="destructive" onClick={handleCancel} disabled={!!processing}>

@@ -290,6 +290,48 @@ export const checkInAppointmentController = async (
   }
 };
 
+export const createPatientAppointmentController = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (req.user?.role !== 'PATIENT') {
+      throw new AppError('Only patients can use this endpoint', 403);
+    }
+    const schema = Joi.object({
+      doctorId: Joi.string().required(),
+      scheduledAt: Joi.date().required(),
+      duration: Joi.number().optional(),
+      reason: Joi.string().optional().allow('', null),
+      notes: Joi.string().optional().allow('', null),
+    });
+    const { error, value } = schema.validate(req.body, { abortEarly: false, allowUnknown: true, stripUnknown: true });
+    if (error) throw new AppError(error.details[0].message, 400);
+
+    const appointment = await createAppointment({
+      ...value,
+      patientId: req.user!.id,
+      status: 'CONFIRMED',
+    });
+
+    const { emitNewAppointment } = await import('../../utils/socketEmitter');
+    const appointmentWithPatient = appointment as any;
+    emitNewAppointment({
+      id: appointment.id,
+      doctorId: appointment.doctorId,
+      patientId: appointment.patientId || '',
+      patientName: appointmentWithPatient.patient ? `${appointmentWithPatient.patient.firstName} ${appointmentWithPatient.patient.lastName}` : 'Unknown Patient',
+      scheduledAt: appointment.scheduledAt,
+      reason: appointment.reason || undefined,
+    });
+
+    sendSuccess(res, appointment, 'Appointment created successfully', 201);
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const deleteAppointmentController = async (
   req: AuthRequest,
   res: Response,

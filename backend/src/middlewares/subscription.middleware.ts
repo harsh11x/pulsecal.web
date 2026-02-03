@@ -28,7 +28,7 @@ export const checkSubscriptionStatus = async (
         // Attach clinic to request for downstream use
         (req as any).clinic = clinic;
 
-        if (clinic.subscriptionStatus !== 'ACTIVE') {
+        if (clinic.subscriptionStatus && clinic.subscriptionStatus !== 'ACTIVE') {
             throw new AppError(
                 'Subscription is inactive or expired. Please upgrade to continue.',
                 403

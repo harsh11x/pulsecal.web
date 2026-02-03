@@ -215,7 +215,8 @@ export default function CreateAppointmentPage() {
 
     } catch (error: any) {
       console.error("Failed to create appointment:", error)
-      toast.error(error.response?.data?.message || "Failed to create appointment")
+      const msg = error.response?.data?.message || error.message || "Failed to create appointment"
+      toast.error(msg)
     } finally {
       setLoading(false)
     }

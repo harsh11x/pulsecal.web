@@ -39,21 +39,21 @@ export default function AppointmentDetail({ params }: { params: { id: string } }
   const handlePayment = async () => {
     setProcessingPayment(true)
     try {
-      // 1. Initiate Payment Order
+      const amount = appointment.doctor?.consultationFee ?? 500
       const orderResponse: any = await apiService.post("/payments/create-order", {
         appointmentId: appointment.id,
-        amount: appointment.doctor?.consultationFee || 500 // Fallback or fetch from payment/doctor
+        amount,
+        currency: "INR"
       })
 
       const options = {
-        key: orderResponse.data.key_id, // Ensure backend sends this
-        amount: orderResponse.data.amount,
-        currency: orderResponse.data.currency,
+        key: orderResponse.key || orderResponse.key_id,
+        amount: orderResponse.amount,
+        currency: orderResponse.currency || "INR",
         name: "PulseCal Medical",
         description: "Consultation Fee",
-        order_id: orderResponse.data.id,
+        order_id: orderResponse.id || orderResponse.orderId,
         handler: async (response: any) => {
-          // 2. Verify Payment
           try {
             await apiService.post("/payments/verify", {
               razorpay_order_id: response.razorpay_order_id,
@@ -61,21 +61,22 @@ export default function AppointmentDetail({ params }: { params: { id: string } }
               razorpay_signature: response.razorpay_signature
             })
             toast.success("Payment successful!")
-            fetchAppointment() // Refresh to see updated status
-          } catch (verifyError) {
-            toast.error("Payment verification failed")
+            fetchAppointment()
+          } catch (verifyError: any) {
+            toast.error(verifyError.message || "Payment verification failed")
           }
         },
-        theme: {
-          color: "#0F172A"
-        }
+        theme: { color: "#0F172A" }
       }
 
       const rzp = new (window as any).Razorpay(options)
+      rzp.on("payment.failed", (err: any) => {
+        toast.error(err.error?.description || "Payment failed. Please try again.")
+        setProcessingPayment(false)
+      })
       rzp.open()
-
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to initiate payment")
+      toast.error(error.response?.data?.message || error.message || "Failed to initiate payment")
     } finally {
       setProcessingPayment(false)
     }

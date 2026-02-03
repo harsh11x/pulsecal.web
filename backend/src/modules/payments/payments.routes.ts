@@ -9,7 +9,9 @@ import {
   verifyRazorpaySubscriptionController,
   cancelSubscriptionController,
   createRazorpayOrderController,
-  verifyRazorpayPaymentController
+  verifyRazorpayPaymentController,
+  createAppointmentOrderController,
+  verifyAppointmentPaymentController,
 } from './payments.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
 import { requireReceptionist, requireStaff } from '../../middlewares/role.middleware';
@@ -25,6 +27,10 @@ router.post('/cancel-subscription/:id', authenticate, cancelSubscriptionControll
 // Razorpay One-Time routes
 router.post('/create-order', authenticate, createRazorpayOrderController);
 router.post('/verify', authenticate, verifyRazorpayPaymentController);
+
+// Patient appointment: pay first, then create appointment
+router.post('/appointment/create-order', authenticate, createAppointmentOrderController);
+router.post('/appointment/verify', authenticate, verifyAppointmentPaymentController);
 
 // Standard payment routes
 router.post('/', authenticate, createPaymentController);

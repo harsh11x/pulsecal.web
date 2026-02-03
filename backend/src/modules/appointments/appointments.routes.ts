@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   createAppointmentController,
+  createPatientAppointmentController,
   getAppointmentsController,
   getAppointmentByIdController,
   updateAppointmentController,
@@ -16,6 +17,7 @@ import { checkSubscriptionStatus } from '../../middlewares/subscription.middlewa
 
 const router = Router();
 
+router.post('/self', authenticate, createPatientAppointmentController); // Patient self-booking (free consultations)
 router.post('/', authenticate, checkSubscriptionStatus as any, requireDoctorOrReceptionist, createAppointmentController);
 router.get('/', authenticate, checkSubscriptionStatus as any, getAppointmentsController);
 router.get('/:id', authenticate, checkSubscriptionStatus as any, getAppointmentByIdController);

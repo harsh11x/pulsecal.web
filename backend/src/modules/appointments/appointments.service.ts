@@ -209,7 +209,19 @@ export const getAppointmentById = async (
     throw new AppError('Unauthorized', 403);
   }
 
-  return appointment;
+  const [payment, doctorProfile] = await Promise.all([
+    prisma.payment.findFirst({ where: { appointmentId }, orderBy: { createdAt: 'desc' } }),
+    prisma.doctorProfile.findUnique({ where: { userId: appointment.doctorId } }),
+  ]);
+
+  const result = appointment as any;
+  result.paymentStatus = payment?.status ?? 'PENDING';
+  result.doctor = {
+    ...result.doctor,
+    specialization: doctorProfile?.specialization,
+    consultationFee: doctorProfile?.consultationFee != null ? Number(doctorProfile.consultationFee) : undefined,
+  };
+  return result;
 };
 
 export const updateAppointment = async (

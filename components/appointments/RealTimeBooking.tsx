@@ -1,11 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { format, addDays, isSameDay } from "date-fns"
-import { Calendar as CalendarIcon, Clock, Info } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { format } from "date-fns"
+import { Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { toast } from "sonner"
@@ -33,11 +34,13 @@ interface RealTimeBookingProps {
 }
 
 export function RealTimeBooking({ doctorId, doctorName, consultationFee, onBookingSuccess }: RealTimeBookingProps) {
+    const router = useRouter()
     const { token, user } = useAppSelector((state) => state.auth)
     const [days, setDays] = useState<DaySlots[]>([])
     const [selectedDate, setSelectedDate] = useState<string | null>(null)
     const [selectedTime, setSelectedTime] = useState<string | null>(null)
     const [reason, setReason] = useState("")
+    const [notes, setNotes] = useState("")
     const [loading, setLoading] = useState(false)
     const [fetching, setFetching] = useState(true)
 
@@ -120,27 +123,89 @@ export function RealTimeBooking({ doctorId, doctorName, consultationFee, onBooki
     }, [doctorId, token])
 
     const handleBook = async () => {
-        if (!selectedDate || !selectedTime || !reason) return
+        if (!selectedDate || !selectedTime || !reason.trim()) {
+            toast.error("Please select date, time and provide reason for visit")
+            return
+        }
+
+        const fee = consultationFee ?? 0
 
         setLoading(true)
         try {
-            // Use apiService for consistency and interceptors
-            const res: any = await apiService.post('/appointments', {
+            if (fee <= 0) {
+                // Free consultation - create appointment directly
+                const res: any = await apiService.post("/appointments/self", {
+                    doctorId,
+                    scheduledAt: selectedTime,
+                    reason: reason.trim(),
+                    notes: notes.trim() || undefined,
+                })
+                toast.success("Appointment booked successfully!")
+                setSelectedTime(null)
+                setReason("")
+                setNotes("")
+                onBookingSuccess?.()
+                fetchSlots()
+                if (res?.id) router.push(`/appointments/${res.id}`)
+                setLoading(false)
+                return
+            }
+
+            // Paid consultation: create order -> Razorpay -> verify
+            const orderRes: any = await apiService.post("/payments/appointment/create-order", {
                 doctorId,
                 scheduledAt: selectedTime,
-                reason,
-                type: "IN_PERSON"
+                reason: reason.trim(),
+                notes: notes.trim() || undefined,
+                amount: fee,
             })
-            
-            // Response handling is different with axios/apiService (res.data is returned directly)
-            toast.success("Appointment booked successfully!")
-            setSelectedTime(null)
-            setReason("")
-            onBookingSuccess?.()
-            fetchSlots() // Refresh
 
+            if (!(window as any).Razorpay) {
+                toast.error("Payment gateway failed to load. Please refresh the page.")
+                setLoading(false)
+                return
+            }
+
+            const options = {
+                key: orderRes.key,
+                amount: orderRes.amount,
+                currency: orderRes.currency || "INR",
+                name: "PulseCal",
+                description: "Consultation Fee",
+                order_id: orderRes.orderId,
+                handler: async (response: any) => {
+                    try {
+                        const verifyRes: any = await apiService.post("/payments/appointment/verify", {
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_signature: response.razorpay_signature
+                        })
+                        toast.success("Appointment booked successfully!")
+                        setSelectedTime(null)
+                        setReason("")
+                        setNotes("")
+                        onBookingSuccess?.()
+                        fetchSlots()
+                        if (verifyRes?.appointment?.id) {
+                            router.push(`/appointments/${verifyRes.appointment.id}`)
+                        }
+                    } catch (err: any) {
+                        toast.error(err.message || "Payment verification failed. Please contact support.")
+                    } finally {
+                        setLoading(false)
+                    }
+                },
+                theme: { color: "#0F172A" }
+            }
+
+            const rzp = new (window as any).Razorpay(options)
+            rzp.on("payment.failed", (err: any) => {
+                toast.error(err.error?.description || "Payment failed. Please try again.")
+                setLoading(false)
+            })
+            rzp.open()
         } catch (error: any) {
-            toast.error(error.message || "Booking failed")
+            toast.error(error.response?.data?.message || error.message || "Booking failed")
         } finally {
             setLoading(false)
         }
@@ -207,23 +272,33 @@ export function RealTimeBooking({ doctorId, doctorName, consultationFee, onBooki
                     </div>
 
                     <div className="space-y-2">
-                        <Label>Reason for Visit</Label>
+                        <Label>Reason for Visit *</Label>
                         <Textarea
                             placeholder="Briefly describe your symptoms or reason for visit..."
                             value={reason}
                             onChange={(e) => setReason(e.target.value)}
+                            required
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label>Additional Notes (Optional)</Label>
+                        <Textarea
+                            placeholder="Any other information you want to share..."
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
                         />
                     </div>
 
                     {consultationFee != null && consultationFee > 0 && (
                         <div className="rounded-lg bg-muted/50 p-3 text-sm">
                             <span className="font-medium">Consultation fee: ₹{consultationFee}</span>
-                            <p className="text-muted-foreground text-xs mt-1">Pay at clinic or complete payment to confirm.</p>
+                            <p className="text-muted-foreground text-xs mt-1">Payment required to confirm. You will be redirected to Razorpay.</p>
                         </div>
                     )}
-                    <Button className="w-full" size="lg" onClick={handleBook} disabled={loading || !reason}>
-                        {loading ? "Booking..." : consultationFee != null && consultationFee > 0
-                            ? `Proceed to Book (₹${consultationFee})`
+                    <Button className="w-full" size="lg" onClick={handleBook} disabled={loading || !reason.trim()}>
+                        {loading ? "Processing..." : consultationFee != null && consultationFee > 0
+                            ? `Pay ₹${consultationFee} & Book`
                             : "Confirm Booking"}
                     </Button>
                 </div>

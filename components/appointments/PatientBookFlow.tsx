@@ -41,15 +41,17 @@ export function PatientBookFlow() {
   }, [])
 
   const searchDoctors = async () => {
-    if (!reason.trim()) {
-      toast.error("Enter a symptom, condition, or reason (e.g. fever, cough, checkup)")
+    const query = reason.trim()
+    if (!query) {
+      toast.error("Enter doctor name, profession, clinic, or symptom (e.g. fever, cardiologist, Dr. Sharma)")
       return
     }
     setLoading(true)
     setSearched(true)
     try {
       const params = new URLSearchParams()
-      params.set("reason", reason.trim())
+      params.set("search", query)
+      params.set("reason", query) // Also search by symptom/reason
       params.set("limit", "20")
       if (userLocation) {
         params.set("latitude", String(userLocation.lat))
@@ -60,7 +62,7 @@ export function PatientBookFlow() {
       const list = data?.doctors ?? (Array.isArray(data) ? data : [])
       setDoctors(list)
       if (list.length === 0) {
-        toast.info("No doctors found for this search. Try a different term like 'General Physician' or 'Fever'")
+        toast.info("No doctors found. Try by name, specialization, clinic, or symptom.")
       }
     } catch (e: any) {
       toast.error(e.message || "Failed to search doctors")
@@ -113,8 +115,8 @@ export function PatientBookFlow() {
     <div className="space-y-6 max-w-3xl mx-auto">
       <Tabs defaultValue="symptom">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="symptom">Search by symptom</TabsTrigger>
-          <TabsTrigger value="clinic" onClick={fetchClinics}>Browse by clinic</TabsTrigger>
+          <TabsTrigger value="symptom">Find Doctors</TabsTrigger>
+          <TabsTrigger value="clinic" onClick={fetchClinics}>Browse Clinics</TabsTrigger>
         </TabsList>
 
         <TabsContent value="symptom" className="space-y-6 mt-4">
@@ -122,17 +124,17 @@ export function PatientBookFlow() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Search className="h-5 w-5" />
-            Search by symptom or reason
+            Find Doctors
           </CardTitle>
           <CardDescription>
-            Enter what you need help with (e.g. fever, cough, skin issue, checkup) to find doctors who can help
+            Search by doctor name, profession, clinic, or symptom (e.g. Dr. Sharma, cardiologist, fever, clinic name)
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex gap-3">
             <div className="flex-1">
               <Input
-                placeholder="e.g. fever, cough, headache, checkup, skin..."
+                placeholder="Doctor name, specialization, clinic, or symptom..."
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && searchDoctors()}
