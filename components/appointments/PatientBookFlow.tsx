@@ -42,24 +42,26 @@ export function PatientBookFlow() {
     }
   }, [])
 
-  const fetchDoctors = async (query: string = "doctor") => {
+  const fetchDoctors = async (query?: string) => {
     setLoading(true)
     setSelectedDoctor(null)
     try {
       const params = new URLSearchParams()
-      params.set("search", query.trim() || "doctor")
-      params.set("reason", query.trim() || "doctor")
-      params.set("limit", "30")
+      params.set("limit", "50")
+      if (query && query.trim()) {
+        params.set("search", query.trim())
+        params.set("reason", query.trim())
+      }
       if (userLocation) {
         params.set("latitude", String(userLocation.lat))
         params.set("longitude", String(userLocation.lng))
-        params.set("radius", "10")
+        params.set("radius", "15")
       }
       const data: any = await apiService.get(`/doctors/search?${params}`)
       const list = data?.doctors ?? (Array.isArray(data) ? data : [])
       setDoctors(list)
       setSearched(true)
-      if (list.length === 0) {
+      if (list.length === 0 && query) {
         toast.info("No doctors found. Try a different search.")
       }
     } catch {
@@ -71,7 +73,7 @@ export function PatientBookFlow() {
   }
 
   useEffect(() => {
-    fetchDoctors("doctor")
+    fetchDoctors()
   }, [])
 
   const searchDoctors = async () => {
@@ -143,23 +145,8 @@ export function PatientBookFlow() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <Input
-                placeholder="Filter by name, specialization, clinic, or symptom..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), searchDoctors())}
-              />
-            </div>
-            <Button onClick={searchDoctors} disabled={loading} variant="outline">
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-              Search
-            </Button>
-          </div>
-
           <div className="space-y-2">
-            <label className="text-sm font-medium">Doctor</label>
+            <label className="text-sm font-medium">Select Doctor</label>
             <Select
               value={selectedDoctor ? doctorId(selectedDoctor) : ""}
               onValueChange={(id) => {
@@ -168,19 +155,31 @@ export function PatientBookFlow() {
               }}
               disabled={loading}
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder={loading ? "Loading doctors..." : "Select a doctor from the dropdown..."} />
               </SelectTrigger>
-              <SelectContent>
-                <ScrollArea className="h-[240px]">
-                  {doctors.map((doc) => (
-                    <SelectItem key={doctorId(doc)} value={doctorId(doc)}>
-                      Dr. {doc.user?.firstName ?? doc.firstName} {doc.user?.lastName ?? doc.lastName} — {doc.specialization} • {doc.clinicName || "Clinic"} • ₹{Number(doc.consultationFee || 0)}
-                    </SelectItem>
-                  ))}
-                </ScrollArea>
+              <SelectContent className="max-h-[280px] overflow-y-auto">
+                {doctors.map((doc) => (
+                  <SelectItem key={doctorId(doc)} value={doctorId(doc)}>
+                    Dr. {doc.user?.firstName ?? doc.firstName} {doc.user?.lastName ?? doc.lastName} — {doc.specialization} • {doc.clinicName || "Clinic"} • ₹{Number(doc.consultationFee || 0)}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="flex gap-3">
+            <Input
+              className="flex-1"
+              placeholder="Filter by name, specialization, or symptom..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), searchDoctors())}
+            />
+            <Button onClick={searchDoctors} disabled={loading} variant="outline">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+              Search
+            </Button>
           </div>
 
           {selectedDoctor && (
@@ -233,17 +232,15 @@ export function PatientBookFlow() {
                         setSelectedDoctor(doc ?? null)
                       }}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="w-full">
                         <SelectValue placeholder="Choose a doctor from this clinic..." />
                       </SelectTrigger>
-                      <SelectContent>
-                        <ScrollArea className="h-[200px]">
-                          {clinicDoctors.map((doc) => (
-                            <SelectItem key={doctorId(doc)} value={doctorId(doc)}>
-                              Dr. {doc.user?.firstName ?? doc.firstName} {doc.user?.lastName ?? doc.lastName} — {doc.specialization} • ₹{Number(doc.consultationFee || 0)}
-                            </SelectItem>
-                          ))}
-                        </ScrollArea>
+                      <SelectContent className="max-h-[240px] overflow-y-auto">
+                        {clinicDoctors.map((doc) => (
+                          <SelectItem key={doctorId(doc)} value={doctorId(doc)}>
+                            Dr. {doc.user?.firstName ?? doc.firstName} {doc.user?.lastName ?? doc.lastName} — {doc.specialization} • ₹{Number(doc.consultationFee || 0)}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     {selectedDoctor && clinicDoctors.some((d) => doctorId(d) === doctorId(selectedDoctor)) && (
