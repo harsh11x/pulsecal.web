@@ -58,7 +58,7 @@ export const searchDoctors = async (params: {
 
   const skip = (page - 1) * limit;
 
-  // Build where clause - only require coords when doing location-based search
+  // Build where clause - use city (no radius/location)
   const where: any = {
     user: {
       role: 'DOCTOR',
@@ -66,10 +66,6 @@ export const searchDoctors = async (params: {
       onboardingCompleted: true,
     },
   };
-  if (latitude !== undefined && longitude !== undefined) {
-    where.clinicLatitude = { not: null };
-    where.clinicLongitude = { not: null };
-  }
 
   if (specialization) {
     where.specialization = specialization;
@@ -79,6 +75,18 @@ export const searchDoctors = async (params: {
     where.clinicName = { contains: clinicName, mode: 'insensitive' };
   }
 
+  // Filter by city - matches clinicAddress or linked clinic's city (all doctors in that city)
+  if (city && city.trim()) {
+    const cityTerm = city.trim();
+    where.AND = where.AND || [];
+    where.AND.push({
+      OR: [
+        { clinicAddress: { contains: cityTerm, mode: 'insensitive' } },
+        { user: { clinic: { city: { contains: cityTerm, mode: 'insensitive' } } } },
+      ],
+    });
+  }
+
   // Filter by services (if provided)
   if (services) {
      where.services = {
@@ -86,16 +94,19 @@ export const searchDoctors = async (params: {
      };
   }
 
-  // Generic Search (OR logic) - doctor name, clinic, profession/specialization, symptom
+  // Search by name, specialty, clinic (OR logic)
   const searchOrReason = search || reason;
   if (searchOrReason) {
       const term = (searchOrReason as string).toLowerCase().trim();
-      where.OR = [
+      where.AND = where.AND || [];
+      where.AND.push({
+        OR: [
           { user: { OR: [{ firstName: { contains: term, mode: 'insensitive' } }, { lastName: { contains: term, mode: 'insensitive' } }] } },
           { clinicName: { contains: term, mode: 'insensitive' } },
           { specialization: { contains: term, mode: 'insensitive' } },
           { services: { has: term } },
-      ];
+        ],
+      });
   }
 
   if (minFee !== undefined || maxFee !== undefined) {
@@ -127,34 +138,7 @@ export const searchDoctors = async (params: {
     take: limit,
   });
 
-  // Filter by location if provided
   let filteredDoctors = doctors;
-  if (latitude && longitude) {
-    filteredDoctors = doctors
-      .filter((doctor) => {
-        if (!doctor.clinicLatitude || !doctor.clinicLongitude) return false;
-        const distance = calculateDistance(
-          latitude,
-          longitude,
-          Number(doctor.clinicLatitude),
-          Number(doctor.clinicLongitude)
-        );
-        return distance <= radius;
-      })
-      .map((doctor) => {
-        const distance = calculateDistance(
-          latitude,
-          longitude,
-          Number(doctor.clinicLatitude),
-          Number(doctor.clinicLongitude)
-        );
-        return {
-          ...doctor,
-          distance: Math.round(distance * 10) / 10, // Round to 1 decimal
-        };
-      })
-      .sort((a, b) => (a.distance || 0) - (b.distance || 0));
-  }
 
   // Filter by name if provided
   if (name) {
@@ -162,13 +146,6 @@ export const searchDoctors = async (params: {
     filteredDoctors = filteredDoctors.filter((doctor) => {
       const fullName = `${doctor.user.firstName} ${doctor.user.lastName}`.toLowerCase();
       return fullName.includes(nameLower);
-    });
-  }
-
-  // Filter by city if provided
-  if (city) {
-    filteredDoctors = filteredDoctors.filter((doctor) => {
-      return doctor.clinicAddress?.toLowerCase().includes(city.toLowerCase());
     });
   }
 

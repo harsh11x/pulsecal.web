@@ -68,18 +68,29 @@ export default function CreateAppointmentPage() {
   })
 
   const searchParams = useSearchParams()
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [city, setCity] = useState("")
 
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (p) => setUserLocation({ lat: p.coords.latitude, lng: p.coords.longitude }),
-        () => setUserLocation(null)
+        (p) => {
+          fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${p.coords.latitude}&lon=${p.coords.longitude}&format=json`,
+            { headers: { Accept: "application/json" } }
+          )
+            .then((r) => r.json())
+            .then((data) => {
+              const c = data?.address?.city || data?.address?.town || data?.address?.village || data?.address?.county
+              if (c) setCity(c)
+            })
+            .catch(() => {})
+        },
+        () => {}
       )
     }
   }, [])
 
-  // Fetch doctors: receptionists=clinic, doctors=clinic staff, others=10km or all
+  // Fetch doctors: receptionists=clinic, doctors=clinic staff, others=city or all
   useEffect(() => {
     setLoadingDoctors(true)
     const loadDoctors = async () => {
@@ -106,36 +117,20 @@ export default function CreateAppointmentPage() {
           // Doctor may have no clinic
         }
       }
-      // Admin/other roles or fallback: fetch from doctors/search (10km if location, else all)
+      // Admin/other roles or fallback: fetch from doctors/search by city or all
       if (list.length === 0) {
-        if (userLocation) {
-          const params = new URLSearchParams({
-            latitude: String(userLocation.lat),
-            longitude: String(userLocation.lng),
-            radius: "10",
-            limit: "50",
-          })
-          const r: any = await apiService.get(`/doctors/search?${params}`)
-          const searchList = r?.doctors ?? (Array.isArray(r) ? r : [])
-          list = searchList.map((d: any) => ({
-            id: d.user?.id ?? d.userId ?? d.id,
-            firstName: d.user?.firstName ?? d.firstName,
-            lastName: d.user?.lastName ?? d.lastName,
-            email: d.user?.email,
-            doctorProfile: { specialization: d.specialization, consultationFee: d.consultationFee },
-          }))
-          if (list.length > 0) toast.info("Showing doctors within 10km")
-        } else {
-          const r: any = await apiService.get("/doctors/search?limit=50")
-          const allList = r?.doctors ?? (Array.isArray(r) ? r : [])
-          list = allList.map((d: any) => ({
-            id: d.user?.id ?? d.userId ?? d.id,
-            firstName: d.user?.firstName ?? d.firstName,
-            lastName: d.user?.lastName ?? d.lastName,
-            email: d.user?.email,
-            doctorProfile: { specialization: d.specialization, consultationFee: d.consultationFee },
-          }))
-        }
+        const params = new URLSearchParams({ limit: "100" })
+        if (city && city.trim()) params.set("city", city.trim())
+        const r: any = await apiService.get(`/doctors/search?${params}`)
+        const searchList = r?.doctors ?? (Array.isArray(r) ? r : [])
+        list = searchList.map((d: any) => ({
+          id: d.user?.id ?? d.userId ?? d.id,
+          firstName: d.user?.firstName ?? d.firstName,
+          lastName: d.user?.lastName ?? d.lastName,
+          email: d.user?.email,
+          doctorProfile: { specialization: d.specialization, consultationFee: d.consultationFee },
+        }))
+        if (list.length > 0 && city) toast.info("Showing doctors in " + city)
       }
       setClinicDoctors(list)
       const doctorFromUrl = searchParams?.get("doctor")
@@ -146,7 +141,7 @@ export default function CreateAppointmentPage() {
       }
     }
     loadDoctors().finally(() => setLoadingDoctors(false))
-  }, [isReceptionist, isDoctor, searchParams, userLocation])
+  }, [isReceptionist, isDoctor, searchParams, city])
 
   // Fetch doctor's schedule when component mounts or date changes (for doctors, use selected doctor for receptionists)
   useEffect(() => {
@@ -308,7 +303,7 @@ export default function CreateAppointmentPage() {
                   Select Doctor <span className="text-destructive">*</span>
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  Choose a doctor — clinic doctors, or all within 10km if location enabled
+                  Choose a doctor — clinic doctors, or all in your city
                 </p>
                 {loadingDoctors ? (
                   <div className="flex items-center gap-2 py-6 text-muted-foreground">

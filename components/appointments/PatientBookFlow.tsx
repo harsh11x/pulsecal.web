@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, Stethoscope, MapPin, Loader2, Calendar, Building2, IndianRupee } from "lucide-react"
+import { Search, Stethoscope, Loader2, Calendar, Building2 } from "lucide-react"
 import { apiService } from "@/services/api"
 import { toast } from "sonner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -20,57 +20,57 @@ interface Doctor {
   specialization: string
   clinicName?: string
   consultationFee: number
-  distance?: number
   user?: { id: string; firstName: string; lastName: string }
 }
 
 export function PatientBookFlow() {
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [city, setCity] = useState("")
   const [doctors, setDoctors] = useState<Doctor[]>([])
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null)
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
 
+  // Get user's city from geolocation (optional default)
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (p) => setUserLocation({ lat: p.coords.latitude, lng: p.coords.longitude }),
-        () => setUserLocation(null)
+        (p) => {
+          fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${p.coords.latitude}&lon=${p.coords.longitude}&format=json`,
+            { headers: { Accept: "application/json" } }
+          )
+            .then((r) => r.json())
+            .then((data) => {
+              const c = data?.address?.city || data?.address?.town || data?.address?.village || data?.address?.county
+              if (c) setCity(c)
+            })
+            .catch(() => {})
+        },
+        () => {}
       )
     }
   }, [])
 
-  const fetchDoctors = async (query?: string) => {
+  const fetchDoctors = async (search?: string) => {
     setLoading(true)
     setSelectedDoctor(null)
     try {
       const params = new URLSearchParams()
-      params.set("limit", "50")
-      if (query && query.trim()) {
-        params.set("search", query.trim())
-        params.set("reason", query.trim())
+      params.set("limit", "100")
+      if (city && city.trim()) {
+        params.set("city", city.trim())
       }
-      if (userLocation) {
-        params.set("latitude", String(userLocation.lat))
-        params.set("longitude", String(userLocation.lng))
-        params.set("radius", "10")
+      if (search && search.trim()) {
+        params.set("search", search.trim())
       }
       const data: any = await apiService.get(`/doctors/search?${params}`)
-      let list = data?.doctors ?? (Array.isArray(data) ? data : [])
-      if (list.length === 0 && userLocation && !query) {
-        const fallbackParams = new URLSearchParams({ limit: "50" })
-        const fallback: any = await apiService.get(`/doctors/search?${fallbackParams}`)
-        list = fallback?.doctors ?? (Array.isArray(fallback) ? fallback : [])
-        if (list.length > 0) {
-          toast.info("No doctors nearby. Showing all doctors.")
-        }
-      }
+      const list = data?.doctors ?? (Array.isArray(data) ? data : [])
       setDoctors(list)
       setSearched(true)
-      if (list.length === 0 && query) {
-        toast.info("No doctors found. Try a different search.")
+      if (list.length === 0) {
+        toast.info("No doctors found. Try a different city or search term.")
       }
     } catch {
       setDoctors([])
@@ -82,15 +82,10 @@ export function PatientBookFlow() {
 
   useEffect(() => {
     fetchDoctors()
-  }, [])
+  }, [city])
 
-  const searchDoctors = async () => {
-    const query = searchQuery.trim()
-    if (!query) {
-      toast.error("Enter doctor name, profession, clinic, or symptom")
-      return
-    }
-    await fetchDoctors(query)
+  const handleSearch = () => {
+    fetchDoctors(searchQuery.trim() || undefined)
   }
 
   const doctorId = (d: Doctor) => d.user?.id ?? d.userId ?? d.id ?? ""
@@ -104,10 +99,8 @@ export function PatientBookFlow() {
     setLoadingClinics(true)
     try {
       const params = new URLSearchParams({ limit: "50" })
-      if (userLocation) {
-        params.set("latitude", String(userLocation.lat))
-        params.set("longitude", String(userLocation.lng))
-        params.set("radius", "50")
+      if (city && city.trim()) {
+        params.set("city", city.trim())
       }
       const r: any = await apiService.get(`/clinics?${params}`)
       const list = Array.isArray(r) ? r : (r?.clinics ?? r?.data ?? [])
@@ -138,7 +131,7 @@ export function PatientBookFlow() {
       <Tabs defaultValue="symptom">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="symptom">Find Doctors</TabsTrigger>
-          <TabsTrigger value="clinic" onClick={fetchClinics}>Browse Clinics</TabsTrigger>
+          <TabsTrigger value="clinic" onClick={() => fetchClinics()}>Browse Clinics</TabsTrigger>
         </TabsList>
 
         <TabsContent value="symptom" className="space-y-6 mt-4">
@@ -146,13 +139,39 @@ export function PatientBookFlow() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Stethoscope className="h-5 w-5" />
-            Select Doctor
+            Find Doctors
           </CardTitle>
           <CardDescription>
-            Choose a doctor from the dropdown below to book an appointment. Use search to filter by name, specialization, or symptom.
+            Search by name, specialty, or clinic. All doctors in your city are shown with their consultation rates.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">City</label>
+              <Input
+                placeholder="e.g. Amritsar, Delhi, Mumbai"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                onBlur={() => city && fetchDoctors()}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Search by name, specialty, or clinic</label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Doctor name, specialization, clinic..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleSearch())}
+                />
+                <Button onClick={handleSearch} disabled={loading} variant="outline" size="icon">
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+          </div>
+
           <div className="space-y-2">
             <label className="text-sm font-medium">Select Doctor</label>
             <Select
@@ -164,7 +183,7 @@ export function PatientBookFlow() {
               disabled={loading}
             >
               <SelectTrigger className="w-full">
-                <SelectValue placeholder={loading ? "Loading doctors..." : "Select a doctor from the dropdown..."} />
+                <SelectValue placeholder={loading ? "Loading doctors..." : "Select a doctor (all in city with rates)..."} />
               </SelectTrigger>
               <SelectContent className="max-h-[280px] overflow-y-auto">
                 {doctors.map((doc) => (
@@ -174,20 +193,6 @@ export function PatientBookFlow() {
                 ))}
               </SelectContent>
             </Select>
-          </div>
-
-          <div className="flex gap-3">
-            <Input
-              className="flex-1"
-              placeholder="Filter by name, specialization, or symptom..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), searchDoctors())}
-            />
-            <Button onClick={searchDoctors} disabled={loading} variant="outline">
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-              Search
-            </Button>
           </div>
 
           {selectedDoctor && (
@@ -210,7 +215,7 @@ export function PatientBookFlow() {
           {searched && doctors.length === 0 && !loading && (
             <div className="text-center py-8 text-muted-foreground">
               <Stethoscope className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No doctors found. Try a different search term.</p>
+              <p>No doctors found. Try a different city or search term.</p>
             </div>
           )}
         </CardContent>

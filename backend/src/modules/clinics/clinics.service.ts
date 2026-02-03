@@ -90,8 +90,8 @@ export const getClinics = async (req: {
     where.longitude = { not: null };
   }
 
-  if (req.query.city) {
-    where.city = req.query.city;
+  if (req.query.city && req.query.city.trim()) {
+    where.city = { contains: req.query.city.trim(), mode: 'insensitive' };
   }
 
   if (req.query.state) {
