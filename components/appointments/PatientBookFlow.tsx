@@ -42,20 +42,14 @@ export function PatientBookFlow() {
     }
   }, [])
 
-  const searchDoctors = async () => {
-    const query = searchQuery.trim()
-    if (!query) {
-      toast.error("Enter doctor name, profession, clinic, or symptom (e.g. fever, cardiologist, Dr. Sharma)")
-      return
-    }
+  const fetchDoctors = async (query: string = "doctor") => {
     setLoading(true)
-    setSearched(true)
     setSelectedDoctor(null)
     try {
       const params = new URLSearchParams()
-      params.set("search", query)
-      params.set("reason", query)
-      params.set("limit", "20")
+      params.set("search", query.trim() || "doctor")
+      params.set("reason", query.trim() || "doctor")
+      params.set("limit", "30")
       if (userLocation) {
         params.set("latitude", String(userLocation.lat))
         params.set("longitude", String(userLocation.lng))
@@ -64,15 +58,29 @@ export function PatientBookFlow() {
       const data: any = await apiService.get(`/doctors/search?${params}`)
       const list = data?.doctors ?? (Array.isArray(data) ? data : [])
       setDoctors(list)
+      setSearched(true)
       if (list.length === 0) {
-        toast.info("No doctors found. Try by name, specialization, clinic, or symptom.")
+        toast.info("No doctors found. Try a different search.")
       }
-    } catch (e: any) {
-      toast.error(e.message || "Failed to search doctors")
+    } catch {
       setDoctors([])
+      setSearched(true)
     } finally {
       setLoading(false)
     }
+  }
+
+  useEffect(() => {
+    fetchDoctors("doctor")
+  }, [])
+
+  const searchDoctors = async () => {
+    const query = searchQuery.trim()
+    if (!query) {
+      toast.error("Enter doctor name, profession, clinic, or symptom")
+      return
+    }
+    await fetchDoctors(query)
   }
 
   const doctorId = (d: Doctor) => d.user?.id ?? d.userId ?? d.id ?? ""
@@ -103,6 +111,7 @@ export function PatientBookFlow() {
 
   const openClinic = (clinic: any) => {
     setSelectedClinic(clinic)
+    setSelectedDoctor(null)
     const staff = clinic?.staff ?? []
     const docs = staff.map((s: any) => ({
       id: s.id,
@@ -126,91 +135,79 @@ export function PatientBookFlow() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Search className="h-5 w-5" />
-            Find Doctors
+            <Stethoscope className="h-5 w-5" />
+            Select Doctor
           </CardTitle>
           <CardDescription>
-            Search by doctor name, profession, clinic, or symptom (e.g. Dr. Sharma, cardiologist, fever, clinic name)
+            Choose a doctor from the dropdown below to book an appointment. Use search to filter by name, specialization, or symptom.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <div className="flex gap-3">
             <div className="flex-1">
               <Input
-                placeholder="Doctor name, specialization, clinic, or symptom..."
+                placeholder="Filter by name, specialization, clinic, or symptom..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && searchDoctors()}
+                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), searchDoctors())}
               />
             </div>
-            <Button onClick={searchDoctors} disabled={loading}>
+            <Button onClick={searchDoctors} disabled={loading} variant="outline">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
               Search
             </Button>
           </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Doctor</label>
+            <Select
+              value={selectedDoctor ? doctorId(selectedDoctor) : ""}
+              onValueChange={(id) => {
+                const doc = doctors.find((d) => doctorId(d) === id)
+                setSelectedDoctor(doc ?? null)
+              }}
+              disabled={loading}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={loading ? "Loading doctors..." : "Select a doctor from the dropdown..."} />
+              </SelectTrigger>
+              <SelectContent>
+                <ScrollArea className="h-[240px]">
+                  {doctors.map((doc) => (
+                    <SelectItem key={doctorId(doc)} value={doctorId(doc)}>
+                      Dr. {doc.user?.firstName ?? doc.firstName} {doc.user?.lastName ?? doc.lastName} — {doc.specialization} • {doc.clinicName || "Clinic"} • ₹{Number(doc.consultationFee || 0)}
+                    </SelectItem>
+                  ))}
+                </ScrollArea>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {selectedDoctor && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 border rounded-lg bg-muted/30">
+              <div>
+                <p className="font-semibold">Dr. {selectedDoctor.user?.firstName ?? selectedDoctor.firstName} {selectedDoctor.user?.lastName ?? selectedDoctor.lastName}</p>
+                <p className="text-sm text-muted-foreground">{selectedDoctor.specialization}</p>
+                <p className="text-sm flex items-center gap-1 mt-1">
+                  <Building2 className="h-3 w-3" />
+                  {selectedDoctor.clinicName || "Clinic"} • ₹{Number(selectedDoctor.consultationFee || 0)}/consultation
+                </p>
+              </div>
+              <Button onClick={() => router.push(`/doctors/${doctorId(selectedDoctor)}/book`)}>
+                <Calendar className="h-4 w-4 mr-1" />
+                Book Appointment
+              </Button>
+            </div>
+          )}
+
+          {searched && doctors.length === 0 && !loading && (
+            <div className="text-center py-8 text-muted-foreground">
+              <Stethoscope className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No doctors found. Try a different search term.</p>
+            </div>
+          )}
         </CardContent>
       </Card>
-
-      {searched && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Doctors for &quot;{searchQuery}&quot;</CardTitle>
-            <CardDescription>
-              {doctors.length} doctor(s) found. Select a doctor from the dropdown, then click Book.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {doctors.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <Stethoscope className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No doctors found. Try &quot;General Physician&quot; or a different symptom.</p>
-              </div>
-            ) : (
-              <>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Select Doctor</label>
-                  <Select
-                    value={selectedDoctor ? doctorId(selectedDoctor) : ""}
-                    onValueChange={(id) => {
-                      const doc = doctors.find((d) => doctorId(d) === id)
-                      setSelectedDoctor(doc ?? null)
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose a doctor from the list..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <ScrollArea className="h-[240px]">
-                        {doctors.map((doc) => (
-                          <SelectItem key={doctorId(doc)} value={doctorId(doc)}>
-                            Dr. {doc.user?.firstName ?? doc.firstName} {doc.user?.lastName ?? doc.lastName} — {doc.specialization} • {doc.clinicName || "Clinic"} • ₹{Number(doc.consultationFee || 0)}
-                          </SelectItem>
-                        ))}
-                      </ScrollArea>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {selectedDoctor && (
-                  <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
-                    <div>
-                      <p className="font-semibold">Dr. {selectedDoctor.user?.firstName ?? selectedDoctor.firstName} {selectedDoctor.user?.lastName ?? selectedDoctor.lastName}</p>
-                      <p className="text-sm text-muted-foreground">{selectedDoctor.specialization}</p>
-                      <p className="text-sm flex items-center gap-1 mt-1">
-                        <Building2 className="h-3 w-3" />
-                        {selectedDoctor.clinicName || "Clinic"} • ₹{Number(selectedDoctor.consultationFee || 0)}/consultation
-                      </p>
-                    </div>
-                    <Button onClick={() => router.push(`/doctors/${doctorId(selectedDoctor)}/book`)}>
-                      <Calendar className="h-4 w-4 mr-1" />
-                      Book Appointment
-                    </Button>
-                  </div>
-                )}
-              </>
-            )}
-          </CardContent>
-        </Card>
-      )}
         </TabsContent>
 
         <TabsContent value="clinic" className="space-y-6 mt-4">
@@ -224,34 +221,44 @@ export function PatientBookFlow() {
                 <CardDescription>{selectedClinic.address}, {selectedClinic.city}</CardDescription>
               </CardHeader>
               <CardContent>
-                <h4 className="font-medium mb-3">Doctors at this clinic</h4>
+                <h4 className="font-medium mb-3">Select Doctor</h4>
                 {clinicDoctors.length === 0 ? (
                   <p className="text-muted-foreground text-sm py-4">No doctors at this clinic.</p>
                 ) : (
-                  <ScrollArea className="h-[280px] rounded-md border p-2">
-                    <div className="space-y-2 pr-4">
-                      {clinicDoctors.map((doc) => (
-                        <Card key={doc.id} className="hover:shadow-md transition-shadow">
-                          <CardContent className="p-3">
-                            <div className="flex justify-between items-center">
-                              <div>
-                                <p className="font-semibold">Dr. {doc.user?.firstName ?? doc.firstName} {doc.user?.lastName ?? doc.lastName}</p>
-                                <p className="text-sm text-muted-foreground">{doc.specialization}</p>
-                                <p className="text-sm flex items-center gap-1 mt-0.5">
-                                  <IndianRupee className="h-3 w-3" />
-                                  {Number(doc.consultationFee || 0)}/consultation
-                                </p>
-                              </div>
-                              <Button size="sm" onClick={() => router.push(`/doctors/${doc.user?.id ?? doc.id}/book`)}>
-                                <Calendar className="h-4 w-4 mr-1" />
-                                Book
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  </ScrollArea>
+                  <div className="space-y-4">
+                    <Select
+                      value={selectedDoctor && clinicDoctors.some((d) => doctorId(d) === doctorId(selectedDoctor)) ? doctorId(selectedDoctor) : ""}
+                      onValueChange={(id) => {
+                        const doc = clinicDoctors.find((d) => doctorId(d) === id)
+                        setSelectedDoctor(doc ?? null)
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose a doctor from this clinic..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <ScrollArea className="h-[200px]">
+                          {clinicDoctors.map((doc) => (
+                            <SelectItem key={doctorId(doc)} value={doctorId(doc)}>
+                              Dr. {doc.user?.firstName ?? doc.firstName} {doc.user?.lastName ?? doc.lastName} — {doc.specialization} • ₹{Number(doc.consultationFee || 0)}
+                            </SelectItem>
+                          ))}
+                        </ScrollArea>
+                      </SelectContent>
+                    </Select>
+                    {selectedDoctor && clinicDoctors.some((d) => doctorId(d) === doctorId(selectedDoctor)) && (
+                      <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
+                        <div>
+                          <p className="font-semibold">Dr. {selectedDoctor.user?.firstName ?? selectedDoctor.firstName} {selectedDoctor.user?.lastName ?? selectedDoctor.lastName}</p>
+                          <p className="text-sm text-muted-foreground">{selectedDoctor.specialization} • ₹{Number(selectedDoctor.consultationFee || 0)}/consultation</p>
+                        </div>
+                        <Button size="sm" onClick={() => router.push(`/doctors/${doctorId(selectedDoctor)}/book`)}>
+                          <Calendar className="h-4 w-4 mr-1" />
+                          Book
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 )}
               </CardContent>
             </Card>
