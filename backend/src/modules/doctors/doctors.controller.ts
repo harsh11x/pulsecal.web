@@ -241,7 +241,16 @@ export const getClinicStaffController = async (
       throw new AppError('User not authenticated', 401);
     }
 
-    const staff = await getClinicStaff(userId);
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { clinicId: true },
+    });
+    const clinicId = user?.clinicId;
+    if (!clinicId) {
+      return sendSuccess(res, { doctors: [], receptionists: [], totalStaff: 0 }, 'No clinic linked');
+    }
+
+    const staff = await getClinicStaff(clinicId);
     sendSuccess(res, staff, 'Clinic staff retrieved successfully');
   } catch (err: any) {
     logger.error({ error: err.message, userId: req.user?.id }, 'Error in getClinicStaffController');

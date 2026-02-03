@@ -23,6 +23,7 @@ export const getClinicStaff = async (clinicId: string) => {
                 select: {
                     specialization: true,
                     licenseNumber: true,
+                    consultationFee: true,
                 },
             },
         },

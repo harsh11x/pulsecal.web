@@ -55,7 +55,7 @@ export function PatientBookFlow() {
       if (userLocation) {
         params.set("latitude", String(userLocation.lat))
         params.set("longitude", String(userLocation.lng))
-        params.set("radius", "50")
+        params.set("radius", "10")
       }
       const data: any = await apiService.get(`/doctors/search?${params}`)
       let list = data?.doctors ?? (Array.isArray(data) ? data : [])

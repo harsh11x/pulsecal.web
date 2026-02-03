@@ -31,6 +31,7 @@ export default function CreateAppointmentPage() {
   const { user } = useAppSelector((state) => state.auth)
   const isPatient = user?.role === "PATIENT"
   const isReceptionist = user?.role === "RECEPTIONIST"
+  const isDoctor = user?.role === "DOCTOR"
 
   if (isPatient) {
     return (
@@ -67,26 +68,84 @@ export default function CreateAppointmentPage() {
   })
 
   const searchParams = useSearchParams()
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
 
-  // Fetch clinic doctors for receptionists
   useEffect(() => {
-    if (isReceptionist) {
-      setLoadingDoctors(true)
-      apiService.get("/receptionists/doctors").then((data: any) => {
-        const doctors = Array.isArray(data) ? data : (data?.doctors ?? data?.data ?? [])
-        setClinicDoctors(doctors)
-        const doctorFromUrl = searchParams?.get("doctor")
-        if (doctorFromUrl && doctors.some((d: { id: string }) => d.id === doctorFromUrl)) {
-          setSelectedDoctorId(doctorFromUrl)
-        } else if (doctors.length === 1) {
-          setSelectedDoctorId(doctors[0].id)
-        }
-      }).catch(() => {
-        toast.error("Failed to load clinic doctors")
-        setClinicDoctors([])
-      }).finally(() => setLoadingDoctors(false))
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (p) => setUserLocation({ lat: p.coords.latitude, lng: p.coords.longitude }),
+        () => setUserLocation(null)
+      )
     }
-  }, [isReceptionist, searchParams])
+  }, [])
+
+  // Fetch doctors for receptionists (clinic) and doctors (clinic staff), with fallback to nearby (10km)
+  useEffect(() => {
+    if (!isReceptionist && !isDoctor) return
+    setLoadingDoctors(true)
+    const loadDoctors = async () => {
+      let list: ClinicDoctor[] = []
+      if (isReceptionist) {
+        try {
+          const data: any = await apiService.get("/receptionists/doctors")
+          list = Array.isArray(data) ? data : (data?.doctors ?? data?.data ?? [])
+        } catch {
+          toast.error("Failed to load clinic doctors")
+        }
+      }
+      if (isDoctor) {
+        try {
+          const data: any = await apiService.get("/doctors/clinic/staff")
+          const staffDoctors = data?.doctors ?? []
+          list = staffDoctors.map((d: any) => ({
+            id: d.id,
+            firstName: d.firstName,
+            lastName: d.lastName,
+            email: d.email,
+            doctorProfile: d.doctorProfile,
+          }))
+        } catch {
+          // Doctor may have no clinic
+        }
+      }
+      if (list.length === 0 && userLocation) {
+        const params = new URLSearchParams({
+          latitude: String(userLocation.lat),
+          longitude: String(userLocation.lng),
+          radius: "10",
+          limit: "50",
+        })
+        const r: any = await apiService.get(`/doctors/search?${params}`)
+        const searchList = r?.doctors ?? (Array.isArray(r) ? r : [])
+        list = searchList.map((d: any) => ({
+          id: d.user?.id ?? d.userId ?? d.id,
+          firstName: d.user?.firstName ?? d.firstName,
+          lastName: d.user?.lastName ?? d.lastName,
+          email: d.user?.email,
+          doctorProfile: { specialization: d.specialization, consultationFee: d.consultationFee },
+        }))
+        if (list.length > 0) toast.info("Showing doctors within 10km of your location")
+      } else if (list.length === 0) {
+        const r: any = await apiService.get("/doctors/search?limit=50")
+        const allList = r?.doctors ?? (Array.isArray(r) ? r : [])
+        list = allList.map((d: any) => ({
+          id: d.user?.id ?? d.userId ?? d.id,
+          firstName: d.user?.firstName ?? d.firstName,
+          lastName: d.user?.lastName ?? d.lastName,
+          email: d.user?.email,
+          doctorProfile: { specialization: d.specialization, consultationFee: d.consultationFee },
+        }))
+      }
+      setClinicDoctors(list)
+      const doctorFromUrl = searchParams?.get("doctor")
+      if (doctorFromUrl && list.some((d: { id: string }) => d.id === doctorFromUrl)) {
+        setSelectedDoctorId(doctorFromUrl)
+      } else if (list.length === 1) {
+        setSelectedDoctorId(list[0].id)
+      }
+    }
+    loadDoctors().finally(() => setLoadingDoctors(false))
+  }, [isReceptionist, isDoctor, searchParams, userLocation])
 
   // Fetch doctor's schedule when component mounts or date changes (for doctors, use selected doctor for receptionists)
   useEffect(() => {
@@ -96,9 +155,9 @@ export default function CreateAppointmentPage() {
   const fetchDoctorSchedule = async () => {
     try {
       setLoadingSchedule(true)
-      // Receptionists use selected doctor's profile; doctors use their own
-      const doctorId = isReceptionist ? selectedDoctorId : user?.id
-      if (isReceptionist && !doctorId) {
+      // Receptionists/doctors use selected doctor's profile; doctors default to self
+      const doctorId = (isReceptionist || isDoctor) ? (selectedDoctorId || user?.id) : user?.id
+      if ((isReceptionist || isDoctor) && !doctorId) {
         setLoadingSchedule(false)
         return
       }
@@ -184,12 +243,12 @@ export default function CreateAppointmentPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    const doctorId = isReceptionist ? selectedDoctorId : user?.id
+    const doctorId = isReceptionist ? selectedDoctorId : (selectedDoctorId || user?.id)
     if (!formData.patientDetails.firstName || !formData.patientDetails.phone || !formData.date || !formData.time) {
       toast.error("Please fill in required fields (Name, Phone, Date, Time)")
       return
     }
-    if (isReceptionist && !doctorId) {
+    if ((isReceptionist || isDoctor) && !doctorId) {
       toast.error("Please select a doctor")
       return
     }
@@ -240,14 +299,16 @@ export default function CreateAppointmentPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
 
 
-            {/* Doctor Selection (Receptionists only) */}
-            {isReceptionist && (
-              <div className="space-y-4 border p-4 rounded-md bg-muted/20">
-                <h3 className="font-semibold flex items-center gap-2">
-                  <Stethoscope className="h-4 w-4" />
-                  Select Doctor
+            {/* Doctor Selection (Receptionists & Doctors) - PROMINENT DROPDOWN */}
+            {(isReceptionist || isDoctor) && (
+              <div className="space-y-4 border-2 border-primary/30 p-4 rounded-lg bg-primary/5">
+                <h3 className="font-semibold flex items-center gap-2 text-base">
+                  <Stethoscope className="h-5 w-5" />
+                  Select Doctor <span className="text-destructive">*</span>
                 </h3>
-                <p className="text-sm text-muted-foreground">Choose the doctor for this appointment</p>
+                <p className="text-sm text-muted-foreground">
+                  {isReceptionist ? "Choose a doctor from your clinic (or nearby within 10km if none)" : "Choose a doctor from your clinic or nearby (within 10km)"}
+                </p>
                 {loadingDoctors ? (
                   <div className="flex items-center gap-2 py-6 text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -255,44 +316,50 @@ export default function CreateAppointmentPage() {
                   </div>
                 ) : clinicDoctors.length === 0 ? (
                   <div className="py-6 text-center text-muted-foreground text-sm border rounded-md bg-muted/30">
-                    No doctors in your clinic. Ensure you&apos;re linked to a clinic and it has doctors.
+                    No doctors found. Enable location for doctors within 10km, or ensure you&apos;re linked to a clinic.
                   </div>
                 ) : (
-                  <ScrollArea className="h-[180px] rounded-md border p-2">
-                    <div className="grid gap-2 pr-4">
-                      {clinicDoctors.map((doc) => (
-                        <div
-                          key={doc.id}
-                          className={`flex items-start space-x-3 rounded-lg border p-3 cursor-pointer transition-colors ${
-                            selectedDoctorId === doc.id ? "border-primary bg-primary/5" : "hover:bg-muted/50"
-                          }`}
-                          onClick={() => setSelectedDoctorId(doc.id)}
-                        >
-                          <Checkbox
-                            id={`doctor-${doc.id}`}
-                            checked={selectedDoctorId === doc.id}
-                            onCheckedChange={(checked) => setSelectedDoctorId(checked ? doc.id : null)}
-                          />
-                          <div className="flex-1">
-                            <label
-                              htmlFor={`doctor-${doc.id}`}
-                              className="text-sm font-medium leading-none cursor-pointer"
-                            >
+                  <>
+                    <Select value={selectedDoctorId ?? ""} onValueChange={(v) => setSelectedDoctorId(v || null)}>
+                      <SelectTrigger className="w-full h-11 text-base">
+                        <SelectValue placeholder="Choose a doctor from the dropdown..." />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[280px] overflow-y-auto">
+                        {clinicDoctors.map((doc) => (
+                          <SelectItem key={doc.id} value={doc.id}>
+                            Dr. {doc.firstName} {doc.lastName}
+                            {doc.doctorProfile?.specialization && ` — ${doc.doctorProfile.specialization}`}
+                            {doc.doctorProfile?.consultationFee != null && ` • ₹${doc.doctorProfile.consultationFee}`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <ScrollArea className="h-[140px] rounded-md border p-2">
+                      <div className="grid gap-1 pr-4">
+                        {clinicDoctors.map((doc) => (
+                          <div
+                            key={doc.id}
+                            className={`flex items-start space-x-3 rounded-lg border p-2 cursor-pointer transition-colors ${
+                              selectedDoctorId === doc.id ? "border-primary bg-primary/10" : "hover:bg-muted/50"
+                            }`}
+                            onClick={() => setSelectedDoctorId(doc.id)}
+                          >
+                            <Checkbox
+                              id={`doctor-${doc.id}`}
+                              checked={selectedDoctorId === doc.id}
+                              onCheckedChange={(checked) => setSelectedDoctorId(checked ? doc.id : null)}
+                            />
+                            <label htmlFor={`doctor-${doc.id}`} className="text-sm cursor-pointer flex-1">
                               Dr. {doc.firstName} {doc.lastName}
+                              {doc.doctorProfile?.specialization && (
+                                <span className="text-muted-foreground"> • {doc.doctorProfile.specialization}</span>
+                              )}
                             </label>
-                            {doc.doctorProfile?.specialization && (
-                              <p className="text-xs text-muted-foreground mt-0.5">
-                                {doc.doctorProfile.specialization}
-                                {doc.doctorProfile.consultationFee != null && (
-                                  <> • ₹{doc.doctorProfile.consultationFee}</>
-                                )}
-                              </p>
-                            )}
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </>
                 )}
               </div>
             )}
