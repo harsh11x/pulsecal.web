@@ -1,0 +1,94 @@
+{
+  "info": {
+    "name": "PulseCal API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "PulseCal Healthcare API - Import this into Postman"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3001/api/v1" },
+    { "key": "token", "value": "YOUR_FIREBASE_TOKEN" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}" }]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        { "name": "Get Profile", "request": { "method": "GET", "url": "{{base_url}}/auth/profile" } },
+        { "name": "Sync Profile", "request": { "method": "POST", "url": "{{base_url}}/auth/sync-profile" } }
+      ]
+    },
+    {
+      "name": "Appointments",
+      "item": [
+        { "name": "Patient Self Book", "request": { "method": "POST", "url": "{{base_url}}/appointments/self", "body": { "mode": "raw", "raw": "{\"doctorId\":\"\",\"scheduledAt\":\"\",\"reason\":\"\"}" } } },
+        { "name": "Create Appointment", "request": { "method": "POST", "url": "{{base_url}}/appointments", "body": { "mode": "raw", "raw": "{\"doctorId\":\"\",\"patientId\":\"\",\"scheduledAt\":\"\",\"reason\":\"\"}" } } },
+        { "name": "List Appointments", "request": { "method": "GET", "url": "{{base_url}}/appointments?date=today" } },
+        { "name": "Get Appointment", "request": { "method": "GET", "url": "{{base_url}}/appointments/{{appointmentId}}" } },
+        { "name": "Reschedule", "request": { "method": "POST", "url": "{{base_url}}/appointments/{{appointmentId}}/reschedule", "body": { "mode": "raw", "raw": "{\"scheduledAt\":\"\"}" } } },
+        { "name": "Cancel", "request": { "method": "POST", "url": "{{base_url}}/appointments/{{appointmentId}}/cancel" } },
+        { "name": "Check-in", "request": { "method": "POST", "url": "{{base_url}}/appointments/{{appointmentId}}/checkin" } }
+      ]
+    },
+    {
+      "name": "Doctors",
+      "item": [
+        { "name": "Search Doctors", "request": { "method": "GET", "url": "{{base_url}}/doctors/search?limit=20" } },
+        { "name": "Get Doctor", "request": { "method": "GET", "url": "{{base_url}}/doctors/{{doctorId}}" } },
+        { "name": "Get Slots", "request": { "method": "GET", "url": "{{base_url}}/doctors/{{doctorId}}/slots?days=10" } },
+        { "name": "Get Availability", "request": { "method": "GET", "url": "{{base_url}}/doctors/{{doctorId}}/availability?date=2025-02-03" } }
+      ]
+    },
+    {
+      "name": "Clinics",
+      "item": [
+        { "name": "List Clinics", "request": { "method": "GET", "url": "{{base_url}}/clinics?limit=20" } },
+        { "name": "Get Clinic", "request": { "method": "GET", "url": "{{base_url}}/clinics/{{clinicId}}" } }
+      ]
+    },
+    {
+      "name": "Receptionists",
+      "item": [
+        { "name": "Get Stats", "request": { "method": "GET", "url": "{{base_url}}/receptionists/stats" } },
+        { "name": "Get Queue", "request": { "method": "GET", "url": "{{base_url}}/receptionists/queue" } },
+        { "name": "Get Clinic Doctors", "request": { "method": "GET", "url": "{{base_url}}/receptionists/doctors" } }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        { "name": "Create Appointment Order", "request": { "method": "POST", "url": "{{base_url}}/payments/appointment/create-order", "body": { "mode": "raw", "raw": "{\"doctorId\":\"\",\"scheduledAt\":\"\",\"amount\":500,\"reason\":\"\"}" } } },
+        { "name": "Create Order", "request": { "method": "POST", "url": "{{base_url}}/payments/create-order", "body": { "mode": "raw", "raw": "{\"appointmentId\":\"\",\"amount\":500}" } } },
+        { "name": "List Payments", "request": { "method": "GET", "url": "{{base_url}}/payments" } }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        { "name": "Get Profile", "request": { "method": "GET", "url": "{{base_url}}/users/profile" } },
+        { "name": "Update Profile", "request": { "method": "PUT", "url": "{{base_url}}/users/profile", "body": { "mode": "raw", "raw": "{}" } } }
+      ]
+    },
+    {
+      "name": "Medical Records",
+      "item": [
+        { "name": "List", "request": { "method": "GET", "url": "{{base_url}}/medical-records" } }
+      ]
+    },
+    {
+      "name": "Prescriptions",
+      "item": [
+        { "name": "List", "request": { "method": "GET", "url": "{{base_url}}/prescriptions" } }
+      ]
+    },
+    {
+      "name": "Queue",
+      "item": [
+        { "name": "Get Queue", "request": { "method": "GET", "url": "{{base_url}}/queue" } },
+        { "name": "Get Status", "request": { "method": "GET", "url": "{{base_url}}/queue/status" } }
+      ]
+    }
+  ]
+}
