@@ -79,9 +79,8 @@ export default function CreateAppointmentPage() {
     }
   }, [])
 
-  // Fetch doctors for receptionists (clinic) and doctors (clinic staff), with fallback to nearby (10km)
+  // Fetch doctors: receptionists=clinic, doctors=clinic staff, others=10km or all
   useEffect(() => {
-    if (!isReceptionist && !isDoctor) return
     setLoadingDoctors(true)
     const loadDoctors = async () => {
       let list: ClinicDoctor[] = []
@@ -92,8 +91,7 @@ export default function CreateAppointmentPage() {
         } catch {
           toast.error("Failed to load clinic doctors")
         }
-      }
-      if (isDoctor) {
+      } else if (isDoctor) {
         try {
           const data: any = await apiService.get("/doctors/clinic/staff")
           const staffDoctors = data?.doctors ?? []
@@ -108,33 +106,36 @@ export default function CreateAppointmentPage() {
           // Doctor may have no clinic
         }
       }
-      if (list.length === 0 && userLocation) {
-        const params = new URLSearchParams({
-          latitude: String(userLocation.lat),
-          longitude: String(userLocation.lng),
-          radius: "10",
-          limit: "50",
-        })
-        const r: any = await apiService.get(`/doctors/search?${params}`)
-        const searchList = r?.doctors ?? (Array.isArray(r) ? r : [])
-        list = searchList.map((d: any) => ({
-          id: d.user?.id ?? d.userId ?? d.id,
-          firstName: d.user?.firstName ?? d.firstName,
-          lastName: d.user?.lastName ?? d.lastName,
-          email: d.user?.email,
-          doctorProfile: { specialization: d.specialization, consultationFee: d.consultationFee },
-        }))
-        if (list.length > 0) toast.info("Showing doctors within 10km of your location")
-      } else if (list.length === 0) {
-        const r: any = await apiService.get("/doctors/search?limit=50")
-        const allList = r?.doctors ?? (Array.isArray(r) ? r : [])
-        list = allList.map((d: any) => ({
-          id: d.user?.id ?? d.userId ?? d.id,
-          firstName: d.user?.firstName ?? d.firstName,
-          lastName: d.user?.lastName ?? d.lastName,
-          email: d.user?.email,
-          doctorProfile: { specialization: d.specialization, consultationFee: d.consultationFee },
-        }))
+      // Admin/other roles or fallback: fetch from doctors/search (10km if location, else all)
+      if (list.length === 0) {
+        if (userLocation) {
+          const params = new URLSearchParams({
+            latitude: String(userLocation.lat),
+            longitude: String(userLocation.lng),
+            radius: "10",
+            limit: "50",
+          })
+          const r: any = await apiService.get(`/doctors/search?${params}`)
+          const searchList = r?.doctors ?? (Array.isArray(r) ? r : [])
+          list = searchList.map((d: any) => ({
+            id: d.user?.id ?? d.userId ?? d.id,
+            firstName: d.user?.firstName ?? d.firstName,
+            lastName: d.user?.lastName ?? d.lastName,
+            email: d.user?.email,
+            doctorProfile: { specialization: d.specialization, consultationFee: d.consultationFee },
+          }))
+          if (list.length > 0) toast.info("Showing doctors within 10km")
+        } else {
+          const r: any = await apiService.get("/doctors/search?limit=50")
+          const allList = r?.doctors ?? (Array.isArray(r) ? r : [])
+          list = allList.map((d: any) => ({
+            id: d.user?.id ?? d.userId ?? d.id,
+            firstName: d.user?.firstName ?? d.firstName,
+            lastName: d.user?.lastName ?? d.lastName,
+            email: d.user?.email,
+            doctorProfile: { specialization: d.specialization, consultationFee: d.consultationFee },
+          }))
+        }
       }
       setClinicDoctors(list)
       const doctorFromUrl = searchParams?.get("doctor")
@@ -155,9 +156,9 @@ export default function CreateAppointmentPage() {
   const fetchDoctorSchedule = async () => {
     try {
       setLoadingSchedule(true)
-      // Receptionists/doctors use selected doctor's profile; doctors default to self
-      const doctorId = (isReceptionist || isDoctor) ? (selectedDoctorId || user?.id) : user?.id
-      if ((isReceptionist || isDoctor) && !doctorId) {
+      // Use selected doctor for schedule; doctors can default to self
+      const doctorId = isDoctor ? (selectedDoctorId || user?.id) : selectedDoctorId
+      if (!doctorId) {
         setLoadingSchedule(false)
         return
       }
@@ -243,12 +244,12 @@ export default function CreateAppointmentPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    const doctorId = isReceptionist ? selectedDoctorId : (selectedDoctorId || user?.id)
+    const doctorId = isDoctor ? (selectedDoctorId || user?.id) : selectedDoctorId
     if (!formData.patientDetails.firstName || !formData.patientDetails.phone || !formData.date || !formData.time) {
       toast.error("Please fill in required fields (Name, Phone, Date, Time)")
       return
     }
-    if ((isReceptionist || isDoctor) && !doctorId) {
+    if (!doctorId) {
       toast.error("Please select a doctor")
       return
     }
@@ -299,15 +300,15 @@ export default function CreateAppointmentPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
 
 
-            {/* Doctor Selection (Receptionists & Doctors) - PROMINENT DROPDOWN */}
-            {(isReceptionist || isDoctor) && (
+            {/* Doctor Selection - REQUIRED for all staff creating appointments */}
+            (
               <div className="space-y-4 border-2 border-primary/30 p-4 rounded-lg bg-primary/5">
                 <h3 className="font-semibold flex items-center gap-2 text-base">
                   <Stethoscope className="h-5 w-5" />
                   Select Doctor <span className="text-destructive">*</span>
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  {isReceptionist ? "Choose a doctor from your clinic (or nearby within 10km if none)" : "Choose a doctor from your clinic or nearby (within 10km)"}
+                  Choose a doctor — clinic doctors, or all within 10km if location enabled
                 </p>
                 {loadingDoctors ? (
                   <div className="flex items-center gap-2 py-6 text-muted-foreground">
