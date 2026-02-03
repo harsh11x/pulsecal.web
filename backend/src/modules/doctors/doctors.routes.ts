@@ -3,6 +3,7 @@ import {
   searchDoctorsController,
   getDoctorByIdController,
   getDoctorAvailabilityController,
+  getDoctorSlotsController,
   getDoctorAnalyticsController,
   getClinicStaffController,
   updateScheduleController,
@@ -29,6 +30,7 @@ router.get('/financial-reports', authenticate, requireDoctor, getDoctorAnalytics
 router.get('/clinic/staff', authenticate, requireDoctor, getClinicStaffController);
 router.get('/:id', authenticate, getDoctorByIdController);
 router.get('/:id/availability', authenticate, getDoctorAvailabilityController);
+router.get('/:id/slots', authenticate, getDoctorSlotsController);
 
 export default router;
 

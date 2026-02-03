@@ -10,6 +10,7 @@ import { apiService } from "@/services/api"
 import { toast } from "sonner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface Doctor {
   id?: string
@@ -25,9 +26,10 @@ interface Doctor {
 
 export function PatientBookFlow() {
   const router = useRouter()
-  const [reason, setReason] = useState("")
+  const [searchQuery, setSearchQuery] = useState("")
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [doctors, setDoctors] = useState<Doctor[]>([])
+  const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null)
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
 
@@ -41,17 +43,18 @@ export function PatientBookFlow() {
   }, [])
 
   const searchDoctors = async () => {
-    const query = reason.trim()
+    const query = searchQuery.trim()
     if (!query) {
       toast.error("Enter doctor name, profession, clinic, or symptom (e.g. fever, cardiologist, Dr. Sharma)")
       return
     }
     setLoading(true)
     setSearched(true)
+    setSelectedDoctor(null)
     try {
       const params = new URLSearchParams()
       params.set("search", query)
-      params.set("reason", query) // Also search by symptom/reason
+      params.set("reason", query)
       params.set("limit", "20")
       if (userLocation) {
         params.set("latitude", String(userLocation.lat))
@@ -135,8 +138,8 @@ export function PatientBookFlow() {
             <div className="flex-1">
               <Input
                 placeholder="Doctor name, specialization, clinic, or symptom..."
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && searchDoctors()}
               />
             </div>
@@ -151,58 +154,59 @@ export function PatientBookFlow() {
       {searched && (
         <Card>
           <CardHeader>
-            <CardTitle>Doctors for &quot;{reason}&quot;</CardTitle>
+            <CardTitle>Doctors for &quot;{searchQuery}&quot;</CardTitle>
             <CardDescription>
-              {doctors.length} doctor(s) found. Select one to book an appointment.
+              {doctors.length} doctor(s) found. Select a doctor from the dropdown, then click Book.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             {doctors.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <Stethoscope className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>No doctors found. Try &quot;General Physician&quot; or a different symptom.</p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {doctors.map((doc) => (
-                  <Card key={doctorId(doc)} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div>
-                          <p className="font-semibold text-lg">
-                            Dr. {doc.user?.firstName ?? doc.firstName} {doc.user?.lastName ?? doc.lastName}
-                          </p>
-                          <p className="text-sm text-muted-foreground">{doc.specialization}</p>
-                          <div className="flex items-center gap-2 mt-1 text-sm">
-                            <Building2 className="h-3 w-3" />
-                            {doc.clinicName || "Clinic"}
-                          </div>
-                          {doc.distance != null && (
-                            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                              <MapPin className="h-3 w-3" />
-                              {doc.distance} km away
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-1">
-                            <IndianRupee className="h-4 w-4" />
-                            <span className="font-semibold">{Number(doc.consultationFee || 0)}</span>
-                            <span className="text-xs text-muted-foreground">/consultation</span>
-                          </div>
-                          <Button
-                            onClick={() => router.push(`/doctors/${doctorId(doc)}/book`)}
-                            size="sm"
-                          >
-                            <Calendar className="h-4 w-4 mr-1" />
-                            Book
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+              <>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Select Doctor</label>
+                  <Select
+                    value={selectedDoctor ? doctorId(selectedDoctor) : ""}
+                    onValueChange={(id) => {
+                      const doc = doctors.find((d) => doctorId(d) === id)
+                      setSelectedDoctor(doc ?? null)
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose a doctor from the list..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <ScrollArea className="h-[240px]">
+                        {doctors.map((doc) => (
+                          <SelectItem key={doctorId(doc)} value={doctorId(doc)}>
+                            Dr. {doc.user?.firstName ?? doc.firstName} {doc.user?.lastName ?? doc.lastName} — {doc.specialization} • {doc.clinicName || "Clinic"} • ₹{Number(doc.consultationFee || 0)}
+                          </SelectItem>
+                        ))}
+                      </ScrollArea>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {selectedDoctor && (
+                  <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
+                    <div>
+                      <p className="font-semibold">Dr. {selectedDoctor.user?.firstName ?? selectedDoctor.firstName} {selectedDoctor.user?.lastName ?? selectedDoctor.lastName}</p>
+                      <p className="text-sm text-muted-foreground">{selectedDoctor.specialization}</p>
+                      <p className="text-sm flex items-center gap-1 mt-1">
+                        <Building2 className="h-3 w-3" />
+                        {selectedDoctor.clinicName || "Clinic"} • ₹{Number(selectedDoctor.consultationFee || 0)}/consultation
+                      </p>
+                    </div>
+                    <Button onClick={() => router.push(`/doctors/${doctorId(selectedDoctor)}/book`)}>
+                      <Calendar className="h-4 w-4 mr-1" />
+                      Book Appointment
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>

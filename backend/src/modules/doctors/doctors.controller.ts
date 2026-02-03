@@ -1,5 +1,5 @@
 import { Response, NextFunction } from 'express';
-import { searchDoctors, getDoctorById, getDoctorAvailability } from './doctors.service';
+import { searchDoctors, getDoctorById, getDoctorAvailability, getDoctorSlots } from './doctors.service';
 import { getDoctorAnalytics } from './doctors.analytics.service';
 import { getClinicStaff } from './doctors.staff.service';
 import { sendSuccess } from '../../utils/apiResponse';
@@ -144,7 +144,6 @@ export const getDoctorAvailabilityController = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    // Use req.params.id if provided (for public endpoints), otherwise use authenticated user's ID
     const doctorId = req.params.id || req.user?.id;
     if (!doctorId) {
       throw new AppError('Doctor ID required', 400);
@@ -157,6 +156,25 @@ export const getDoctorAvailabilityController = async (
     sendSuccess(res, availability, 'Availability retrieved successfully');
   } catch (err: any) {
     logger.error({ error: err.message, doctorId: req.params.id || req.user?.id }, 'Error in getDoctorAvailabilityController');
+    next(err);
+  }
+};
+
+export const getDoctorSlotsController = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const doctorId = req.params.id;
+    if (!doctorId) {
+      throw new AppError('Doctor ID required', 400);
+    }
+    const days = parseInt((req.query.days as string) || '10', 10);
+    const slots = await getDoctorSlots(doctorId, Math.min(days, 14));
+    sendSuccess(res, slots, 'Slots retrieved successfully');
+  } catch (err: any) {
+    logger.error({ error: err.message, doctorId: req.params.id }, 'Error in getDoctorSlotsController');
     next(err);
   }
 };

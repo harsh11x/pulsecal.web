@@ -301,7 +301,7 @@ export const createPatientAppointmentController = async (
     }
     const schema = Joi.object({
       doctorId: Joi.string().required(),
-      scheduledAt: Joi.date().required(),
+      scheduledAt: Joi.alternatives().try(Joi.date(), Joi.string()).required(),
       duration: Joi.number().optional(),
       reason: Joi.string().optional().allow('', null),
       notes: Joi.string().optional().allow('', null),
@@ -309,8 +309,10 @@ export const createPatientAppointmentController = async (
     const { error, value } = schema.validate(req.body, { abortEarly: false, allowUnknown: true, stripUnknown: true });
     if (error) throw new AppError(error.details[0].message, 400);
 
+    const scheduledAt = typeof value.scheduledAt === 'string' ? new Date(value.scheduledAt) : value.scheduledAt;
     const appointment = await createAppointment({
       ...value,
+      scheduledAt,
       patientId: req.user!.id,
       status: 'CONFIRMED',
     });

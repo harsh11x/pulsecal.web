@@ -205,7 +205,9 @@ export function RealTimeBooking({ doctorId, doctorName, consultationFee, onBooki
             })
             rzp.open()
         } catch (error: any) {
-            toast.error(error.response?.data?.message || error.message || "Booking failed")
+            const msg = error.response?.data?.message || error.response?.data?.error || error.message || "Booking failed"
+            toast.error(msg)
+            console.error("Booking error:", error?.response?.data || error)
         } finally {
             setLoading(false)
         }

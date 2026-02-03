@@ -301,3 +301,82 @@ export const getDoctorAvailability = async (doctorId: string, date: Date) => {
   return { available: true, slots };
 };
 
+/**
+ * Get available slots for multiple days (for patient booking)
+ */
+export const getDoctorSlots = async (doctorId: string, daysParam: number = 10) => {
+  const doctor = await prisma.doctorProfile.findUnique({
+    where: { userId: doctorId },
+  });
+
+  if (!doctor) {
+    throw new AppError('Doctor not found', 404);
+  }
+
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const now = new Date();
+  const end = new Date(start);
+  end.setDate(end.getDate() + Math.min(daysParam, 14));
+
+  const existingAppointments = await prisma.appointment.findMany({
+    where: {
+      doctorId,
+      scheduledAt: { gte: start, lt: end },
+      status: { notIn: ['CANCELLED', 'NO_SHOW'] },
+    },
+    select: { scheduledAt: true },
+  });
+
+  const bookedStrings = new Set(existingAppointments.map((a) => new Date(a.scheduledAt).toISOString()));
+  const workingHours = (doctor.workingHours as any) || {};
+  const defaultStart = 9;
+  const defaultEnd = 17;
+  const slotDuration = 30;
+  const result: { date: string; dayName: string; slots: { time: string; available: boolean }[]; isFullyBooked: boolean }[] = [];
+
+  for (let d = 0; d < daysParam; d++) {
+    const currentDay = new Date(start);
+    currentDay.setDate(start.getDate() + d);
+    currentDay.setHours(0, 0, 0, 0);
+
+    const dayName = currentDay.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    const daySchedule = workingHours[dayName];
+    const isOpen = daySchedule?.isOpen !== false;
+    const [startHour, startMin] = (daySchedule?.start || `${defaultStart}:00`).split(':').map(Number);
+    const [endHour, endMin] = (daySchedule?.end || `${defaultEnd}:00`).split(':').map(Number);
+
+    const daySlots: { time: string; available: boolean }[] = [];
+    let hasAvailable = false;
+
+    if (isOpen) {
+      const slotStart = new Date(currentDay);
+      slotStart.setHours(startHour, startMin, 0, 0);
+      const slotEnd = new Date(currentDay);
+      slotEnd.setHours(endHour, endMin, 0, 0);
+
+      let current = new Date(slotStart);
+      while (current < slotEnd) {
+        if (current >= now) {
+          const timeString = current.toISOString();
+          const isBooked = bookedStrings.has(timeString);
+          if (!isBooked) hasAvailable = true;
+          daySlots.push({ time: timeString, available: !isBooked });
+        }
+        current.setMinutes(current.getMinutes() + slotDuration);
+      }
+    }
+
+    if (daySlots.length > 0) {
+      result.push({
+        date: currentDay.toISOString().split('T')[0],
+        dayName: currentDay.toLocaleDateString('en-US', { weekday: 'short' }),
+        slots: daySlots,
+        isFullyBooked: !hasAvailable,
+      });
+    }
+  }
+
+  return result;
+};
+

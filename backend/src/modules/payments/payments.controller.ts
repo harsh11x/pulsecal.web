@@ -236,7 +236,7 @@ export const verifyRazorpayPaymentController = async (
 // ========== Appointment Booking with Payment (Pay First, Then Create) ==========
 const createAppointmentOrderSchema = Joi.object({
   doctorId: Joi.string().required(),
-  scheduledAt: Joi.date().required(),
+  scheduledAt: Joi.alternatives().try(Joi.date(), Joi.string()).required(),
   duration: Joi.number().optional().default(30),
   reason: Joi.string().optional().allow('', null),
   notes: Joi.string().optional().allow('', null),
@@ -260,18 +260,19 @@ export const createAppointmentOrderController = async (
     const { error, value } = createAppointmentOrderSchema.validate(req.body);
     if (error) throw new AppError(error.details[0].message, 400);
 
+    const scheduledAt = typeof value.scheduledAt === 'string' ? value.scheduledAt : new Date(value.scheduledAt).toISOString();
     const options: any = {
       amount: Math.round(value.amount * 100),
       currency: 'INR',
       receipt: `apt_${Date.now()}_${req.user.id.substring(0, 5)}`,
       notes: {
         type: 'APPOINTMENT_BOOKING',
-        patientId: req.user.id,
-        doctorId: value.doctorId,
-        scheduledAt: value.scheduledAt,
+        patientId: String(req.user.id),
+        doctorId: String(value.doctorId),
+        scheduledAt: scheduledAt,
         duration: String(value.duration || 30),
-        reason: value.reason || '',
-        notes: value.notes || '',
+        reason: String(value.reason || ''),
+        notes: String(value.notes || ''),
       }
     };
 
