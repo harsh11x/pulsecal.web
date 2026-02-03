@@ -301,7 +301,7 @@ export default function CreateAppointmentPage() {
 
 
             {/* Doctor Selection - REQUIRED for all staff creating appointments */}
-            (
+            {(
               <div className="space-y-4 border-2 border-primary/30 p-4 rounded-lg bg-primary/5">
                 <h3 className="font-semibold flex items-center gap-2 text-base">
                   <Stethoscope className="h-5 w-5" />
