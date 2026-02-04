@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
-import { signIn, signUp, signInWithGoogle, signUpWithGoogle, syncUserProfile, getIdToken, checkLoginMethods } from "@/lib/firebaseAuth"
+import { signIn, signUp, signInWithGoogle, signInWithApple, syncUserProfile, getIdToken, checkLoginMethods } from "@/lib/firebaseAuth"
 import { toast } from "sonner"
 import { useAppDispatch } from "@/app/hooks"
 import { setUser } from "@/app/features/authSlice"
@@ -31,6 +31,7 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+  const [appleLoading, setAppleLoading] = useState(false)
   const router = useRouter()
   const dispatch = useAppDispatch()
 
@@ -43,6 +44,7 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
       setShowPassword(false)
       setLoading(false)
       setGoogleLoading(false)
+      setAppleLoading(false)
     }
   }, [isOpen, mode])
 
@@ -189,6 +191,8 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
             if (methods && methods.length > 0) {
               if (methods.includes('google.com')) {
                 errorMessage = "Looks like you signed up with Google. Please use the Google Sign In button.";
+              } else if (methods.includes('apple.com')) {
+                errorMessage = "Looks like you signed up with Apple. Please use the Sign in with Apple button.";
               } else {
                 errorMessage = `Looks like you use a different sign-in method (${methods.join(', ')}).`;
               }
@@ -517,6 +521,127 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
     }
   }
 
+  const handleAppleAuth = async () => {
+    setAppleLoading(true)
+    try {
+      let userCredential
+      try {
+        userCredential = await signInWithApple()
+      } catch (authError: any) {
+        if (authError.message?.includes('initial state') || authError.message?.includes('sessionStorage')) {
+          toast.error('Authentication state error. Please refresh the page and try again.')
+          throw authError
+        }
+        if (mode === "login" && authError.code === "auth/user-not-found") {
+          toast.error("No account found. Please sign up first.")
+          onSwitchMode("signup")
+          throw authError
+        }
+        throw authError
+      }
+
+      if (!userCredential?.user || !userCredential.user.uid) {
+        throw new Error("Authentication completed but user data not available")
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 800))
+
+      const normalizedRole = role.toUpperCase() as "PATIENT" | "DOCTOR" | "RECEPTIONIST"
+      let userHasProfile = false
+      let userOnboardingCompleted = false
+
+      try {
+        let token: string | null = null
+        for (let i = 0; i < 3; i++) {
+          token = await getIdToken(true)
+          if (token) break
+          await new Promise(resolve => setTimeout(resolve, 400))
+        }
+
+        if (token) {
+          await new Promise(resolve => setTimeout(resolve, 500))
+          try {
+            const profileResponse: any = await Promise.race([
+              apiService.get("/auth/profile"),
+              new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Request timeout")), 5000))
+            ])
+            if (profileResponse?.id) {
+              userHasProfile = true
+              userOnboardingCompleted = profileResponse.onboardingCompleted || false
+              dispatch(setUser({
+                id: profileResponse.id,
+                email: profileResponse.email,
+                firstName: profileResponse.firstName,
+                lastName: profileResponse.lastName,
+                phone: profileResponse.phone,
+                dateOfBirth: profileResponse.dateOfBirth,
+                role: (profileResponse.role || "PATIENT").toLowerCase(),
+                isActive: profileResponse.isActive !== false,
+                isEmailVerified: profileResponse.isEmailVerified || false,
+                profileImage: profileResponse.profileImage,
+                onboardingCompleted: userOnboardingCompleted,
+              }))
+            }
+          } catch (apiError: any) {
+            if (apiError.response?.status === 404) {
+              userHasProfile = false
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("Profile fetch:", e)
+      }
+
+      if (!userHasProfile) {
+        try {
+          await syncUserProfile(undefined, undefined, undefined, undefined, undefined, normalizedRole)
+        } catch (syncError) {
+          console.warn("Sync warning:", syncError)
+        }
+        await new Promise(resolve => setTimeout(resolve, 500))
+        try {
+          const profileResponse: any = await apiService.get("/auth/profile")
+          if (profileResponse?.id) {
+            dispatch(setUser({
+              id: profileResponse.id,
+              email: profileResponse.email,
+              firstName: profileResponse.firstName,
+              lastName: profileResponse.lastName,
+              phone: profileResponse.phone,
+              dateOfBirth: profileResponse.dateOfBirth,
+              role: (profileResponse.role || "PATIENT").toLowerCase(),
+              isActive: profileResponse.isActive !== false,
+              isEmailVerified: profileResponse.isEmailVerified || false,
+              profileImage: profileResponse.profileImage,
+              onboardingCompleted: profileResponse.onboardingCompleted || false,
+            }))
+            userOnboardingCompleted = profileResponse.onboardingCompleted || false
+          }
+        } catch (e) {
+          console.warn("Profile fetch after sync:", e)
+        }
+      }
+
+      const creationTime = userCredential?.user?.metadata?.creationTime
+      const isOldUser = creationTime && new Date(creationTime) < new Date(Date.now() - 2 * 60 * 1000)
+      const isEffectiveExistingUser = userOnboardingCompleted || isOldUser || (mode === "login" && userHasProfile)
+
+      const redirectPath = isEffectiveExistingUser ? "/dashboard" : `/onboarding?role=${role}`
+      toast.success(isEffectiveExistingUser ? "Signed in successfully!" : (mode === "signup" ? "Account created successfully!" : "Please complete your profile."))
+
+      await new Promise(resolve => setTimeout(resolve, 300))
+      router.push(redirectPath)
+      onClose()
+    } catch (error: any) {
+      console.error("Apple authentication error:", error)
+      if (error.code !== "auth/popup-closed-by-user" && error.code !== "auth/cancelled-popup-request") {
+        toast.error(error.message || "Sign in with Apple failed. Please try again.")
+      }
+    } finally {
+      setAppleLoading(false)
+    }
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md max-w-[calc(100%-100px)]">
@@ -527,6 +652,28 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Sign in with Apple (Guideline 4.8 - equivalent option) */}
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full bg-black text-white hover:bg-neutral-800 border-black"
+            onClick={handleAppleAuth}
+            disabled={appleLoading || loading}
+          >
+            {appleLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {mode === "login" ? "Signing in..." : "Signing up..."}
+              </>
+            ) : (
+              <>
+                <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
+                </svg>
+                {mode === "login" ? "Sign in with Apple" : "Sign up with Apple"}
+              </>
+            )}
+          </Button>
           {/* Google Sign In Button */}
           <Button
             type="button"

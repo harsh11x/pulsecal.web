@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { GoogleSignInButton } from "./GoogleSignInButton"
+import { AppleSignInButton } from "./AppleSignInButton"
 import { signIn, signUp, syncUserProfile, checkLoginMethods } from "@/lib/firebaseAuth"
 import { toast } from "sonner"
 import { Separator } from "@/components/ui/separator"
@@ -300,6 +301,12 @@ export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
       </div>
 
       <div className="space-y-4">
+        {/* Sign in with Apple (Guideline 4.8 - equivalent option with privacy) */}
+        <AppleSignInButton
+          mode={mode}
+          onSuccess={handleGoogleSuccess}
+          onError={handleGoogleError}
+        />
         {/* Google Sign In Button */}
         <GoogleSignInButton
           mode={mode}

@@ -9,7 +9,7 @@
 ## Auth
 | Method | Full URL | Description |
 |--------|----------|-------------|
-| GET | `http://13.205.127.21:3001/api/v1/auth/profile` | Get current user profile |
+| GET | `azAaaa` | Get current user profile |
 | POST | `http://13.205.127.21:3001/api/v1/auth/sync-profile` | Sync Firebase profile to backend |
 
 ---

@@ -3,6 +3,7 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
   GoogleAuthProvider,
+  OAuthProvider,
   signOut,
   sendPasswordResetEmail,
   updateProfile,
@@ -72,6 +73,41 @@ export const signUp = async (
       }
     }
 
+    throw error;
+  }
+};
+
+/**
+ * Sign in with Apple (Guideline 4.8 - equivalent login with privacy: name/email only, Hide My Email, no ad tracking)
+ */
+export const signInWithApple = async (): Promise<UserCredential> => {
+  try {
+    if (typeof window === 'undefined') {
+      throw new Error('Apple authentication is only available on the client side');
+    }
+
+    const authInstance = getAuthInstance();
+    const provider = new OAuthProvider('apple.com');
+    provider.addScope('email');
+    provider.addScope('name');
+
+    const result = await signInWithPopup(authInstance, provider);
+
+    // Apple may only send name on first sign-in - handle displayName
+    if (result.user && !result.user.displayName && (result as any).additionalUserInfo?.profile?.name) {
+      const fullName = (result as any).additionalUserInfo.profile.name as string;
+      await updateProfile(result.user, { displayName: fullName });
+    }
+
+    return result;
+  } catch (error: any) {
+    console.error('Apple sign in error:', error);
+    if (error.code === 'auth/popup-blocked') {
+      throw new Error('Popup was blocked. Please allow popups for this site.');
+    }
+    if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+      throw new Error('Sign-in was cancelled.');
+    }
     throw error;
   }
 };
