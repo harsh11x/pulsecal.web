@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Slider } from "@/components/ui/slider"
 import { Badge } from "@/components/ui/badge"
 import { MapPin, Search, Navigation, Stethoscope, Star, Filter } from "lucide-react"
 import { apiService } from "@/services/api"
@@ -49,10 +48,10 @@ export function DoctorDiscoveryMap() {
   const [mapCenter, setMapCenter] = useState<[number, number]>([20.5937, 78.9629]) // Default to India center
   const [mapZoom, setMapZoom] = useState(5)
   const [searchQuery, setSearchQuery] = useState("")
+  const [city, setCity] = useState("")
   const [specializationFilter, setSpecializationFilter] = useState("")
   const [availabilityFilter, setAvailabilityFilter] = useState<"all" | "available">("all")
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 5000])
-  const [radius, setRadius] = useState([50]) // km
   const [showFilters, setShowFilters] = useState(false)
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null)
 
@@ -82,7 +81,7 @@ export function DoctorDiscoveryMap() {
   ]
 
   useEffect(() => {
-    // Get user's current location
+    // Get user's current location and reverse geocode to city
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -90,23 +89,33 @@ export function DoctorDiscoveryMap() {
           setUserLocation({ lat: latitude, lng: longitude });
           setMapCenter([latitude, longitude]);
           setMapZoom(12);
+          // Reverse geocode to get city for filtering
+          fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
+            { headers: { Accept: "application/json" } }
+          )
+            .then((r) => r.json())
+            .then((data) => {
+              const c = data?.address?.city || data?.address?.town || data?.address?.village || data?.address?.county;
+              if (c) setCity(c);
+            })
+            .catch(() => {});
         },
         (error) => {
           console.error("Error getting location:", error)
-          toast.error("Could not get your location. Defaulting to India view.")
+          toast.error("Allow location to find doctors near you, or enter a city below.")
         }
       )
     }
-
-    // Initial fetch
-    fetchDoctors();
   }, [])
 
   useEffect(() => {
-    if (userLocation) {
+    if (userLocation || (city && city.trim())) {
       fetchDoctors()
+    } else {
+      setDoctors([])
     }
-  }, [userLocation, radius])
+  }, [userLocation, city])
 
   useEffect(() => {
     filterDoctors()
@@ -115,51 +124,45 @@ export function DoctorDiscoveryMap() {
   const fetchDoctors = async () => {
     setLoading(true)
     try {
-      const params: any = {}
+      const params: Record<string, string | number> = { limit: 100 }
       if (userLocation) {
         params.latitude = userLocation.lat
         params.longitude = userLocation.lng
-        params.radius = radius[0] // Backend expects km
       }
-
+      if (city && city.trim()) {
+        params.city = city.trim()
+      }
       if (specializationFilter && specializationFilter !== "All Specializations") {
         params.specialization = specializationFilter
       }
-
-      if (searchQuery) {
-          params.search = searchQuery;
+      if (searchQuery && searchQuery.trim()) {
+        params.search = searchQuery.trim()
       }
 
-      try {
-        const response: any = await apiService.get("/doctors/search", { params })
-        let doctorsData = response?.doctors ?? response?.data ?? (Array.isArray(response) ? response : [])
+      const response: any = await apiService.get("/doctors/search", { params })
+      let doctorsData = response?.doctors ?? response?.data ?? (Array.isArray(response) ? response : [])
 
-        if (!Array.isArray(doctorsData)) {
-          doctorsData = [];
-        }
-
-        if (userLocation && doctorsData.length > 0) {
-          doctorsData = doctorsData.map((doctor: Doctor) => {
-            if (doctor.clinicLatitude && doctor.clinicLongitude) {
-              const distance = calculateDistance(
-                userLocation.lat,
-                userLocation.lng,
-                doctor.clinicLatitude,
-                doctor.clinicLongitude
-              )
-              return { ...doctor, distance }
-            }
-            return { ...doctor, distance: 9999 }
-          })
-          doctorsData.sort((a: Doctor, b: Doctor) => (a.distance || Infinity) - (b.distance || Infinity))
-        }
-
-        setDoctors(doctorsData)
-      } catch (apiError) {
-        console.warn("API Search failed, trying fallback list or empty:", apiError);
-        setDoctors([]);
+      if (!Array.isArray(doctorsData)) {
+        doctorsData = []
       }
 
+      if (userLocation && doctorsData.length > 0) {
+        doctorsData = doctorsData.map((doctor: Doctor) => {
+          if (doctor.clinicLatitude != null && doctor.clinicLongitude != null) {
+            const distance = calculateDistance(
+              userLocation.lat,
+              userLocation.lng,
+              doctor.clinicLatitude,
+              doctor.clinicLongitude
+            )
+            return { ...doctor, distance }
+          }
+          return { ...doctor, distance: undefined }
+        })
+        doctorsData.sort((a: Doctor, b: Doctor) => (a.distance ?? Infinity) - (b.distance ?? Infinity))
+      }
+
+      setDoctors(doctorsData)
     } catch (error: any) {
       console.error("Failed to fetch doctors:", error)
       toast.error("Failed to load doctors")
@@ -194,13 +197,6 @@ export function DoctorDiscoveryMap() {
     filtered = filtered.filter(
       (doctor) => doctor.consultationFee >= priceRange[0] && doctor.consultationFee <= priceRange[1]
     )
-
-    if (userLocation) {
-      filtered = filtered.filter((doctor) => {
-        if (!doctor.distance) return false
-        return doctor.distance <= radius[0]
-      })
-    }
 
     setFilteredDoctors(filtered)
   }
@@ -281,6 +277,18 @@ export function DoctorDiscoveryMap() {
             )}
           </div>
 
+          {(city || !userLocation) && (
+            <div className="space-y-2 pt-4 border-t">
+              <Label>City</Label>
+              <Input
+                placeholder="Enter city to search (e.g. Mumbai, Delhi)"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                onBlur={() => city && fetchDoctors()}
+              />
+            </div>
+          )}
+
           {showFilters && (
             <div className="grid gap-4 md:grid-cols-3 pt-4 border-t">
               <div className="space-y-2">
@@ -334,24 +342,6 @@ export function DoctorDiscoveryMap() {
             </div>
           )}
 
-          {userLocation && (
-            <div className="space-y-2 pt-4 border-t">
-              <Label>Search Radius: {radius[0]} km</Label>
-              <Slider
-                value={radius}
-                onValueChange={setRadius}
-                min={1}
-                max={50}
-                step={1}
-                className="w-full"
-              />
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>1 km</span>
-                <span>25 km</span>
-                <span>50 km</span>
-              </div>
-            </div>
-          )}
         </CardContent>
       </Card>
 

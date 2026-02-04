@@ -2,28 +2,30 @@ import prisma from '../../config/database';
 import { AppError } from '../../middlewares/error.middleware';
 
 /**
- * Calculate distance between two coordinates using Haversine formula
- * Returns distance in kilometers
+ * Reverse geocode lat/lng to city using Nominatim
  */
-const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-  const R = 6371; // Earth's radius in kilometers
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-};
+async function reverseGeocodeToCity(lat: number, lng: number): Promise<string | null> {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`;
+    const res = await fetch(url, {
+      headers: { Accept: 'application/json', 'User-Agent': 'PulseCal-Healthcare/1.0' },
+    });
+    const data = (await res.json()) as { address?: { city?: string; town?: string; village?: string; county?: string; state?: string } };
+    const city = data?.address?.city || data?.address?.town || data?.address?.village || data?.address?.county || data?.address?.state;
+    return city || null;
+  } catch {
+    return null;
+  }
+}
 
 /**
- * Search doctors with location-based filtering (10km radius by default)
+ * Search doctors with city filtering (city from param or derived from lat/lng geolocation)
+ * Returns doctors with clinicLatitude/clinicLongitude for map display
  */
 export const searchDoctors = async (params: {
   latitude?: number;
   longitude?: number;
-  radius?: number; // in kilometers, default 10
+  radius?: number;
   specialization?: string;
   name?: string;
   clinicName?: string;
@@ -34,12 +36,11 @@ export const searchDoctors = async (params: {
   limit?: number;
   services?: string;
   search?: string;
-  reason?: string; // symptom/disease (e.g. fever, cough) - matches specialization & services
+  reason?: string;
 }) => {
   let {
     latitude,
     longitude,
-    radius = 10,
     specialization,
     name,
     clinicName,
@@ -50,15 +51,18 @@ export const searchDoctors = async (params: {
     limit = 50,
     services,
     search,
-    reason, // symptom/disease/reason search (e.g. fever, cough)
+    reason,
   } = params;
-
-  // Cap radius at 50km to prevent accidental global results (e.g. wrong unit)
-  if (radius > 50) radius = 50;
 
   const skip = (page - 1) * limit;
 
-  // Build where clause - use city (no radius/location)
+  // When city not provided but lat/lng are, reverse geocode to get city
+  if ((!city || !city.trim()) && latitude != null && longitude != null) {
+    const derivedCity = await reverseGeocodeToCity(latitude, longitude);
+    if (derivedCity) city = derivedCity;
+  }
+
+  // Build where clause - filter by city (no radius)
   const where: any = {
     user: {
       role: 'DOCTOR',
@@ -119,7 +123,7 @@ export const searchDoctors = async (params: {
     }
   }
 
-  // Get all doctors matching filters
+  // Get all doctors matching filters (include clinic for lat/lng fallback)
   const doctors = await prisma.doctorProfile.findMany({
     where,
     include: {
@@ -131,6 +135,9 @@ export const searchDoctors = async (params: {
           email: true,
           phone: true,
           profileImage: true,
+          clinic: {
+            select: { name: true, latitude: true, longitude: true, city: true },
+          },
         },
       },
     },
@@ -161,9 +168,32 @@ export const searchDoctors = async (params: {
   }
 
   const total = filteredDoctors.length;
+  const slice = filteredDoctors.slice(0, limit);
+
+  // Transform to flat format with clinicLatitude/clinicLongitude for map (from profile or clinic)
+  const mappedDoctors = slice.map((d) => {
+    const clinicLat = d.clinicLatitude ?? (d.user?.clinic?.latitude ? Number(d.user.clinic.latitude) : null);
+    const clinicLng = d.clinicLongitude ?? (d.user?.clinic?.longitude ? Number(d.user.clinic.longitude) : null);
+    return {
+      id: d.userId,
+      userId: d.userId,
+      firstName: d.user?.firstName ?? '',
+      lastName: d.user?.lastName ?? '',
+      specialization: d.specialization,
+      clinicName: d.clinicName ?? d.user?.clinic?.name ?? null,
+      clinicAddress: d.clinicAddress,
+      clinicCity: d.user?.clinic?.city ?? null,
+      clinicLatitude: clinicLat,
+      clinicLongitude: clinicLng,
+      consultationFee: d.consultationFee ? Number(d.consultationFee) : 0,
+      bio: d.bio,
+      services: d.services ?? [],
+      profileImage: d.user?.profileImage,
+    };
+  });
 
   return {
-    doctors: filteredDoctors.slice(0, limit),
+    doctors: mappedDoctors,
     pagination: {
       page,
       limit,
