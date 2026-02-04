@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, Stethoscope, Loader2, Calendar, Building2 } from "lucide-react"
+import { Search, Stethoscope, Loader2, Calendar, Building2, IndianRupee } from "lucide-react"
 import { apiService } from "@/services/api"
 import { toast } from "sonner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -196,18 +196,24 @@ export function PatientBookFlow() {
           </div>
 
           {selectedDoctor && (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 border rounded-lg bg-muted/30">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 border-2 border-primary/20 rounded-lg bg-primary/5">
               <div>
                 <p className="font-semibold">Dr. {selectedDoctor.user?.firstName ?? selectedDoctor.firstName} {selectedDoctor.user?.lastName ?? selectedDoctor.lastName}</p>
                 <p className="text-sm text-muted-foreground">{selectedDoctor.specialization}</p>
                 <p className="text-sm flex items-center gap-1 mt-1">
                   <Building2 className="h-3 w-3" />
-                  {selectedDoctor.clinicName || "Clinic"} • ₹{Number(selectedDoctor.consultationFee || 0)}/consultation
+                  {selectedDoctor.clinicName || "Clinic"}
+                </p>
+                <p className="flex items-center gap-1 mt-2 font-semibold text-base">
+                  <IndianRupee className="h-4 w-4" />
+                  {Number(selectedDoctor.consultationFee || 0) > 0
+                    ? `₹${Number(selectedDoctor.consultationFee || 0)} consultation fee (pay before booking)`
+                    : "Free consultation"}
                 </p>
               </div>
               <Button onClick={() => router.push(`/doctors/${doctorId(selectedDoctor)}/book`)}>
                 <Calendar className="h-4 w-4 mr-1" />
-                Book Appointment
+                {Number(selectedDoctor.consultationFee || 0) > 0 ? "Pay & Book" : "Book Appointment"}
               </Button>
             </div>
           )}
@@ -257,14 +263,20 @@ export function PatientBookFlow() {
                       </SelectContent>
                     </Select>
                     {selectedDoctor && clinicDoctors.some((d) => doctorId(d) === doctorId(selectedDoctor)) && (
-                      <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border-2 border-primary/20 rounded-lg bg-primary/5">
                         <div>
                           <p className="font-semibold">Dr. {selectedDoctor.user?.firstName ?? selectedDoctor.firstName} {selectedDoctor.user?.lastName ?? selectedDoctor.lastName}</p>
-                          <p className="text-sm text-muted-foreground">{selectedDoctor.specialization} • ₹{Number(selectedDoctor.consultationFee || 0)}/consultation</p>
+                          <p className="text-sm text-muted-foreground">{selectedDoctor.specialization}</p>
+                          <p className="flex items-center gap-1 mt-1 font-semibold text-sm">
+                            <IndianRupee className="h-3 w-3" />
+                            {Number(selectedDoctor.consultationFee || 0) > 0
+                              ? `₹${Number(selectedDoctor.consultationFee || 0)} (pay before booking)`
+                              : "Free consultation"}
+                          </p>
                         </div>
                         <Button size="sm" onClick={() => router.push(`/doctors/${doctorId(selectedDoctor)}/book`)}>
                           <Calendar className="h-4 w-4 mr-1" />
-                          Book
+                          {Number(selectedDoctor.consultationFee || 0) > 0 ? "Pay & Book" : "Book"}
                         </Button>
                       </div>
                     )}

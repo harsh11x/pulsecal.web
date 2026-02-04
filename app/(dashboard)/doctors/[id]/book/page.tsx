@@ -11,28 +11,35 @@ export default function BookAppointmentPage() {
   const params = useParams()
   const doctorId = params?.id as string
   const [fee, setFee] = useState<number | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (!doctorId) return
+    setLoading(true)
     apiService.get(`/doctors/${doctorId}`).then((d: any) => {
       const profile = d?.doctorProfile ?? d
-      setFee(profile?.consultationFee != null ? Number(profile.consultationFee) : null)
-    }).catch(() => {})
+      setFee(profile?.consultationFee != null ? Number(profile.consultationFee) : 0)
+    }).catch(() => setFee(0)).finally(() => setLoading(false))
   }, [doctorId])
 
   return (
     <div className="space-y-6">
-      {fee != null && fee > 0 && (
-        <Card className="border-primary/30">
-          <CardHeader className="py-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <IndianRupee className="h-4 w-4" />
-              Consultation fee: ₹{fee}
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">Payment is required to confirm your appointment.</p>
-          </CardHeader>
-        </Card>
-      )}
+      {/* Always show consultation fee prominently before booking */}
+      <Card className="border-primary/30 bg-primary/5">
+        <CardHeader className="py-4">
+          <CardTitle className="text-base flex items-center gap-2">
+            <IndianRupee className="h-4 w-4" />
+            {loading ? "Loading..." : (fee != null && fee > 0)
+              ? `Doctor's rate: ₹${fee} (pay to confirm appointment)`
+              : "Free consultation"}
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            {fee != null && fee > 0
+              ? "Select date & time below, then pay via Razorpay to book."
+              : "Select date & time below to book at no cost."}
+          </p>
+        </CardHeader>
+      </Card>
       <RealTimeBooking doctorId={doctorId} consultationFee={fee ?? undefined} />
     </div>
   )

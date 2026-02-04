@@ -27,6 +27,7 @@ export default function AppointmentsListPage() {
   const router = useRouter()
   const { user } = useAppSelector((state) => state.auth)
   const isDoctor = user?.role === "doctor"
+  const isReceptionist = user?.role === "receptionist"
   const [appointments, setAppointments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("upcoming")
@@ -68,6 +69,7 @@ export default function AppointmentsListPage() {
     const statusConfig: Record<string, { variant: any; label: string }> = {
       SCHEDULED: { variant: "default", label: "Scheduled" },
       CONFIRMED: { variant: "default", label: "Confirmed" },
+      RESCHEDULED: { variant: "default", label: "Rescheduled" },
       COMPLETED: { variant: "secondary", label: "Completed" },
       CANCELLED: { variant: "destructive", label: "Cancelled" },
       NO_SHOW: { variant: "outline", label: "No Show" },
@@ -80,20 +82,28 @@ export default function AppointmentsListPage() {
   }
 
   const filterAppointments = (status: string) => {
+    const scheduledAt = (apt: any) => new Date(apt.scheduledAt || apt.appointmentDate)
     if (status === "upcoming") {
-      return appointments.filter(apt =>
-        ["SCHEDULED", "CONFIRMED", "CHECKED_IN", "IN_PROGRESS"].includes(apt.status) &&
-        (apt.status === "IN_PROGRESS" || new Date(apt.appointmentDate || apt.scheduledAt) >= new Date())
-      )
+      return appointments.filter(apt => {
+        const isUpcomingStatus = ["SCHEDULED", "CONFIRMED", "RESCHEDULED", "CHECKED_IN", "IN_PROGRESS"].includes(apt.status)
+        const isFuture = scheduledAt(apt) >= new Date()
+        return isUpcomingStatus && (apt.status === "IN_PROGRESS" || isFuture)
+      })
     } else if (status === "past") {
       return appointments.filter(apt =>
         apt.status === "COMPLETED" || apt.status === "NO_SHOW" ||
-        (new Date(apt.appointmentDate || apt.scheduledAt) < new Date() && apt.status !== "CANCELLED" && apt.status !== "IN_PROGRESS")
+        (scheduledAt(apt) < new Date() && apt.status !== "CANCELLED" && !["SCHEDULED", "CONFIRMED", "RESCHEDULED", "CHECKED_IN"].includes(apt.status))
       )
     } else if (status === "cancelled") {
       return appointments.filter(apt => apt.status === "CANCELLED")
     }
     return appointments
+  }
+
+  const canCancelAppointment = (apt: any) => {
+    const upcomingStatuses = ["SCHEDULED", "CONFIRMED", "RESCHEDULED", "CHECKED_IN"]
+    const isUpcoming = upcomingStatuses.includes(apt.status) && new Date(apt.scheduledAt || apt.appointmentDate) >= new Date()
+    return isUpcoming
   }
 
   const filteredAppointments = filterAppointments(activeTab)
@@ -111,14 +121,14 @@ export default function AppointmentsListPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">
-            {isDoctor ? "Patient Appointments" : "My Appointments"}
+            {isDoctor ? "Patient Appointments" : isReceptionist ? "Clinic Appointments" : "My Appointments"}
           </h1>
           <p className="text-muted-foreground">View and manage all appointments</p>
         </div>
-        {!isDoctor && (
+        {(!isDoctor || isReceptionist) && (
           <Button onClick={() => router.push("/appointments/create")} size="lg">
             <Plus className="mr-2 h-5 w-5" />
-            Book New Appointment
+            {isReceptionist ? "Create Appointment" : "Book New Appointment"}
           </Button>
         )}
       </div>
@@ -129,7 +139,7 @@ export default function AppointmentsListPage() {
             Upcoming ({filterAppointments("upcoming").length})
           </TabsTrigger>
           <TabsTrigger value="past">
-            Past ({filterAppointments("past").length})
+            Previous / Completed ({filterAppointments("past").length})
           </TabsTrigger>
           <TabsTrigger value="cancelled">
             Cancelled ({filterAppointments("cancelled").length})
@@ -148,10 +158,10 @@ export default function AppointmentsListPage() {
                     : `You don't have any ${activeTab} appointments.`
                   }
                 </p>
-                {!isDoctor && activeTab === "upcoming" && (
+                {(!isDoctor || isReceptionist) && activeTab === "upcoming" && (
                   <Button onClick={() => router.push("/appointments/create")}>
                     <Plus className="mr-2 h-4 w-4" />
-                    Book Appointment
+                    {isReceptionist ? "Create Appointment" : "Book Appointment"}
                   </Button>
                 )}
               </CardContent>
@@ -213,18 +223,20 @@ export default function AppointmentsListPage() {
                       )}
                     </div>
 
-                    {appointment.status === "SCHEDULED" && !isDoctor && (
+                    {canCancelAppointment(appointment) && (
                       <div className="flex gap-2 pt-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            router.push(`/appointments/${appointment.id}/reschedule`)
-                          }}
-                        >
-                          Reschedule
-                        </Button>
+                        {!isDoctor && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              router.push(`/appointments/${appointment.id}/reschedule`)
+                            }}
+                          >
+                            Reschedule
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
                           size="sm"

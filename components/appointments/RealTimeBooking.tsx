@@ -292,12 +292,16 @@ export function RealTimeBooking({ doctorId, doctorName, consultationFee, onBooki
                         />
                     </div>
 
-                    {consultationFee != null && consultationFee > 0 && (
-                        <div className="rounded-lg bg-muted/50 p-3 text-sm">
-                            <span className="font-medium">Consultation fee: ₹{consultationFee}</span>
-                            <p className="text-muted-foreground text-xs mt-1">Payment required to confirm. You will be redirected to Razorpay.</p>
-                        </div>
-                    )}
+                    <div className="rounded-lg bg-muted/50 p-3 text-sm">
+                        <span className="font-medium">
+                            {consultationFee != null && consultationFee > 0
+                                ? `Consultation fee: ₹${consultationFee} (pay now to confirm)`
+                                : "Free consultation"}
+                        </span>
+                        {consultationFee != null && consultationFee > 0 && (
+                            <p className="text-muted-foreground text-xs mt-1">Click below to pay via Razorpay. Appointment is confirmed only after successful payment.</p>
+                        )}
+                    </div>
                     <Button className="w-full" size="lg" onClick={handleBook} disabled={loading || !reason.trim()}>
                         {loading ? "Processing..." : consultationFee != null && consultationFee > 0
                             ? `Pay ₹${consultationFee} & Book`
