@@ -60,53 +60,69 @@ export default function SubscriptionPage() {
         }
     }
 
+    const PLAN_AMOUNTS: Record<string, number> = {
+        STARTER: 999,
+        BASIC: 1499,
+        PROFESSIONAL: 2999,
+        ENTERPRISE: 9999
+    }
+
     const handleSubscribe = async (planId: string) => {
         setProcessing(planId)
         try {
-            // 1. Create Subscription on Backend
-            const response: any = await apiService.post("/payments/subscription/create", {
-                planId: planId
-            })
+            const data: any = await apiService.post("/payments/subscription/create", { planId })
+            const { orderId, key, amount } = data ?? {}
+            if (!orderId || !key) {
+                toast.error("Invalid response from server")
+                return
+            }
 
-            const { subscriptionId, key_id } = response.data
+            if (!(window as any).Razorpay) {
+                toast.error("Payment gateway not loaded. Please refresh the page.")
+                return
+            }
 
-            // 2. Open Razorpay Checkout
             const options = {
-                key: key_id,
-                subscription_id: subscriptionId,
+                key,
+                amount: amount ?? (PLAN_AMOUNTS[planId] ?? 999) * 100,
+                currency: "INR",
+                order_id: orderId,
                 name: "PulseCal",
-                description: `${planId} Subscription`,
-                handler: async (response: any) => {
-                    // 3. Verify Payment
+                description: `${planId} Subscription (1 month)`,
+                handler: async (rzpResponse: any) => {
                     try {
                         await apiService.post("/payments/subscription/verify", {
-                            razorpay_payment_id: response.razorpay_payment_id,
-                            razorpay_subscription_id: response.razorpay_subscription_id,
-                            razorpay_signature: response.razorpay_signature
+                            razorpay_order_id: rzpResponse.razorpay_order_id,
+                            razorpay_payment_id: rzpResponse.razorpay_payment_id,
+                            razorpay_signature: rzpResponse.razorpay_signature
                         })
                         toast.success("Subscription activated successfully!")
-                        fetchSubscriptionStatus()
-                    } catch (verifyError) {
-                        toast.error("Payment verification failed")
+                        await fetchSubscriptionStatus()
+                    } catch (verifyError: any) {
+                        toast.error(verifyError.response?.data?.message || "Payment verification failed")
+                    } finally {
+                        setProcessing(null)
                     }
                 },
-                theme: {
-                    color: "#0F172A"
-                }
+                modal: { ondismiss: () => setProcessing(null) },
+                theme: { color: "#0F172A" }
             }
 
             const rzp = new (window as any).Razorpay(options)
+            rzp.on("payment.failed", () => {
+                toast.error("Payment failed. Please try again.")
+                setProcessing(null)
+            })
             rzp.open()
-
         } catch (error: any) {
-            toast.error(error.response?.data?.message || "Failed to initiate subscription")
-        } finally {
+            const msg = error.response?.data?.message || error.message || "Failed to initiate subscription"
+            toast.error(msg)
             setProcessing(null)
         }
     }
 
     const handleCancel = async () => {
-        if (!confirm("Are you sure you want to cancel your subscription? You will lose access to premium features at the end of the billing cycle.")) return;
+        if (!confirm("Are you sure you want to cancel your subscription? You will revert to the Starter plan.")) return
 
         setProcessing("CANCEL")
         try {

@@ -8,6 +8,9 @@ import {
   createRazorpaySubscriptionController,
   verifyRazorpaySubscriptionController,
   cancelSubscriptionController,
+  createSubscriptionOrderController,
+  verifySubscriptionOrderController,
+  cancelSubscriptionStatusController,
   createRazorpayOrderController,
   verifyRazorpayPaymentController,
   createAppointmentOrderController,
@@ -19,10 +22,15 @@ import { requireReceptionist, requireStaff } from '../../middlewares/role.middle
 const router = Router();
 
 
-// Razorpay Subscription routes
+// Razorpay Subscription routes (legacy - Razorpay Plans API)
 router.post('/create-subscription', authenticate, createRazorpaySubscriptionController);
 router.post('/verify-subscription', authenticate, verifyRazorpaySubscriptionController);
 router.post('/cancel-subscription/:id', authenticate, cancelSubscriptionController);
+
+// Subscription upgrade via one-time payment (Order-based - simpler, works without Razorpay Plans)
+router.post('/subscription/create', authenticate, createSubscriptionOrderController);
+router.post('/subscription/verify', authenticate, verifySubscriptionOrderController);
+router.post('/subscription/cancel', authenticate, cancelSubscriptionStatusController);
 
 // Razorpay One-Time routes
 router.post('/create-order', authenticate, createRazorpayOrderController);

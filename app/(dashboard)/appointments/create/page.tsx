@@ -14,7 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { apiService } from "@/services/api"
 import { toast } from "sonner"
 import { format, addDays } from "date-fns"
-import { Loader2, Calendar as CalendarIcon, Clock, User, Stethoscope } from "lucide-react"
+import { Loader2, Calendar as CalendarIcon, Clock, User, Stethoscope, Search } from "lucide-react"
 import { useAppSelector } from "@/app/hooks"
 import { PatientBookFlow } from "@/components/appointments/PatientBookFlow"
 
@@ -47,6 +47,7 @@ export default function CreateAppointmentPage() {
   const [clinicDoctors, setClinicDoctors] = useState<ClinicDoctor[]>([])
   const [loadingDoctors, setLoadingDoctors] = useState(true)
   const [selectedDoctorId, setSelectedDoctorId] = useState<string | null>(null)
+  const [doctorSearchQuery, setDoctorSearchQuery] = useState("")
 
   // Schedule settings from doctor's profile
   const [workingHours, setWorkingHours] = useState({ start: "09:00", end: "17:00" })
@@ -90,58 +91,34 @@ export default function CreateAppointmentPage() {
     }
   }, [])
 
-  // Fetch doctors: receptionists=clinic, doctors=clinic staff, others=city or all
+  // Fetch doctors: receptionists only (clinic doctors). Doctors book for themselves - no fetch needed.
   useEffect(() => {
+    if (!isReceptionist) {
+      setClinicDoctors([])
+      setLoadingDoctors(false)
+      return
+    }
     setLoadingDoctors(true)
     const loadDoctors = async () => {
-      let list: ClinicDoctor[] = []
-      if (isReceptionist) {
-        try {
-          const data: any = await apiService.get("/receptionists/doctors")
-          list = Array.isArray(data) ? data : (data?.doctors ?? data?.data ?? [])
-        } catch {
-          toast.error("Failed to load clinic doctors")
+      try {
+        const data: any = await apiService.get("/receptionists/doctors")
+        const list = Array.isArray(data) ? data : (data?.doctors ?? data?.data ?? [])
+        setClinicDoctors(list)
+        const doctorFromUrl = searchParams?.get("doctor")
+        if (doctorFromUrl && list.some((d: { id: string }) => d.id === doctorFromUrl)) {
+          setSelectedDoctorId(doctorFromUrl)
+        } else if (list.length === 1) {
+          setSelectedDoctorId(list[0].id)
         }
-      } else if (isDoctor) {
-        try {
-          const data: any = await apiService.get("/doctors/clinic/staff")
-          const staffDoctors = data?.doctors ?? []
-          list = staffDoctors.map((d: any) => ({
-            id: d.id,
-            firstName: d.firstName,
-            lastName: d.lastName,
-            email: d.email,
-            doctorProfile: d.doctorProfile,
-          }))
-        } catch {
-          // Doctor may have no clinic
-        }
-      }
-      // Admin/other roles or fallback: fetch from doctors/search by city or all
-      if (list.length === 0) {
-        const params = new URLSearchParams({ limit: "100" })
-        if (city && city.trim()) params.set("city", city.trim())
-        const r: any = await apiService.get(`/doctors/search?${params}`)
-        const searchList = r?.doctors ?? (Array.isArray(r) ? r : [])
-        list = searchList.map((d: any) => ({
-          id: d.user?.id ?? d.userId ?? d.id,
-          firstName: d.user?.firstName ?? d.firstName,
-          lastName: d.user?.lastName ?? d.lastName,
-          email: d.user?.email,
-          doctorProfile: { specialization: d.specialization, consultationFee: d.consultationFee },
-        }))
-        if (list.length > 0 && city) toast.info("Showing doctors in " + city)
-      }
-      setClinicDoctors(list)
-      const doctorFromUrl = searchParams?.get("doctor")
-      if (doctorFromUrl && list.some((d: { id: string }) => d.id === doctorFromUrl)) {
-        setSelectedDoctorId(doctorFromUrl)
-      } else if (list.length === 1) {
-        setSelectedDoctorId(list[0].id)
+      } catch {
+        toast.error("Failed to load clinic doctors")
+        setClinicDoctors([])
+      } finally {
+        setLoadingDoctors(false)
       }
     }
-    loadDoctors().finally(() => setLoadingDoctors(false))
-  }, [isReceptionist, isDoctor, searchParams, city])
+    loadDoctors()
+  }, [isReceptionist, searchParams])
 
   // Fetch doctor's schedule when component mounts or date changes (for doctors, use selected doctor for receptionists)
   useEffect(() => {
@@ -284,6 +261,16 @@ export default function CreateAppointmentPage() {
 
   const timeSlots = generateTimeSlots()
 
+  // Filter clinic doctors by search (name, specialty) - for receptionist
+  const filteredClinicDoctors = doctorSearchQuery.trim()
+    ? clinicDoctors.filter((doc) => {
+        const q = doctorSearchQuery.toLowerCase()
+        const name = `${doc.firstName} ${doc.lastName}`.toLowerCase()
+        const spec = (doc.doctorProfile?.specialization ?? "").toLowerCase()
+        return name.includes(q) || spec.includes(q)
+      })
+    : clinicDoctors
+
   return (
     <div className="container mx-auto py-8 max-w-2xl">
       <Card>
@@ -295,16 +282,29 @@ export default function CreateAppointmentPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
 
 
-            {/* Doctor Selection - REQUIRED for all staff creating appointments */}
-            {(
+            {/* Doctor Selection - receptionists only (doctors book for themselves) */}
+            {!isDoctor && (
               <div className="space-y-4 border-2 border-primary/30 p-4 rounded-lg bg-primary/5">
                 <h3 className="font-semibold flex items-center gap-2 text-base">
                   <Stethoscope className="h-5 w-5" />
                   Select Doctor <span className="text-destructive">*</span>
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  Choose a doctor — clinic doctors, or all in your city
+                  {isReceptionist
+                    ? "Search and select a doctor from your clinic"
+                    : "Choose a doctor"}
                 </p>
+                {isReceptionist && (
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by doctor name or specialty..."
+                      value={doctorSearchQuery}
+                      onChange={(e) => setDoctorSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                )}
                 {loadingDoctors ? (
                   <div className="flex items-center gap-2 py-6 text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -312,16 +312,20 @@ export default function CreateAppointmentPage() {
                   </div>
                 ) : clinicDoctors.length === 0 ? (
                   <div className="py-6 text-center text-muted-foreground text-sm border rounded-md bg-muted/30">
-                    No doctors found. Enable location for doctors within 10km, or ensure you&apos;re linked to a clinic.
+                    {isReceptionist ? "No doctors in your clinic. Contact admin to add doctors." : "No doctors found."}
+                  </div>
+                ) : filteredClinicDoctors.length === 0 ? (
+                  <div className="py-6 text-center text-muted-foreground text-sm border rounded-md bg-muted/30">
+                    No doctors match &quot;{doctorSearchQuery}&quot;. Try a different search.
                   </div>
                 ) : (
                   <>
                     <Select value={selectedDoctorId ?? ""} onValueChange={(v) => setSelectedDoctorId(v || null)}>
                       <SelectTrigger className="w-full h-11 text-base">
-                        <SelectValue placeholder="Choose a doctor from the dropdown..." />
+                        <SelectValue placeholder={isReceptionist ? "Choose a doctor from your clinic..." : "Choose a doctor..."} />
                       </SelectTrigger>
                       <SelectContent className="max-h-[280px] overflow-y-auto">
-                        {clinicDoctors.map((doc) => (
+                        {filteredClinicDoctors.map((doc) => (
                           <SelectItem key={doc.id} value={doc.id}>
                             Dr. {doc.firstName} {doc.lastName}
                             {doc.doctorProfile?.specialization && ` — ${doc.doctorProfile.specialization}`}
@@ -332,7 +336,7 @@ export default function CreateAppointmentPage() {
                     </Select>
                     <ScrollArea className="h-[140px] rounded-md border p-2">
                       <div className="grid gap-1 pr-4">
-                        {clinicDoctors.map((doc) => (
+                        {filteredClinicDoctors.map((doc) => (
                           <div
                             key={doc.id}
                             className={`flex items-start space-x-3 rounded-lg border p-2 cursor-pointer transition-colors ${

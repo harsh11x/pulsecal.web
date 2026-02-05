@@ -134,6 +134,7 @@ export const getProfile = async (userId: string) => {
             bio: true,
             subscriptionStatus: true,
             subscriptionPlan: true,
+            subscriptionExpiresAt: true,
           },
         },
       },

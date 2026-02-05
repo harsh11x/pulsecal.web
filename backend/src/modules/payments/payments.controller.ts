@@ -369,7 +369,177 @@ export const verifyAppointmentPaymentController = async (
   }
 };
 
-// Razorpay Subscription Integration
+// ========== Subscription Upgrade (One-Time Payment via Order) ==========
+const PLAN_AMOUNTS: Record<string, number> = {
+  STARTER: 999,
+  BASIC: 1499,
+  PROFESSIONAL: 2999,
+  ENTERPRISE: 9999,
+};
+
+const createSubscriptionOrderSchema = Joi.object({
+  planId: Joi.string().valid('STARTER', 'BASIC', 'PROFESSIONAL', 'ENTERPRISE').required(),
+});
+
+const verifySubscriptionOrderSchema = Joi.object({
+  razorpay_order_id: Joi.string().required(),
+  razorpay_payment_id: Joi.string().required(),
+  razorpay_signature: Joi.string().required(),
+});
+
+export const createSubscriptionOrderController = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (req.user?.role !== 'DOCTOR' && req.user?.role !== 'ADMIN') {
+      throw new AppError('Only doctors can upgrade subscription', 403);
+    }
+    const { error, value } = createSubscriptionOrderSchema.validate(req.body);
+    if (error) throw new AppError(error.details[0].message, 400);
+
+    const amount = PLAN_AMOUNTS[value.planId] ?? 999;
+    const options: any = {
+      amount: amount * 100, // paise
+      currency: 'INR',
+      receipt: `sub_${Date.now()}_${req.user!.id.substring(0, 8)}`,
+      notes: {
+        type: 'SUBSCRIPTION_UPGRADE',
+        userId: req.user!.id,
+        planId: value.planId,
+      },
+    };
+
+    const order = await razorpay.orders.create(options);
+
+    sendSuccess(
+      res,
+      {
+        orderId: order.id,
+        key: process.env.RAZORPAY_KEY_ID,
+        amount: order.amount,
+        planId: value.planId,
+      },
+      'Order created for subscription',
+      201
+    );
+  } catch (err: any) {
+    next(new AppError(err.message || 'Failed to create subscription order', 500));
+  }
+};
+
+export const verifySubscriptionOrderController = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (req.user?.role !== 'DOCTOR' && req.user?.role !== 'ADMIN') {
+      throw new AppError('Only doctors can verify subscription payment', 403);
+    }
+    const { error, value } = verifySubscriptionOrderSchema.validate(req.body);
+    if (error) throw new AppError(error.details[0].message, 400);
+
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = value;
+
+    const generatedSignature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || 'test_secret')
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest('hex');
+
+    if (generatedSignature !== razorpay_signature) {
+      throw new AppError('Invalid payment signature', 400);
+    }
+
+    const order = await razorpay.orders.fetch(razorpay_order_id);
+    const notes = (order.notes || {}) as Record<string, string>;
+    if (notes.type !== 'SUBSCRIPTION_UPGRADE' || notes.userId !== req.user?.id) {
+      throw new AppError('Invalid order or unauthorized', 400);
+    }
+
+    const planId = notes.planId as string;
+    const userId = notes.userId;
+
+    const expiresAt = new Date();
+    expiresAt.setMonth(expiresAt.getMonth() + 1);
+
+    await prisma.doctorProfile.upsert({
+      where: { userId },
+      create: {
+        userId,
+        licenseNumber: `LIC-${userId.substring(0, 8)}`,
+        specialization: 'General',
+        subscriptionPlan: planId,
+        subscriptionStatus: 'ACTIVE',
+        subscriptionExpiresAt: expiresAt,
+      },
+      update: {
+        subscriptionPlan: planId,
+        subscriptionStatus: 'ACTIVE',
+        subscriptionExpiresAt: expiresAt,
+      },
+    });
+
+    if (req.user?.clinicId) {
+      await prisma.clinic.update({
+        where: { id: req.user.clinicId },
+        data: {
+          subscriptionPlan: planId,
+          subscriptionStatus: 'ACTIVE',
+        },
+      });
+    }
+
+    await createPayment({
+      patientId: userId,
+      amount: Number(order.amount) / 100,
+      currency: 'INR',
+      method: 'RAZORPAY_ONLINE',
+      transactionId: razorpay_payment_id,
+      razorpayOrderId: razorpay_order_id,
+      razorpayPaymentId: razorpay_payment_id,
+      razorpaySignature: razorpay_signature,
+      status: 'COMPLETED',
+      description: `Subscription: ${planId}`,
+    });
+
+    sendSuccess(res, { planId, status: 'ACTIVE', expiresAt }, 'Subscription activated successfully');
+  } catch (err: any) {
+    next(new AppError(err.message || 'Subscription verification failed', 500));
+  }
+};
+
+export const cancelSubscriptionStatusController = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (req.user?.role !== 'DOCTOR' && req.user?.role !== 'ADMIN') {
+      throw new AppError('Only doctors can cancel subscription', 403);
+    }
+    const userId = req.user!.id;
+
+    await prisma.doctorProfile.updateMany({
+      where: { userId },
+      data: { subscriptionStatus: 'PENDING', subscriptionPlan: 'STARTER' },
+    });
+
+    if (req.user?.clinicId) {
+      await prisma.clinic.update({
+        where: { id: req.user.clinicId },
+        data: { subscriptionStatus: 'PENDING', subscriptionPlan: 'STARTER' },
+      });
+    }
+
+    sendSuccess(res, { status: 'CANCELLED' }, 'Subscription cancelled');
+  } catch (err: any) {
+    next(new AppError(err.message || 'Failed to cancel subscription', 500));
+  }
+};
+
+// Razorpay Subscription Integration (Plans API - requires dashboard setup)
 const createRazorpaySubscriptionSchema = Joi.object({
   plan: Joi.string().valid('STARTER', 'BASIC', 'PROFESSIONAL', 'ENTERPRISE').required(),
 });

@@ -142,33 +142,37 @@ export function PatientBookFlow() {
             Find Doctors
           </CardTitle>
           <CardDescription>
-            Search by name, specialty, or clinic. All doctors in your city are shown with their consultation rates.
+            Search by name, specialty, or clinic. All doctors (with clinic names and rates) are shown. Enter city to filter by location.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">City</label>
-              <Input
-                placeholder="e.g. Amritsar, Delhi, Mumbai"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                onBlur={() => city && fetchDoctors()}
-              />
-            </div>
+            <div className="space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Search by name, specialty, or clinic</label>
               <div className="flex gap-2">
-                <Input
-                  placeholder="Doctor name, specialization, clinic..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleSearch())}
-                />
-                <Button onClick={handleSearch} disabled={loading} variant="outline" size="icon">
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Doctor name, specialization, clinic..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleSearch())}
+                    className="pl-10"
+                  />
+                </div>
+                <Button onClick={handleSearch} disabled={loading} variant="secondary">
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Search"}
                 </Button>
               </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">City (optional - filter by location)</label>
+              <Input
+                placeholder="e.g. Amritsar, Delhi, Mumbai — leave blank for all"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                onBlur={() => fetchDoctors()}
+              />
             </div>
           </div>
 
