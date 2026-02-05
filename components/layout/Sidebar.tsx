@@ -151,6 +151,9 @@ export function Sidebar({ className }: SidebarProps) {
           {filteredNavItems.map((item) => {
             const Icon = item.icon
             const isActive = pathname ? (pathname === item.href || pathname.startsWith(item.href + "/")) : false
+            const userRole = user?.role?.toLowerCase()
+            const isDoctor = userRole === "doctor"
+            const displayTitle = isDoctor && item.href === "/appointments/create" ? "Create Appointment" : item.title
 
             return (
               <Link
@@ -162,7 +165,7 @@ export function Sidebar({ className }: SidebarProps) {
                 )}
               >
                 <Icon className="h-5 w-5 flex-shrink-0" />
-                <span>{item.title}</span>
+                <span>{displayTitle}</span>
               </Link>
             )
           })}

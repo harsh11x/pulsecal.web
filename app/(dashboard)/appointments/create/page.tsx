@@ -29,9 +29,10 @@ interface ClinicDoctor {
 export default function CreateAppointmentPage() {
   const router = useRouter()
   const { user } = useAppSelector((state) => state.auth)
-  const isPatient = user?.role === "PATIENT"
-  const isReceptionist = user?.role === "RECEPTIONIST"
-  const isDoctor = user?.role === "DOCTOR"
+  const role = user?.role?.toLowerCase()
+  const isPatient = role === "patient"
+  const isReceptionist = role === "receptionist"
+  const isDoctor = role === "doctor"
 
   if (isPatient) {
     return (
@@ -276,7 +277,9 @@ export default function CreateAppointmentPage() {
       <Card>
         <CardHeader>
           <CardTitle>Create New Appointment</CardTitle>
-          <CardDescription>Schedule an appointment for a patient</CardDescription>
+          <CardDescription>
+            {isDoctor ? "Schedule a patient appointment with yourself" : "Schedule an appointment for a patient"}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
