@@ -1,33 +1,125 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Bell, Check, Trash2, Calendar, FileText, MessageSquare } from "lucide-react"
+import { Bell, Check, Trash2, Calendar, FileText, MessageSquare, Loader2 } from "lucide-react"
 import { format } from "date-fns"
+import { apiService } from "@/services/api"
+import { SOCKET_EVENTS } from "@/utils/constants"
+import { socketService } from "@/services/socket"
+import { useAppDispatch } from "@/app/hooks"
+import { incrementUnreadCount } from "@/app/features/notificationSlice"
 
 interface Notification {
   id: string
-  type: "appointment" | "message" | "record"
+  type: string
   title: string
   message: string
   timestamp: Date
   read: boolean
 }
 
+const mapApiNotification = (n: any): Notification => ({
+  id: n.id,
+  type: ["NEW_APPOINTMENT", "UPCOMING_APPOINTMENT", "COMPLETED_VISIT", "CANCELLATION", "APPOINTMENT_REMINDER"].includes(n.type) ? "appointment" : n.type === "PAYMENT_RECEIVED" ? "record" : "message",
+  title: n.title,
+  message: n.message,
+  timestamp: new Date(n.createdAt),
+  read: !!n.isRead,
+})
+
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([])
+  const [loading, setLoading] = useState(true)
+  const dispatch = useAppDispatch()
 
-  const markAsRead = (id: string) => {
-    setNotifications(notifications.map((notif) => (notif.id === id ? { ...notif, read: true } : notif)))
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const res = await apiService.get<any>("/notifications?limit=100")
+      const list = Array.isArray(res?.notifications) ? res.notifications : []
+      setNotifications(list.map(mapApiNotification))
+    } catch (err) {
+      console.error("Failed to fetch notifications:", err)
+      setNotifications([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchNotifications()
+  }, [fetchNotifications])
+
+  // Real-time: connect and listen for new notifications
+  useEffect(() => {
+    socketService.connect()
+    const handleNew = (payload: any) => {
+      const n = payload?.data ?? payload
+      if (n?.title && n?.message) {
+        setNotifications((prev) => [
+          {
+            id: `socket-${Date.now()}`,
+            type: "appointment",
+            title: n.title,
+            message: n.message,
+            timestamp: new Date(),
+            read: false,
+          },
+          ...prev,
+        ])
+        dispatch(incrementUnreadCount())
+      }
+    }
+    const handleGeneric = (payload: any) => {
+      if (payload?.title && payload?.message) {
+        setNotifications((prev) => [
+          {
+            id: `socket-${Date.now()}`,
+            type: payload.type === "NEW_APPOINTMENT" ? "appointment" : "message",
+            title: payload.title,
+            message: payload.message,
+            timestamp: new Date(),
+            read: false,
+          },
+          ...prev,
+        ])
+        dispatch(incrementUnreadCount())
+      }
+    }
+    socketService.on(SOCKET_EVENTS.APPOINTMENT_NEW, handleNew)
+    socketService.on(SOCKET_EVENTS.NOTIFICATION, handleGeneric)
+    return () => {
+      socketService.off(SOCKET_EVENTS.APPOINTMENT_NEW, handleNew)
+      socketService.off(SOCKET_EVENTS.NOTIFICATION, handleGeneric)
+    }
+  }, [dispatch])
+
+  const markAsRead = async (id: string) => {
+    if (id.startsWith("socket-")) {
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
+      return
+    }
+    try {
+      await apiService.put(`/notifications/${id}/read`, {})
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
+    } catch (err) {
+      console.error("Failed to mark as read:", err)
+    }
   }
 
   const deleteNotification = (id: string) => {
-    setNotifications(notifications.filter((notif) => notif.id !== id))
+    setNotifications((prev) => prev.filter((n) => n.id !== id))
+    // API doesn't support delete; local only for socket-sourced items
   }
 
-  const markAllAsRead = () => {
-    setNotifications(notifications.map((notif) => ({ ...notif, read: true })))
+  const markAllAsRead = async () => {
+    try {
+      await apiService.put("/notifications/read-all", {})
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+    } catch (err) {
+      console.error("Failed to mark all as read:", err)
+    }
   }
 
   const getIcon = (type: string) => {
@@ -44,6 +136,14 @@ export default function NotificationsPage() {
   }
 
   const unreadCount = notifications.filter((n) => !n.read).length
+
+  if (loading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">

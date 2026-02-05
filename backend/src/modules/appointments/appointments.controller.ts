@@ -131,17 +131,25 @@ export const createAppointmentController = async (
       status: (req.user?.role === 'DOCTOR' || req.user?.role === 'RECEPTIONIST') ? 'CONFIRMED' : 'SCHEDULED',
     });
 
-    // Emit real-time notification
-    const { emitNewAppointment } = await import('../../utils/socketEmitter');
-    const appointmentWithPatient = appointment as any;
-    emitNewAppointment({
-      id: appointment.id,
+    // Notify patient, doctor, and receptionists (DB + real-time)
+    const appointmentWithRelations = appointment as any;
+    const patientName = appointmentWithRelations.patient
+      ? `${appointmentWithRelations.patient.firstName} ${appointmentWithRelations.patient.lastName}`.trim() || 'Patient'
+      : 'Patient';
+    const doctorName = appointmentWithRelations.doctor
+      ? `Dr. ${appointmentWithRelations.doctor.firstName} ${appointmentWithRelations.doctor.lastName}`.trim()
+      : undefined;
+
+    const { notifyAppointmentCreated } = await import('../../utils/notificationHelper');
+    notifyAppointmentCreated({
+      appointmentId: appointment.id,
       doctorId: appointment.doctorId,
       patientId: appointment.patientId || '',
-      patientName: appointmentWithPatient.patient ? `${appointmentWithPatient.patient.firstName} ${appointmentWithPatient.patient.lastName}` : 'Unknown Patient',
+      patientName,
+      doctorName,
       scheduledAt: appointment.scheduledAt,
       reason: appointment.reason || undefined,
-    });
+    }).catch((err) => console.error('Failed to send appointment notifications:', err));
 
     sendSuccess(res, appointment, 'Appointment created successfully', 201);
   } catch (err) {
@@ -317,16 +325,24 @@ export const createPatientAppointmentController = async (
       status: 'CONFIRMED',
     });
 
-    const { emitNewAppointment } = await import('../../utils/socketEmitter');
-    const appointmentWithPatient = appointment as any;
-    emitNewAppointment({
-      id: appointment.id,
+    const { notifyAppointmentCreated } = await import('../../utils/notificationHelper');
+    const aptWithRelations = appointment as any;
+    const patientName = aptWithRelations.patient
+      ? `${aptWithRelations.patient.firstName} ${aptWithRelations.patient.lastName}`.trim() || 'Patient'
+      : 'Patient';
+    const doctorName = aptWithRelations.doctor
+      ? `Dr. ${aptWithRelations.doctor.firstName} ${aptWithRelations.doctor.lastName}`.trim()
+      : undefined;
+
+    notifyAppointmentCreated({
+      appointmentId: appointment.id,
       doctorId: appointment.doctorId,
       patientId: appointment.patientId || '',
-      patientName: appointmentWithPatient.patient ? `${appointmentWithPatient.patient.firstName} ${appointmentWithPatient.patient.lastName}` : 'Unknown Patient',
+      patientName,
+      doctorName,
       scheduledAt: appointment.scheduledAt,
       reason: appointment.reason || undefined,
-    });
+    }).catch((err) => console.error('Failed to send appointment notifications:', err));
 
     sendSuccess(res, appointment, 'Appointment created successfully', 201);
   } catch (err) {

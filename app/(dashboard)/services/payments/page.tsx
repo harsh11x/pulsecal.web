@@ -5,23 +5,48 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { CreditCard, Calendar, Download, Plus, Loader2 } from "lucide-react"
+import { CreditCard, Download, Plus, Loader2, AlertCircle } from "lucide-react"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { formatCurrency } from "@/utils/helpers"
 import { useEffect, useState } from "react"
 import { apiService } from "@/services/api"
 import { format } from "date-fns"
-
 export default function Payments() {
   const [data, setData] = useState<any>({ transactions: [], summary: { totalPaid: 0, totalPending: 0 } })
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const parseAmount = (val: unknown): number => {
+    if (typeof val === "number") return val
+    if (typeof val === "string") return parseFloat(val) || 0
+    if (val != null && typeof (val as any)?.toString === "function") return parseFloat(String((val as any).toString())) || 0
+    return 0
+  }
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response: any = await apiService.get("/patients/payments")
-        setData(response.data || { transactions: [], summary: { totalPaid: 0, totalPending: 0 } })
-      } catch (error) {
-        console.error("Failed to fetch payments:", error)
+        setError(null)
+        const res = await apiService.get<unknown>("/payments?limit=100")
+        // Handle array (from sendPaginated unwrap) or object with payments/data
+        const list = Array.isArray(res)
+          ? res
+          : (res as any)?.payments ?? (res as any)?.data ?? []
+        const arr = Array.isArray(list) ? list : []
+        const totalPaid = arr
+          .filter((p: any) => p?.status === "COMPLETED")
+          .reduce((sum: number, p: any) => sum + parseAmount(p?.amount), 0)
+        const totalPending = arr
+          .filter((p: any) => p?.status === "PENDING")
+          .reduce((sum: number, p: any) => sum + parseAmount(p?.amount), 0)
+        setData({
+          transactions: arr,
+          summary: { totalPaid, totalPending },
+        })
+      } catch (err: any) {
+        console.error("Failed to fetch payments:", err)
+        setError(err?.response?.data?.message || err?.message || "Failed to load payments")
+        setData({ transactions: [], summary: { totalPaid: 0, totalPending: 0 } })
       } finally {
         setLoading(false)
       }
@@ -58,6 +83,13 @@ export default function Payments() {
   return (
     <ProtectedRoute>
       <div className="space-y-6">
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-balance">Payments & Billing</h1>
@@ -127,10 +159,10 @@ export default function Payments() {
                       >
                         <div className="flex items-center gap-3">
                           <div
-                            className={`h-10 w-10 rounded-full flex items-center justify-center ${transaction.amount > 0 ? "bg-green-100" : "bg-muted"
+                            className={`h-10 w-10 rounded-full flex items-center justify-center ${parseAmount(transaction.amount) > 0 ? "bg-green-100" : "bg-muted"
                               }`}
                           >
-                            <span className={`text-lg font-bold ${transaction.amount > 0 ? "text-green-600" : "text-muted-foreground"}`}>₹</span>
+                            <span className={`text-lg font-bold ${parseAmount(transaction.amount) > 0 ? "text-green-600" : "text-muted-foreground"}`}>₹</span>
                           </div>
                           <div>
                             <p className="font-medium">{transaction.description || "Payment"}</p>
@@ -141,7 +173,7 @@ export default function Payments() {
                         </div>
                         <div className="flex items-center gap-2">
                           <p className="font-semibold">
-                            {formatCurrency(transaction.amount)}
+                            {formatCurrency(parseAmount(transaction.amount))}
                           </p>
                           {getStatusBadge(transaction.status)}
                         </div>

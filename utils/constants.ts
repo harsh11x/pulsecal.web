@@ -71,6 +71,7 @@ export const SOCKET_EVENTS = {
   CONNECT: "connect",
   DISCONNECT: "disconnect",
   CHAT_MESSAGE: "chat:message",
+  APPOINTMENT_NEW: "appointment:new",
   APPOINTMENT_UPDATE: "appointment:update",
   QUEUE_UPDATE: "queue:update",
   NOTIFICATION: "notification",

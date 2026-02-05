@@ -349,16 +349,24 @@ export const verifyAppointmentPaymentController = async (
       description: 'Consultation Fee',
     });
 
-    const { emitNewAppointment } = await import('../../utils/socketEmitter');
-    const aptWithPatient = appointment as any;
-    emitNewAppointment({
-      id: appointment.id,
+    const { notifyAppointmentCreated } = await import('../../utils/notificationHelper');
+    const aptWithRelations = appointment as any;
+    const patientName = aptWithRelations.patient
+      ? `${aptWithRelations.patient.firstName} ${aptWithRelations.patient.lastName}`.trim() || 'Patient'
+      : 'Patient';
+    const doctorName = aptWithRelations.doctor
+      ? `Dr. ${aptWithRelations.doctor.firstName} ${aptWithRelations.doctor.lastName}`.trim()
+      : undefined;
+
+    notifyAppointmentCreated({
+      appointmentId: appointment.id,
       doctorId: appointment.doctorId,
       patientId: appointment.patientId || '',
-      patientName: aptWithPatient.patient ? `${aptWithPatient.patient.firstName} ${aptWithPatient.patient.lastName}` : 'Unknown Patient',
+      patientName,
+      doctorName,
       scheduledAt: appointment.scheduledAt,
       reason: appointment.reason || undefined,
-    });
+    }).catch((err) => console.error('Failed to send appointment notifications:', err));
 
     sendSuccess(res, {
       appointment,

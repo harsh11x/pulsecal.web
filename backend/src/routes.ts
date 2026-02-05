@@ -20,6 +20,7 @@ import doctorProfilesRoutes from './modules/doctor-profiles/doctor-profiles.rout
 import patientProfilesRoutes from './modules/patient-profiles/patient-profiles.routes';
 import receptionistsRoutes from './modules/receptionists/receptionists.routes';
 import reviewsRoutes from './modules/reviews/reviews.routes';
+import notificationsRoutes from './modules/notifications/notifications.routes';
 import { config } from './config/env';
 
 const router = Router();
@@ -53,5 +54,6 @@ router.use(`${apiPrefix}/doctor-profiles`, doctorProfilesRoutes);
 router.use(`${apiPrefix}/patient-profiles`, patientProfilesRoutes);
 router.use(`${apiPrefix}/receptionists`, receptionistsRoutes);
 router.use(`${apiPrefix}/reviews`, reviewsRoutes);
+router.use(`${apiPrefix}/notifications`, notificationsRoutes);
 
 export default router;

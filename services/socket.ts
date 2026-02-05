@@ -41,7 +41,9 @@ class SocketService {
       console.warn("[Socket] Using relative path - WebSocket connections may not work. Configure HTTPS backend for full functionality.")
     }
 
-    this.socket = io(finalSocketUrl, {
+    // Connect to /notifications namespace - where appointment:new, notification, etc. are emitted
+    const notificationsUrl = finalSocketUrl.replace(/\/$/, '') + '/notifications'
+    this.socket = io(notificationsUrl, {
       auth: { token },
       extraHeaders: {
         Authorization: `Bearer ${token}`,

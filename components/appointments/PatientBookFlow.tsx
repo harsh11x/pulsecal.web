@@ -10,7 +10,6 @@ import { apiService } from "@/services/api"
 import { toast } from "sonner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface Doctor {
   id?: string
@@ -20,6 +19,7 @@ interface Doctor {
   specialization: string
   clinicName?: string
   consultationFee: number
+  services?: string[]
   user?: { id: string; firstName: string; lastName: string }
 }
 
@@ -127,7 +127,7 @@ export function PatientBookFlow() {
   }
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto">
+    <div className="space-y-6 max-w-4xl mx-auto">
       <Tabs defaultValue="symptom">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="symptom">Find Doctors</TabsTrigger>
@@ -176,27 +176,65 @@ export function PatientBookFlow() {
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             <label className="text-sm font-medium">Select Doctor</label>
-            <Select
-              value={selectedDoctor ? doctorId(selectedDoctor) : ""}
-              onValueChange={(id) => {
-                const doc = doctors.find((d) => doctorId(d) === id)
-                setSelectedDoctor(doc ?? null)
-              }}
-              disabled={loading}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder={loading ? "Loading doctors..." : "Select a doctor (all in city with rates)..."} />
-              </SelectTrigger>
-              <SelectContent className="max-h-[280px] overflow-y-auto">
-                {doctors.map((doc) => (
-                  <SelectItem key={doctorId(doc)} value={doctorId(doc)}>
-                    Dr. {doc.user?.firstName ?? doc.firstName} {doc.user?.lastName ?? doc.lastName} — {doc.specialization} • {doc.clinicName || "Clinic"} • ₹{Number(doc.consultationFee || 0)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {loading ? (
+              <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+            ) : doctors.length === 0 ? (
+              <p className="text-center py-8 text-muted-foreground text-sm">No doctors found. Try a different city or search.</p>
+            ) : (
+              <ScrollArea className="h-[400px] rounded-lg border p-2">
+                <div className="space-y-3 pr-4">
+                  {doctors.map((doc) => {
+                    const isSelected = selectedDoctor && doctorId(selectedDoctor) === doctorId(doc)
+                    const fullName = `Dr. ${doc.user?.firstName ?? doc.firstName ?? ""} ${doc.user?.lastName ?? doc.lastName ?? ""}`.trim()
+                    const clinic = doc.clinicName || "Clinic"
+                    const fee = Number(doc.consultationFee || 0)
+                    const services = Array.isArray(doc.services) ? doc.services : []
+                    return (
+                      <Card
+                        key={doctorId(doc)}
+                        className={`cursor-pointer transition-all hover:shadow-md ${isSelected ? "border-primary border-2 bg-primary/5 ring-2 ring-primary/20" : "hover:border-primary/50"}`}
+                        onClick={() => setSelectedDoctor(doc)}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-base break-words">{fullName || "Dr. Unknown"}</p>
+                              <p className="text-sm text-muted-foreground mt-0.5">{doc.specialization}</p>
+                              <p className="text-sm flex items-start gap-1.5 mt-2 text-foreground">
+                                <Building2 className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+                                <span className="break-words">{clinic}</span>
+                              </p>
+                              {services.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 mt-2">
+                                  {services.slice(0, 5).map((s, i) => (
+                                    <span key={i} className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{s}</span>
+                                  ))}
+                                  {services.length > 5 && (
+                                    <span className="text-xs text-muted-foreground">+{services.length - 5} more</span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                              <p className="font-semibold text-base flex items-center gap-1">
+                                <IndianRupee className="h-4 w-4" />
+                                {fee > 0 ? `₹${fee}` : "Free"}
+                              </p>
+                              <Button size="sm" onClick={(e) => { e.stopPropagation(); router.push(`/doctors/${doctorId(doc)}/book`) }}>
+                                <Calendar className="h-3.5 w-3.5 mr-1.5" />
+                                Book
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
+                </div>
+              </ScrollArea>
+            )}
           </div>
 
           {selectedDoctor && (
@@ -248,24 +286,39 @@ export function PatientBookFlow() {
                   <p className="text-muted-foreground text-sm py-4">No doctors at this clinic.</p>
                 ) : (
                   <div className="space-y-4">
-                    <Select
-                      value={selectedDoctor && clinicDoctors.some((d) => doctorId(d) === doctorId(selectedDoctor)) ? doctorId(selectedDoctor) : ""}
-                      onValueChange={(id) => {
-                        const doc = clinicDoctors.find((d) => doctorId(d) === id)
-                        setSelectedDoctor(doc ?? null)
-                      }}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Choose a doctor from this clinic..." />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-[240px] overflow-y-auto">
-                        {clinicDoctors.map((doc) => (
-                          <SelectItem key={doctorId(doc)} value={doctorId(doc)}>
-                            Dr. {doc.user?.firstName ?? doc.firstName} {doc.user?.lastName ?? doc.lastName} — {doc.specialization} • ₹{Number(doc.consultationFee || 0)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <ScrollArea className="h-[320px] rounded-lg border p-2">
+                      <div className="space-y-3 pr-4">
+                        {clinicDoctors.map((doc) => {
+                          const isSelected = selectedDoctor && doctorId(selectedDoctor) === doctorId(doc)
+                          const fullName = `Dr. ${doc.user?.firstName ?? doc.firstName ?? ""} ${doc.user?.lastName ?? doc.lastName ?? ""}`.trim()
+                          const fee = Number(doc.consultationFee || 0)
+                          return (
+                            <Card
+                              key={doctorId(doc)}
+                              className={`cursor-pointer transition-all hover:shadow-md ${isSelected ? "border-primary border-2 bg-primary/5" : "hover:border-primary/50"}`}
+                              onClick={() => setSelectedDoctor(doc)}
+                            >
+                              <CardContent className="p-4">
+                                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-semibold text-base break-words">{fullName || "Dr. Unknown"}</p>
+                                    <p className="text-sm text-muted-foreground mt-0.5">{doc.specialization}</p>
+                                    <p className="text-sm flex items-center gap-1.5 mt-2 font-medium">
+                                      <IndianRupee className="h-3.5 w-3.5" />
+                                      {fee > 0 ? `₹${fee}` : "Free"}
+                                    </p>
+                                  </div>
+                                  <Button size="sm" onClick={(e) => { e.stopPropagation(); router.push(`/doctors/${doctorId(doc)}/book`) }}>
+                                    <Calendar className="h-3.5 w-3.5 mr-1.5" />
+                                    Book
+                                  </Button>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          )
+                        })}
+                      </div>
+                    </ScrollArea>
                     {selectedDoctor && clinicDoctors.some((d) => doctorId(d) === doctorId(selectedDoctor)) && (
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border-2 border-primary/20 rounded-lg bg-primary/5">
                         <div>
