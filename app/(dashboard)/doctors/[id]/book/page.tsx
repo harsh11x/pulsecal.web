@@ -18,7 +18,9 @@ export default function BookAppointmentPage() {
     setLoading(true)
     apiService.get(`/doctors/${doctorId}`).then((d: any) => {
       const profile = d?.doctorProfile ?? d
-      setFee(profile?.consultationFee != null ? Number(profile.consultationFee) : 0)
+      const rawFee = profile?.consultationFee ?? d?.consultationFee
+      const numFee = rawFee != null ? Number(rawFee) : null
+      setFee(numFee !== null && !isNaN(numFee) ? numFee : 0)
     }).catch(() => setFee(0)).finally(() => setLoading(false))
   }, [doctorId])
 

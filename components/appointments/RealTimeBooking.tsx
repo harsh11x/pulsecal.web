@@ -46,16 +46,13 @@ export function RealTimeBooking({ doctorId, doctorName, consultationFee, onBooki
 
     const fetchSlots = async () => {
         try {
-            // Use relative path to go through Next.js proxy (HTTPS)
-            const res = await fetch(`/api/v1/doctors/${doctorId}/slots?days=10`, {
-                headers: { Authorization: `Bearer ${token}` }
-            })
-            if (res.ok) {
-                const data = await res.json()
-                setDays(data.data || [])
-            }
+            const data: any = await apiService.get(`/doctors/${doctorId}/slots?days=10`)
+            const slotsArray = Array.isArray(data) ? data : (data?.data ?? data?.slots ?? [])
+            setDays(slotsArray)
         } catch (error) {
             console.error("Failed to fetch slots", error)
+            setDays([])
+            toast.error("Could not load available slots. Please try again.")
         } finally {
             setFetching(false)
         }
@@ -216,6 +213,15 @@ export function RealTimeBooking({ doctorId, doctorName, consultationFee, onBooki
     const selectedDaySlots = days.find(d => d.date === selectedDate)
 
     if (fetching) return <div className="p-4 text-center">Loading availability...</div>
+
+    if (days.length === 0) {
+        return (
+            <div className="p-6 text-center border rounded-lg bg-muted/30">
+                <p className="text-muted-foreground font-medium">No availability at the moment</p>
+                <p className="text-sm text-muted-foreground mt-1">The doctor may not have set their schedule yet. Please try again later or contact the clinic.</p>
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-6">

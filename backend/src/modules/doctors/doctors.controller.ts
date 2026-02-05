@@ -131,7 +131,11 @@ export const getDoctorByIdController = async (
   try {
     const { id } = req.params;
     const doctor = await getDoctorById(id);
-    sendSuccess(res, doctor, 'Doctor retrieved successfully');
+    const serialized = {
+      ...doctor,
+      consultationFee: doctor.consultationFee != null ? Number(doctor.consultationFee) : 0,
+    };
+    sendSuccess(res, serialized, 'Doctor retrieved successfully');
   } catch (err: any) {
     logger.error({ error: err.message }, 'Error in getDoctorByIdController');
     next(err);
