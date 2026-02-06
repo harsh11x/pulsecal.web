@@ -206,15 +206,20 @@ export const verifyRazorpayPaymentController = async (
 
     if (appointmentId) {
       // Existing appointment - update status and create payment
+      const apt = await prisma.appointment.findUnique({
+        where: { id: appointmentId },
+        include: { patient: true, doctor: true },
+      });
       await prisma.appointment.update({
         where: { id: appointmentId },
         data: { status: 'CONFIRMED' }
       });
 
+      const amount = Number(order.amount) / 100;
       await createPayment({
         patientId: req.user?.id!,
         appointmentId,
-        amount: Number(order.amount) / 100,
+        amount,
         currency: 'INR',
         method: 'RAZORPAY_ONLINE',
         transactionId: razorpay_payment_id,
@@ -224,6 +229,17 @@ export const verifyRazorpayPaymentController = async (
         status: 'COMPLETED',
         description: 'Consultation Fee',
       });
+
+      if (apt?.doctorId) {
+        const patientName = apt.patient ? `${apt.patient.firstName || ''} ${apt.patient.lastName || ''}`.trim() || 'Patient' : 'Patient';
+        const { notifyPaymentReceived } = await import('../../utils/notificationHelper');
+        notifyPaymentReceived({
+          doctorId: apt.doctorId,
+          patientName,
+          amount,
+          appointmentId,
+        }).catch((err) => console.error('Failed to send payment notification:', err));
+      }
     }
 
     sendSuccess(res, { paymentId: razorpay_payment_id, appointmentId }, 'Payment verified and appointment confirmed');

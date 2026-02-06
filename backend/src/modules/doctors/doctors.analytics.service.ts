@@ -407,3 +407,60 @@ export const getDoctorAnalytics = async (
     throw error;
   }
 };
+
+/**
+ * Get financial reports in format expected by DoctorFinancialReports component
+ */
+export const getFinancialReports = async (
+  doctorId: string,
+  type: 'daily' | 'monthly' | 'yearly' = 'monthly'
+) => {
+  const periodMap = { daily: 'week' as const, monthly: 'month' as const, yearly: 'year' as const };
+  const analytics = await getDoctorAnalytics(doctorId, periodMap[type]);
+
+  const totalAppointments = analytics.thisMonth.appointments;
+  const totalRevenue = analytics.thisMonth.revenue;
+  const confirmedAppointments = analytics.thisMonth.patients;
+  const cancelledAppointments = analytics.thisMonth.cancellations;
+
+  const periodLabel = type === 'daily'
+    ? 'Last 7 days'
+    : type === 'monthly'
+      ? 'This month'
+      : 'This year';
+
+  const revenueData = analytics.revenueData || [];
+
+  const dailyBreakdown = type === 'daily'
+    ? revenueData.map((r: any) => ({
+        date: new Date(r.date).toISOString().split('T')[0],
+        revenue: r.revenue || 0,
+        appointments: 0,
+      }))
+    : undefined;
+
+  const monthlyBreakdown = (type === 'monthly' || type === 'yearly')
+    ? revenueData.map((r: any) => ({
+        month: new Date(r.date).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+        revenue: r.revenue || 0,
+        appointments: 0,
+      }))
+    : undefined;
+
+  return {
+    period: periodLabel,
+    totalRevenue: Number(totalRevenue.toFixed(2)),
+    totalAppointments,
+    confirmedAppointments,
+    cancelledAppointments,
+    averageRevenuePerVisit: confirmedAppointments > 0
+      ? Number((totalRevenue / confirmedAppointments).toFixed(2))
+      : 0,
+    dailyBreakdown,
+    monthlyBreakdown: monthlyBreakdown || (dailyBreakdown?.map((d: any) => ({
+      month: d.date,
+      revenue: d.revenue,
+      appointments: d.appointments,
+    }))),
+  };
+};

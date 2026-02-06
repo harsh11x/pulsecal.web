@@ -20,14 +20,23 @@ interface Notification {
   read: boolean
 }
 
-const mapApiNotification = (n: any): Notification => ({
-  id: n.id,
-  type: ["NEW_APPOINTMENT", "UPCOMING_APPOINTMENT", "COMPLETED_VISIT", "CANCELLATION", "APPOINTMENT_REMINDER"].includes(n.type) ? "appointment" : n.type === "PAYMENT_RECEIVED" ? "record" : "message",
-  title: n.title,
-  message: n.message,
-  timestamp: new Date(n.createdAt),
-  read: !!n.isRead,
-})
+const mapApiNotification = (n: any): Notification => {
+  const appointmentTypes = ["NEW_APPOINTMENT", "UPCOMING_APPOINTMENT", "COMPLETED_VISIT", "CANCELLATION", "APPOINTMENT_REMINDER", "RESCHEDULED"];
+  const paymentTypes = ["PAYMENT_RECEIVED", "PAYMENT_SENT"];
+  const subscriptionTypes = ["SUBSCRIPTION_EXPIRING", "SUBSCRIPTION_EXPIRED"];
+  let type = "message";
+  if (appointmentTypes.includes(n.type)) type = "appointment";
+  else if (paymentTypes.includes(n.type)) type = "record";
+  else if (subscriptionTypes.includes(n.type)) type = "message";
+  return {
+    id: n.id,
+    type,
+    title: n.title,
+    message: n.message,
+    timestamp: new Date(n.createdAt),
+    read: !!n.isRead,
+  };
+}
 
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -37,7 +46,8 @@ export default function NotificationsPage() {
   const fetchNotifications = useCallback(async () => {
     try {
       const res = await apiService.get<any>("/notifications?limit=100")
-      const list = Array.isArray(res?.notifications) ? res.notifications : []
+      // Handle both { notifications } and direct array (api unwrap may return data object)
+      const list = Array.isArray(res?.notifications) ? res.notifications : Array.isArray(res) ? res : []
       setNotifications(list.map(mapApiNotification))
     } catch (err) {
       console.error("Failed to fetch notifications:", err)

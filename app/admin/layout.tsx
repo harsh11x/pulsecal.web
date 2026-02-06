@@ -17,8 +17,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         if (pathname === "/admin/login") return
 
         if (!isLoading && (!isAuthenticated || !user)) {
-            // Redirect to admin login instead of home
             router.push("/admin/login")
+        } else if (!isLoading && user?.role !== "ADMIN" && pathname?.startsWith("/admin")) {
+            // Non-admin trying to access admin - redirect to their dashboard
+            router.push("/dashboard")
         }
     }, [isLoading, isAuthenticated, user, router, pathname])
 

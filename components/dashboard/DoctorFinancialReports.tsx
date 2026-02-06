@@ -244,13 +244,13 @@ export default function DoctorFinancialReports() {
                 <div>
                   <p className="text-sm text-muted-foreground">Confirmation Rate</p>
                   <p className="text-2xl font-bold">
-                    {((reportData.confirmedAppointments / reportData.totalAppointments) * 100).toFixed(1)}%
+                    {reportData.totalAppointments ? ((reportData.confirmedAppointments / reportData.totalAppointments) * 100).toFixed(1) : "0"}%
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Cancellation Rate</p>
                   <p className="text-2xl font-bold">
-                    {((reportData.cancelledAppointments / reportData.totalAppointments) * 100).toFixed(1)}%
+                    {reportData.totalAppointments ? ((reportData.cancelledAppointments / reportData.totalAppointments) * 100).toFixed(1) : "0"}%
                   </p>
                 </div>
               </div>

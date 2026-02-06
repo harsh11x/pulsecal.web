@@ -117,3 +117,116 @@ export const notifyAppointmentCreated = async (params: {
     }
   }
 };
+
+/**
+ * Notify when appointment is cancelled
+ */
+export const notifyAppointmentCancelled = async (params: {
+  appointmentId: string;
+  doctorId: string;
+  patientId: string;
+  patientName: string;
+  doctorName?: string;
+  scheduledAt: Date;
+  cancellationReason?: string;
+}): Promise<void> => {
+  const { appointmentId, doctorId, patientId, patientName, doctorName, scheduledAt, cancellationReason } = params;
+  const scheduledStr = scheduledAt instanceof Date ? scheduledAt.toLocaleString() : String(scheduledAt);
+  const reasonStr = cancellationReason ? ` Reason: ${cancellationReason}` : '';
+
+  const patientTitle = 'Appointment Cancelled';
+  const patientMessage = doctorName
+    ? `Your appointment with Dr. ${doctorName} scheduled for ${scheduledStr} has been cancelled.${reasonStr}`
+    : `Your appointment scheduled for ${scheduledStr} has been cancelled.${reasonStr}`;
+
+  await prisma.notification.create({
+    data: {
+      userId: patientId,
+      type: 'CANCELLATION',
+      title: patientTitle,
+      message: patientMessage,
+      metadata: { appointmentId, type: 'CANCELLATION' } as object,
+    },
+  });
+  emitNotification(patientId, { type: 'CANCELLATION', title: patientTitle, message: patientMessage });
+
+  const doctorTitle = 'Appointment Cancelled';
+  const doctorMessage = `Appointment with ${patientName} on ${scheduledStr} was cancelled.${reasonStr}`;
+  await prisma.notification.create({
+    data: {
+      userId: doctorId,
+      type: 'CANCELLATION',
+      title: doctorTitle,
+      message: doctorMessage,
+      metadata: { appointmentId, type: 'CANCELLATION' } as object,
+    },
+  });
+  emitNotification(doctorId, { type: 'CANCELLATION', title: doctorTitle, message: doctorMessage });
+};
+
+/**
+ * Notify when appointment is completed
+ */
+export const notifyAppointmentCompleted = async (params: {
+  appointmentId: string;
+  doctorId: string;
+  patientId: string;
+  patientName: string;
+  doctorName?: string;
+}): Promise<void> => {
+  const { appointmentId, doctorId, patientId, patientName, doctorName } = params;
+
+  const patientTitle = 'Visit Completed';
+  const patientMessage = doctorName
+    ? `Your visit with Dr. ${doctorName} has been completed.`
+    : 'Your visit has been completed.';
+
+  await prisma.notification.create({
+    data: {
+      userId: patientId,
+      type: 'COMPLETED_VISIT',
+      title: patientTitle,
+      message: patientMessage,
+      metadata: { appointmentId, type: 'COMPLETED_VISIT' } as object,
+    },
+  });
+  emitNotification(patientId, { type: 'COMPLETED_VISIT', title: patientTitle, message: patientMessage });
+
+  const doctorTitle = 'Appointment Completed';
+  const doctorMessage = `Visit with ${patientName} has been marked as completed.`;
+  await prisma.notification.create({
+    data: {
+      userId: doctorId,
+      type: 'COMPLETED_VISIT',
+      title: doctorTitle,
+      message: doctorMessage,
+      metadata: { appointmentId, type: 'COMPLETED_VISIT' } as object,
+    },
+  });
+  emitNotification(doctorId, { type: 'COMPLETED_VISIT', title: doctorTitle, message: doctorMessage });
+};
+
+/**
+ * Notify doctor when payment is received
+ */
+export const notifyPaymentReceived = async (params: {
+  doctorId: string;
+  patientName: string;
+  amount: number;
+  appointmentId?: string;
+}): Promise<void> => {
+  const { doctorId, patientName, amount, appointmentId } = params;
+  const title = 'Payment Received';
+  const message = `Payment of ₹${amount} received from ${patientName}.`;
+
+  await prisma.notification.create({
+    data: {
+      userId: doctorId,
+      type: 'PAYMENT_RECEIVED',
+      title,
+      message,
+      metadata: { appointmentId, amount, type: 'PAYMENT_RECEIVED' } as object,
+    },
+  });
+  emitNotification(doctorId, { type: 'PAYMENT_RECEIVED', title, message });
+};

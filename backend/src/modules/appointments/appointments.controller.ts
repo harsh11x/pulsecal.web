@@ -79,25 +79,27 @@ export const createAppointmentController = async (
     // Handle Manual Patient Entry (Find or Create)
     if (value.patientDetails) {
       const { firstName, lastName, phone, email, dob } = value.patientDetails;
+      const emailVal = (email && String(email).trim()) ? String(email).trim() : null;
 
-      // Check if patient exists
+      // Check if patient exists (by phone; include email only if provided)
       const whereClause: any = { OR: [{ phone }] };
-      if (email) whereClause.OR.push({ email });
+      if (emailVal) whereClause.OR.push({ email: emailVal });
 
       let patient = await prisma.user.findFirst({
         where: whereClause
       });
 
       if (!patient) {
-        // Create new Shadow Patient
-        // Ideally imported bcrypt
+        // Create new Shadow Patient - User model requires unique email; use placeholder when empty
         const bcrypt = await import('bcrypt');
+        const crypto = await import('crypto');
+        const patientEmail = emailVal || `patient-${phone.replace(/\D/g, '')}-${crypto.randomBytes(4).toString('hex')}@pulsecal.local`;
         patient = await prisma.user.create({
           data: {
             firstName,
             lastName: lastName || '',
             phone,
-            email: email || undefined,
+            email: patientEmail,
             role: 'PATIENT',
             password: await bcrypt.hash('Pulsecal@123', 10), // Default password
             isActive: true,
@@ -207,6 +209,20 @@ export const updateAppointmentController = async (
     }
     const appointment = await updateAppointment(req.params.id, value);
 
+    if (value.status === 'COMPLETED') {
+      const apt = appointment as any;
+      const patientName = apt.patient ? `${apt.patient.firstName || ''} ${apt.patient.lastName || ''}`.trim() || 'Patient' : 'Patient';
+      const doctorName = apt.doctor ? `Dr. ${apt.doctor.firstName || ''} ${apt.doctor.lastName || ''}`.trim() : undefined;
+      const { notifyAppointmentCompleted } = await import('../../utils/notificationHelper');
+      notifyAppointmentCompleted({
+        appointmentId: appointment.id,
+        doctorId: appointment.doctorId,
+        patientId: appointment.patientId || '',
+        patientName,
+        doctorName,
+      }).catch((err) => console.error('Failed to send completion notifications:', err));
+    }
+
     // Emit real-time update
     const { emitAppointmentUpdate } = await import('../../utils/socketEmitter');
     emitAppointmentUpdate({
@@ -268,6 +284,20 @@ export const cancelAppointmentController = async (
       req.params.id,
       value.cancellationReason
     );
+
+    const apt = appointment as any;
+    const patientName = apt.patient ? `${apt.patient.firstName || ''} ${apt.patient.lastName || ''}`.trim() || 'Patient' : 'Patient';
+    const doctorName = apt.doctor ? `Dr. ${apt.doctor.firstName || ''} ${apt.doctor.lastName || ''}`.trim() : undefined;
+    const { notifyAppointmentCancelled } = await import('../../utils/notificationHelper');
+    notifyAppointmentCancelled({
+      appointmentId: appointment.id,
+      doctorId: appointment.doctorId,
+      patientId: appointment.patientId || '',
+      patientName,
+      doctorName,
+      scheduledAt: appointment.scheduledAt,
+      cancellationReason: value.cancellationReason,
+    }).catch((err) => console.error('Failed to send cancellation notifications:', err));
 
     // Emit real-time update
     const { emitAppointmentUpdate } = await import('../../utils/socketEmitter');

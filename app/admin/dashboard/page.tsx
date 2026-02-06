@@ -40,7 +40,9 @@ export default function AdminDashboard() {
     const loadStats = async () => {
         try {
             const response: any = await apiService.get("/admin/stats")
-            setStats(response?.data || response)
+            // API returns unwrapped data; handle both shapes
+            const data = response?.data ?? response
+            if (data && typeof data === "object") setStats(data)
         } catch (error: any) {
             console.error("Failed to load stats:", error)
             toast.error("Failed to load dashboard stats")

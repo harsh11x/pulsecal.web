@@ -14,6 +14,7 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { apiService } from "@/services/api"
+import { format } from "date-fns"
 import { formatCurrency } from "@/utils/helpers"
 import { socketService } from "@/services/socket"
 import { toast } from "sonner"
@@ -137,9 +138,14 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
       const appointmentsResponse: any = await apiService.get("/appointments?date=today")
       console.log("✅ Appointments response:", appointmentsResponse)
       
-      // Handle both wrapped and unwrapped responses
+      // Handle both wrapped and unwrapped responses; transform to include time, patientName for display
       const appointmentsData = appointmentsResponse?.data || appointmentsResponse
-      const appointmentsList = Array.isArray(appointmentsData) ? appointmentsData : appointmentsData?.appointments || []
+      const rawList = Array.isArray(appointmentsData) ? appointmentsData : appointmentsData?.appointments || []
+      const appointmentsList = rawList.map((apt: any) => ({
+        ...apt,
+        time: apt.time || (apt.scheduledAt ? format(new Date(apt.scheduledAt), "h:mm a") : "—"),
+        patientName: apt.patientName || (apt.patient ? `${apt.patient.firstName || ""} ${apt.patient.lastName || ""}`.trim() || "Patient" : "Patient"),
+      }))
       setTodayAppointments(appointmentsList)
     } catch (error: any) {
       console.error("❌ Failed to fetch dashboard data:", error)

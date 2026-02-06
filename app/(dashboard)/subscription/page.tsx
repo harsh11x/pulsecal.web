@@ -37,16 +37,23 @@ export default function SubscriptionPage() {
 
     const fetchSubscriptionStatus = async () => {
         try {
-            // Use auth profile endpoint which returns doctor profile with subscription info
-            const response: any = await apiService.get("/auth/profile")
-            // apiService unwraps the response, so access fields directly
-            const doctorProfile = response.doctorProfile
-            
-            setCurrentSubscription({
-                plan: doctorProfile?.subscriptionPlan || response.subscriptionPlan || "STARTER",
-                status: doctorProfile?.subscriptionStatus || response.subscriptionStatus || "PENDING",
-                expiresAt: doctorProfile?.subscriptionExpiresAt || response.subscriptionExpiresAt
-            })
+            // Try auth profile first, then doctor-profiles/me for subscription info
+            let plan = "STARTER", status = "PENDING", expiresAt = null
+            try {
+                const response: any = await apiService.get("/auth/profile")
+                const dp = response?.doctorProfile
+                plan = dp?.subscriptionPlan || response?.subscriptionPlan || plan
+                status = dp?.subscriptionStatus || response?.subscriptionStatus || status
+                expiresAt = dp?.subscriptionExpiresAt || response?.subscriptionExpiresAt
+            } catch {
+                try {
+                    const profile: any = await apiService.get("/doctor-profiles/me")
+                    plan = profile?.subscriptionPlan || plan
+                    status = profile?.subscriptionStatus || status
+                    expiresAt = profile?.subscriptionExpiresAt
+                } catch { /* use defaults */ }
+            }
+            setCurrentSubscription({ plan, status, expiresAt })
         } catch (error) {
             console.error("Failed to fetch subscription", error)
             // Set default subscription state on error

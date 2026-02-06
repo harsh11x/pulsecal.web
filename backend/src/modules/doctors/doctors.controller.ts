@@ -1,6 +1,6 @@
 import { Response, NextFunction } from 'express';
 import { searchDoctors, getDoctorById, getDoctorAvailability, getDoctorSlots } from './doctors.service';
-import { getDoctorAnalytics } from './doctors.analytics.service';
+import { getDoctorAnalytics, getFinancialReports } from './doctors.analytics.service';
 import { getClinicStaff } from './doctors.staff.service';
 import { sendSuccess } from '../../utils/apiResponse';
 import { AuthRequest } from '../../middlewares/auth.middleware';
@@ -230,6 +230,31 @@ export const getDoctorAnalyticsController = async (
     logger.error(errorInfo, 'Error in getDoctorAnalyticsController');
     // Also log to console for PM2
     console.error('[getDoctorAnalyticsController ERROR]', errorInfo);
+    next(err);
+  }
+};
+
+export const getFinancialReportsController = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const doctorId = req.user?.id;
+    if (!doctorId) {
+      throw new AppError('User not authenticated', 401);
+    }
+    const doctorProfile = await prisma.doctorProfile.findUnique({
+      where: { userId: doctorId }
+    });
+    if (!doctorProfile) {
+      throw new AppError('Doctor profile not found. Please complete your profile setup.', 404);
+    }
+    const type = (req.query.type as 'daily' | 'monthly' | 'yearly') || 'monthly';
+    const report = await getFinancialReports(doctorId, type);
+    sendSuccess(res, report, 'Financial report retrieved successfully');
+  } catch (err: any) {
+    logger.error({ error: err.message, doctorId: req.user?.id }, 'Error in getFinancialReportsController');
     next(err);
   }
 };

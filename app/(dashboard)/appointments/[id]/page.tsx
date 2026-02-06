@@ -2,7 +2,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -13,20 +13,23 @@ import { useAppSelector } from "@/app/hooks"
 import { formatCurrency } from "@/utils/helpers"
 import { toast } from "sonner"
 
-export default function AppointmentDetail({ params }: { params: { id: string } }) {
+export default function AppointmentDetail() {
   const router = useRouter()
+  const params = useParams()
+  const id = params?.id as string
   const { user } = useAppSelector((state) => state.auth)
   const [appointment, setAppointment] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [processingPayment, setProcessingPayment] = useState(false)
 
   useEffect(() => {
-    fetchAppointment()
-  }, [params.id])
+    if (id) fetchAppointment()
+  }, [id])
 
   const fetchAppointment = async () => {
+    if (!id) return
     try {
-      const response: any = await apiService.get(`/appointments/${params.id}`)
+      const response: any = await apiService.get(`/appointments/${id}`)
       setAppointment(response?.data || response)
     } catch (error) {
       console.error("Failed to fetch appointment:", error)

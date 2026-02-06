@@ -6,7 +6,7 @@
 
 ---
 
-## Auth
+## Authfew
 | Method | Full URL | Description |
 |--------|----------|-------------|
 | GET | `azAaaa` | Get current user profile |
