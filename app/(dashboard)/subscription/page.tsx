@@ -11,6 +11,7 @@ import { apiService } from "@/services/api"
 import { useAppSelector } from "@/app/hooks"
 import { toast } from "sonner"
 import { format } from "date-fns"
+import { PLANS, PLAN_AMOUNTS, PLAN_FEATURES } from "@/lib/planConfig"
 
 export default function SubscriptionPage() {
     const { user } = useAppSelector((state) => state.auth)
@@ -24,27 +25,8 @@ export default function SubscriptionPage() {
     } | null>(null)
     const [processing, setProcessing] = useState<string | null>(null)
 
-    const planFeaturesMap: Record<string, string[]> = {
-        STARTER: ["Up to 3 Doctors", "1,000 Appointments/month", "Basic Prescriptions", "Medical Records", "Custom Branding", "Email Support", "Mobile App Access"],
-        BASIC: ["Up to 5 Doctors", "2,000 Appointments/month", "Full Prescriptions", "Medical Records", "Basic Analytics", "Email Support", "Mobile App Access"],
-        PROFESSIONAL: ["Up to 10 Doctors", "Unlimited Appointments", "Receptionist Access", "Queue Management", "Full Prescriptions", "Medical Records", "Full Analytics", "Custom Branding", "Email Support", "Mobile App Access"],
-        ENTERPRISE: ["Unlimited Doctors", "Unlimited Appointments", "Receptionist Access", "Queue Management", "Full Prescriptions", "Medical Records", "Export Analytics", "Custom Branding", "Email Support", "Mobile App Access"]
-    }
-
-    const PLAN_AMOUNTS: Record<string, number> = {
-        STARTER: 999,
-        BASIC: 1499,
-        PROFESSIONAL: 2999,
-        ENTERPRISE: 9999
-    }
-
-    const plans = [
-        { id: "STARTER", name: "Starter", price: "₹999", amount: 999, period: "/month", description: "Perfect for individual practitioners starting out.", features: planFeaturesMap.STARTER, recommended: false },
-        { id: "BASIC", name: "Basic", price: "₹1,499", amount: 1499, period: "/month", description: "For small practices.", features: planFeaturesMap.BASIC, recommended: false },
-        { id: "PROFESSIONAL", name: "Professional", price: "₹2,999", amount: 2999, period: "/month", description: "Ideal for growing clinics with multiple staff.", features: planFeaturesMap.PROFESSIONAL, recommended: true },
-        { id: "ENTERPRISE", name: "Enterprise", price: "₹9,999", amount: 9999, period: "/month", description: "For large hospitals and multi-location chains.", features: planFeaturesMap.ENTERPRISE, recommended: false }
-    ]
-
+    const planFeaturesMap = PLAN_FEATURES
+    const plans = PLANS.map((p) => ({ ...p, price: `${p.price}`, amount: p.amount, period: "/month" }))
     const planOrder = ["STARTER", "BASIC", "PROFESSIONAL", "ENTERPRISE"]
     const currentPlanIndex = planOrder.indexOf(currentSubscription?.plan || "STARTER")
 

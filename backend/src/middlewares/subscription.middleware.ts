@@ -11,9 +11,8 @@ export const checkSubscriptionStatus = async (
 ) => {
     try {
         if (!req.user || !req.user.clinicId) {
-            // If user has no clinic (e.g. PATIENT), this check might be skipped or handled differently
-            // For now, if route requires subscription, we assume user MUST belong to a clinic
-            if (req.user?.role === 'PATIENT') return next(); // Patients usually don't need clinic subscription checks for their own actions, but clinic ops do.
+            // Patients don't have a clinic - skip subscription check (list appointments, reschedule, cancel, etc.)
+            if (req.user?.role?.toUpperCase?.() === 'PATIENT') return next();
             throw new AppError('Clinic information not found', 403);
         }
 

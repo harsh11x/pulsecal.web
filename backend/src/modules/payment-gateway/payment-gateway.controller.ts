@@ -60,7 +60,7 @@ export const createOrder = async (req: AuthRequest, res: Response, _next: NextFu
             STARTER: 99900, // ₹999
             BASIC: 149900, // ₹1499
             PROFESSIONAL: 299900, // ₹2999
-            ENTERPRISE: 999900, // ₹9999
+            ENTERPRISE: 499900, // ₹4999 (matches home screen)
         };
 
         let amount = planPricing[value.plan];
@@ -266,7 +266,7 @@ export const verifyPayment = async (req: AuthRequest, res: Response, _next: Next
             STARTER: 999,
             BASIC: 1499,
             PROFESSIONAL: 2999,
-            ENTERPRISE: 9999,
+            ENTERPRISE: 4999,
         };
         let amount = planAmounts[subscriptionPlan] || 1499;
 

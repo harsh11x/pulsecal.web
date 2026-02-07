@@ -25,6 +25,7 @@ import {
   Heart,
   Activity,
 } from "lucide-react"
+import { PLANS, PLAN_AMOUNTS } from "@/lib/planConfig"
 
 export default function Home() {
   const router = useRouter()
@@ -459,61 +460,21 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="grid gap-8 md:grid-cols-3">
-            {[
-              {
-                name: "Starter",
-                price: isYearly ? "Rs. 14,990" : "Rs. 1,499",
-                period: isYearly ? "per year" : "per month",
-                savings: isYearly ? "Save ₹2,998" : null,
-                description: "Perfect for small practices",
-                features: [
-                  "Add upto 3 Doctors per clinic",
-                  "Basic scheduling",
-                  "Patient records",
-                  "Email support",
-                  "Mobile app access",
-                ],
-                popular: false,
-              },
-              {
-                name: "Professional",
-                price: isYearly ? "Rs. 29,990" : "Rs. 2,999",
-                period: isYearly ? "per year" : "per month",
-                savings: isYearly ? "Save ₹5,998" : null,
-                description: "For growing practices",
-                features: [
-                  "Unlimited appointments",
-                  "Upto 10 Doctors per clinic",
-                  "Advanced scheduling",
-                  "Analytics dashboard",
-                  "Priority support",
-                  "Custom branding",
-                ],
-                popular: true,
-              },
-              {
-                name: "Enterprise",
-                price: isYearly ? "Rs. 49,990" : "Rs. 4,999",
-                period: isYearly ? "per year" : "per month",
-                savings: isYearly ? "Save ₹9,998" : null,
-                description: "For large organizations",
-                features: [
-                  "Everything in Professional",
-                  "Add as many Doctors per clinic",
-                  "Custom integrations",
-                ],
-                popular: false,
-              },
-            ].map((plan, index) => (
+          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+            {PLANS.map((plan, index) => {
+              const monthlyAmount = PLAN_AMOUNTS[plan.id]
+              const yearlyAmount = monthlyAmount * 10
+              const priceDisplay = isYearly ? `Rs. ${yearlyAmount.toLocaleString("en-IN")}` : `Rs. ${monthlyAmount.toLocaleString("en-IN")}`
+              const savings = isYearly ? `Save ₹${(monthlyAmount * 2).toLocaleString("en-IN")}` : null
+              return (
               <div
-                key={index}
-                className={`relative rounded-2xl border-2 p-8 transition-all duration-300 ${plan.popular
+                key={plan.id}
+                className={`relative rounded-2xl border-2 p-8 transition-all duration-300 ${plan.recommended
                   ? "border-primary bg-card shadow-xl scale-105 z-10"
                   : "border-border bg-card hover:border-primary/50 hover:shadow-lg hover:-translate-y-1"
                   }`}
               >
-                {plan.popular && (
+                {plan.recommended && (
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2">
                     <span className="rounded-full bg-primary px-4 py-1 text-xs font-semibold text-primary-foreground shadow-md">
                       Most Popular
@@ -532,15 +493,15 @@ export default function Home() {
                   <p className="text-sm text-muted-foreground">{plan.description}</p>
                 </div>
                 <div className="mb-2">
-                  <span className="text-4xl font-bold text-foreground">{plan.price}</span>
-                  <span className="text-muted-foreground"> / {plan.period.replace('per ', '')}</span>
+                  <span className="text-4xl font-bold text-foreground">{priceDisplay}</span>
+                  <span className="text-muted-foreground"> / {isYearly ? "year" : "month"}</span>
                 </div>
-                {plan.savings && (
+                {savings && (
                    <div className="mb-6 text-sm text-green-600 font-semibold animate-pulse">
-                     {plan.savings}
+                     {savings}
                    </div>
                 )}
-                 {!plan.savings && <div className="mb-6 h-5"></div>}
+                 {!savings && <div className="mb-6 h-5"></div>}
 
                 <ul className="mb-8 space-y-3">
                   {plan.features.map((feature, idx) => (
@@ -552,10 +513,10 @@ export default function Home() {
                 </ul>
                 <GetStartedAction
                   className="w-full"
-                  variant={plan.popular ? "default" : "outline"}
+                  variant={plan.recommended ? "default" : "outline"}
                 />
               </div>
-            ))}
+            )})}
           </div>
         </div>
       </section>

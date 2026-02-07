@@ -16,6 +16,7 @@ import { apiService } from "@/services/api"
 import { MapPin, Clock, DollarSign, Upload, CheckCircle, Building2, FileText, User, Search } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import { indianStates, citiesByState } from "@/lib/indianLocations"
+import { PLANS } from "@/lib/planConfig"
 
 export default function DoctorOnboarding() {
   const router = useRouter()
@@ -1294,15 +1295,10 @@ export default function DoctorOnboarding() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                {[
-                  { id: 'STARTER', name: 'Starter', price: 999, limit: 'Up to 3 Doctors', highlight: true },
-                  { id: 'BASIC', name: 'Basic', price: 1499, limit: 'Up to 5 Doctors', highlight: false },
-                  { id: 'PROFESSIONAL', name: 'Professional', price: 2999, limit: 'Up to 10 Doctors', highlight: false },
-                  { id: 'ENTERPRISE', name: 'Enterprise', price: 9999, limit: 'Unlimited Doctors', highlight: false }
-                ].map((plan) => {
+                {PLANS.map((plan) => {
                   const displayPrice = formData.billingCycle === 'YEARLY'
-                    ? `₹${(plan.price * 10).toLocaleString()}/yr`
-                    : `₹${plan.price}/mo`;
+                    ? `₹${(plan.amount * 10).toLocaleString()}/yr`
+                    : `₹${plan.amount}/mo`;
 
                   return (
                     <Card key={plan.id}

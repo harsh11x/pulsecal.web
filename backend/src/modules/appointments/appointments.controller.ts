@@ -347,7 +347,7 @@ export const createPatientAppointmentController = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    if (req.user?.role !== 'PATIENT') {
+    if (req.user?.role?.toUpperCase?.() !== 'PATIENT') {
       throw new AppError('Only patients can use this endpoint', 403);
     }
     const schema = Joi.object({

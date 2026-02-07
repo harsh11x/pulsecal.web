@@ -272,7 +272,7 @@ export const createAppointmentOrderController = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    if (req.user?.role !== 'PATIENT') throw new AppError('Only patients can book appointments with payment', 403);
+    if (req.user?.role?.toUpperCase?.() !== 'PATIENT') throw new AppError('Only patients can book appointments with payment', 403);
 
     const { error, value } = createAppointmentOrderSchema.validate(req.body);
     if (error) throw new AppError(error.details[0].message, 400);
@@ -313,7 +313,7 @@ export const verifyAppointmentPaymentController = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    if (req.user?.role !== 'PATIENT') throw new AppError('Only patients can complete appointment payment', 403);
+    if (req.user?.role?.toUpperCase?.() !== 'PATIENT') throw new AppError('Only patients can complete appointment payment', 403);
 
     const { error, value } = verifyAppointmentPaymentSchema.validate(req.body);
     if (error) throw new AppError(error.details[0].message, 400);
@@ -420,7 +420,7 @@ const PLAN_AMOUNTS: Record<string, number> = {
   STARTER: 999,
   BASIC: 1499,
   PROFESSIONAL: 2999,
-  ENTERPRISE: 9999,
+  ENTERPRISE: 4999,
 };
 
 const createSubscriptionOrderSchema = Joi.object({
