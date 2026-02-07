@@ -438,9 +438,14 @@ const ensureCanManageSubscription = async (req: AuthRequest): Promise<void> => {
   if (req.user?.role !== 'DOCTOR') throw new AppError('Only doctors can manage subscription', 403);
   if (!req.user?.clinicId) return;
   const clinic = await prisma.clinic.findUnique({ where: { id: req.user.clinicId }, select: { ownerId: true } });
-  if (clinic?.ownerId && clinic.ownerId !== req.user.id) {
-    throw new AppError('Only the clinic creator (head doctor) can manage subscription', 403);
+  if (!clinic?.ownerId || clinic.ownerId === req.user.id) return;
+  // Fallback: if this user is the only doctor, treat as owner (legacy clinics)
+  const doctorCount = await prisma.user.count({ where: { clinicId: req.user.clinicId!, role: 'DOCTOR' } });
+  if (doctorCount === 1) {
+    await prisma.clinic.update({ where: { id: req.user.clinicId }, data: { ownerId: req.user.id } });
+    return;
   }
+  throw new AppError('Only the clinic creator (head doctor) can manage subscription', 403);
 };
 
 export const getSubscriptionStatusController = async (
