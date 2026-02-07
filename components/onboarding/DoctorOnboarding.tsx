@@ -1295,10 +1295,10 @@ export default function DoctorOnboarding() {
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 {[
-                  { id: 'STARTER', name: 'Starter', price: 1, limit: 'Solo Practitioner (1 Doctor)', highlight: true },
-                  { id: 'BASIC', name: 'Basic', price: 1499, limit: 'Max 5 Doctors', highlight: false },
-                  { id: 'PROFESSIONAL', name: 'Professional', price: 2999, limit: 'Max 10 Doctors', highlight: false },
-                  { id: 'ENTERPRISE', name: 'Enterprise', price: 4999, limit: 'Unlimited Doctors', highlight: false }
+                  { id: 'STARTER', name: 'Starter', price: 999, limit: 'Up to 3 Doctors', highlight: true },
+                  { id: 'BASIC', name: 'Basic', price: 1499, limit: 'Up to 5 Doctors', highlight: false },
+                  { id: 'PROFESSIONAL', name: 'Professional', price: 2999, limit: 'Up to 10 Doctors', highlight: false },
+                  { id: 'ENTERPRISE', name: 'Enterprise', price: 9999, limit: 'Unlimited Doctors', highlight: false }
                 ].map((plan) => {
                   const displayPrice = formData.billingCycle === 'YEARLY'
                     ? `₹${(plan.price * 10).toLocaleString()}/yr`

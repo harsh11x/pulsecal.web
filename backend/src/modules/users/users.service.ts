@@ -152,16 +152,19 @@ export const getProfile = async (userId: string) => {
       if (user.role === 'ADMIN') canManageSubscription = true;
       else if (!user.clinicId) canManageSubscription = true;
       else {
-        const clinic = await prisma.clinic.findUnique({ where: { id: user.clinicId }, select: { ownerId: true } });
-        if (!clinic?.ownerId || clinic.ownerId === userId) {
-          canManageSubscription = true;
-        } else {
-          // Fallback: if this user is the only doctor in the clinic, treat as owner (legacy clinics created before ownerId)
-          const doctorCount = await prisma.user.count({ where: { clinicId: user.clinicId, role: 'DOCTOR' } });
-          if (doctorCount === 1) {
+        try {
+          const clinic = await prisma.clinic.findUnique({ where: { id: user.clinicId }, select: { ownerId: true } });
+          if (!clinic?.ownerId || clinic.ownerId === userId) {
             canManageSubscription = true;
-            await prisma.clinic.update({ where: { id: user.clinicId }, data: { ownerId: userId } });
+          } else {
+            const doctorCount = await prisma.user.count({ where: { clinicId: user.clinicId, role: 'DOCTOR' } });
+            if (doctorCount === 1) {
+              canManageSubscription = true;
+              await prisma.clinic.update({ where: { id: user.clinicId }, data: { ownerId: userId } });
+            }
           }
+        } catch (e: any) {
+          if (e?.message?.includes('ownerId') && e?.message?.includes('does not exist')) canManageSubscription = true;
         }
       }
     }
