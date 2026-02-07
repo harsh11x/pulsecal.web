@@ -22,16 +22,17 @@ const router = Router();
 router.post('/subscription/create', authenticate, createRazorpayOrderController);
 router.post('/subscription/verify', authenticate, verifyRazorpayPaymentController);
 
-// Doctor search and profile routes
-router.get('/search', authenticate, searchDoctorsController);
+// Doctor search - public (patients need to discover doctors before booking)
+router.get('/search', searchDoctorsController);
 router.post('/schedule', authenticate, requireDoctor, updateScheduleController);
 router.get('/schedule', authenticate, requireDoctor, getDoctorAvailabilityController);
 router.get('/analytics', authenticate, requireDoctor, getDoctorAnalyticsController);
 router.get('/financial-reports', authenticate, requireDoctor, getFinancialReportsController);
 router.get('/clinic/staff', authenticate, requireDoctor, getClinicStaffController);
-router.get('/:id', authenticate, getDoctorByIdController);
-router.get('/:id/availability', authenticate, getDoctorAvailabilityController);
-router.get('/:id/slots', authenticate, getDoctorSlotsController);
+// Doctor profile, availability, slots - public for patient booking flow
+router.get('/:id', getDoctorByIdController);
+router.get('/:id/availability', getDoctorAvailabilityController);
+router.get('/:id/slots', getDoctorSlotsController);
 
 export default router;
 
