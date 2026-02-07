@@ -10,15 +10,36 @@ export const checkSubscriptionStatus = async (
     next: NextFunction
 ) => {
     try {
-        if (!req.user || !req.user.clinicId) {
-            // Patients don't have a clinic - skip subscription check (list appointments, reschedule, cancel, etc.)
-            if (req.user?.role?.toUpperCase?.() === 'PATIENT') return next();
+        if (!req.user) return next();
+
+        const role = req.user.role?.toUpperCase?.();
+        // Patients don't have a clinic - skip subscription check
+        if (role === 'PATIENT') return next();
+        // Solo doctors (no clinic) - allow read access to their own appointments
+        if (!req.user.clinicId) {
+            if (role === 'DOCTOR') return next();
             throw new AppError('Clinic information not found', 403);
         }
 
-        const clinic = await prisma.clinic.findUnique({
-            where: { id: req.user.clinicId },
-        });
+        let clinic;
+        try {
+            clinic = await prisma.clinic.findUnique({
+                where: { id: req.user.clinicId },
+                select: {
+                    id: true,
+                    name: true,
+                    subscriptionStatus: true,
+                    subscriptionPlan: true,
+                },
+            });
+        } catch (dbError: any) {
+            // Handle schema mismatch (e.g. migration not run)
+            if (dbError?.message?.includes('does not exist') || dbError?.code === 'P2010') {
+                console.error('[Subscription] Database schema may need migration:', dbError.message);
+                throw new AppError('Server configuration error. Please contact support.', 503);
+            }
+            throw dbError;
+        }
 
         if (!clinic) {
             throw new AppError('Clinic not found', 404);

@@ -117,83 +117,97 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
     }
   }, [])
 
+  const emptyStats = {
+    today: { appointments: 0, revenue: 0, patients: 0, cancellations: 0 },
+    yesterday: { appointments: 0, revenue: 0, patients: 0, cancellations: 0 },
+    thisWeek: { appointments: 0, revenue: 0, patients: 0, cancellations: 0 },
+    thisMonth: { appointments: 0, revenue: 0, patients: 0, cancellations: 0 },
+    revenueData: [],
+    patientGrowth: [],
+    cancellationRate: 0,
+  }
+
   const fetchDashboardData = async (showLoader = true) => {
     try {
       if (showLoader) setLoading(true)
       else setRefreshing(true)
 
-      const analyticsResponse: any = await apiService.get("/doctors/analytics?period=week")
-      console.log("✅ Analytics response:", analyticsResponse)
-      
-      // Handle both wrapped and unwrapped responses
-      const analyticsData = analyticsResponse?.data || analyticsResponse
-      
-      setStats(analyticsData || {
-        today: { appointments: 0, revenue: 0, patients: 0, cancellations: 0 },
-        yesterday: { appointments: 0, revenue: 0, patients: 0, cancellations: 0 },
-        thisWeek: { appointments: 0, revenue: 0, patients: 0, cancellations: 0 },
-        thisMonth: { appointments: 0, revenue: 0, patients: 0, cancellations: 0 },
-        revenueData: [],
-        patientGrowth: [],
-        cancellationRate: 0,
-      })
+      // Fetch analytics and appointments in parallel so one failure doesn't block the other
+      const [analyticsRes, appointmentsRes] = await Promise.allSettled([
+        apiService.get("/doctors/analytics?period=week"),
+        apiService.get("/appointments?date=today"),
+      ])
 
-      // Fetch today's appointments
-      const appointmentsResponse: any = await apiService.get("/appointments?date=today")
-      console.log("✅ Appointments response:", appointmentsResponse)
-      
-      // Handle both wrapped and unwrapped responses; transform to include time, patientName for display
-      const appointmentsData = appointmentsResponse?.data || appointmentsResponse
-      const rawList = Array.isArray(appointmentsData) ? appointmentsData : appointmentsData?.appointments || []
-      const appointmentsList = rawList.map((apt: any) => ({
-        ...apt,
-        time: apt.time || (apt.scheduledAt ? format(new Date(apt.scheduledAt), "h:mm a") : "—"),
-        patientName: apt.patientName || (apt.patient ? `${apt.patient.firstName || ""} ${apt.patient.lastName || ""}`.trim() || "Patient" : "Patient"),
-      }))
-      setTodayAppointments(appointmentsList)
+      const analyticsFulfilled = analyticsRes.status === "fulfilled"
+      const appointmentsFulfilled = appointmentsRes.status === "fulfilled"
+      const analyticsRejected = analyticsRes.status === "rejected" ? (analyticsRes as PromiseRejectedResult).reason : null
+      const appointmentsRejected = appointmentsRes.status === "rejected" ? (appointmentsRes as PromiseRejectedResult).reason : null
+
+      // Set stats from analytics or empty on failure
+      if (analyticsFulfilled && analyticsRes.value) {
+        const analyticsData = (analyticsRes.value as any)?.data || (analyticsRes.value as any)
+        setStats(analyticsData || emptyStats)
+      } else {
+        setStats(emptyStats)
+        if (analyticsRejected?.response?.status === 401) {
+          toast.error("Session expired. Please sign in again.")
+          setTimeout(() => { window.location.href = "/" }, 2000)
+          return
+        }
+        if (analyticsRejected?.response?.status === 403) {
+          toast.error("You don't have permission to access this data. Please complete your onboarding.")
+        }
+      }
+
+      // Set appointments from list or empty on failure
+      if (appointmentsFulfilled && appointmentsRes.value) {
+        const appointmentsData = (appointmentsRes.value as any)?.data ?? (appointmentsRes.value as any)
+        const rawList = Array.isArray(appointmentsData) ? appointmentsData : appointmentsData?.appointments ?? []
+        const appointmentsList = rawList.map((apt: any) => ({
+          ...apt,
+          time: apt.time || (apt.scheduledAt ? format(new Date(apt.scheduledAt), "h:mm a") : "—"),
+          patientName: apt.patientName || (apt.patient ? `${apt.patient.firstName || ""} ${apt.patient.lastName || ""}`.trim() || "Patient" : "Patient"),
+        }))
+        setTodayAppointments(appointmentsList)
+      } else {
+        setTodayAppointments([])
+        if (appointmentsRejected?.response?.status === 401) {
+          toast.error("Session expired. Please sign in again.")
+          setTimeout(() => { window.location.href = "/" }, 2000)
+          return
+        }
+        if (appointmentsRejected?.response?.status === 403) {
+          toast.error("You don't have permission to access this data. Please complete your onboarding.")
+        }
+      }
+
       setLastUpdated(new Date())
+
+      // Only show generic backend error if both requests failed with 5xx or network
+      const analyticsFailed = !analyticsFulfilled && (analyticsRejected?.response?.status >= 500 || analyticsRejected?.code === "ERR_NETWORK")
+      const appointmentsFailed = !appointmentsFulfilled && (appointmentsRejected?.response?.status >= 500 || appointmentsRejected?.code === "ERR_NETWORK")
+      if (analyticsFailed && appointmentsFailed) {
+        toast.error("Backend server error. Please try again later.")
+      } else if (analyticsFailed || appointmentsFailed) {
+        // One failed: log but don't toast so dashboard still feels usable
+        console.warn("Dashboard partial load:", { analyticsFailed, appointmentsFailed })
+      }
     } catch (error: any) {
       console.error("❌ Failed to fetch dashboard data:", error)
-      console.error("Error details:", {
-        message: error.message,
-        code: error.code,
-        response: error.response?.data,
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        url: error.config?.url || error.request?.url,
-        baseURL: error.config?.baseURL
-      })
-
-      // Provide more specific error messages
+      setStats(emptyStats)
+      setTodayAppointments([])
       if (error.response?.status === 401) {
         toast.error("Session expired. Please sign in again.")
-        // Redirect to login after a delay
-        setTimeout(() => {
-          window.location.href = "/"
-        }, 2000)
+        setTimeout(() => { window.location.href = "/" }, 2000)
       } else if (error.response?.status === 403) {
         toast.error("You don't have permission to access this data. Please complete your onboarding.")
       } else if (error.code === "ERR_NETWORK" || !error.response) {
-        const errorMsg = error.message || "Cannot connect to backend server"
-        console.error("Network error - Backend might be down or unreachable")
-        toast.error(`Network Error: ${errorMsg}. Check your connection and backend server.`)
+        toast.error(`Network Error: ${error.message || "Cannot connect"}. Check your connection and backend.`)
       } else if (error.response?.status >= 500) {
         toast.error("Backend server error. Please try again later.")
       } else {
-        const errorMsg = error.response?.data?.message || error.response?.data?.error || error.message || "Failed to load dashboard data"
-        toast.error(`${errorMsg}. Please try again.`)
+        toast.error(error.response?.data?.message || error.response?.data?.error || error.message || "Failed to load dashboard. Please try again.")
       }
-
-      // Set empty stats to prevent loading forever
-      setStats({
-        today: { appointments: 0, revenue: 0, patients: 0, cancellations: 0 },
-        yesterday: { appointments: 0, revenue: 0, patients: 0, cancellations: 0 },
-        thisWeek: { appointments: 0, revenue: 0, patients: 0, cancellations: 0 },
-        thisMonth: { appointments: 0, revenue: 0, patients: 0, cancellations: 0 },
-        revenueData: [],
-        patientGrowth: [],
-        cancellationRate: 0,
-      })
     } finally {
       setLoading(false)
       setRefreshing(false)
