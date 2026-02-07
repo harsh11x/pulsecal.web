@@ -243,11 +243,11 @@ export default function SubscriptionPage() {
                     </CardFooter>
                 </Card>
 
-                {/* Plan Cards */}
+                {/* Plan Cards — exclude Starter from available plans (still shown in Your Plan above) */}
                 <div>
                     <h2 className="text-xl font-semibold mb-4">Available Plans</h2>
-                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                        {plans.map((plan) => {
+                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                        {plans.filter((p) => p.id !== "STARTER").map((plan) => {
                             const isCurrent = currentSubscription?.plan === plan.id && currentSubscription?.status === "ACTIVE"
                             const label = getPlanButtonLabel(plan)
                             const planIdx = planOrder.indexOf(plan.id)
