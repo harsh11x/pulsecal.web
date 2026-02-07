@@ -435,7 +435,7 @@ model TelemedicineSession {
 
 model Clinic {
   id                String   @id @default(uuid())
-  ownerId           String?
+  ownerId           String?  @unique
   name              String
   address           String
   city              String

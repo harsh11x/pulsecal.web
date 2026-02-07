@@ -245,7 +245,6 @@ export const getDoctorAnalytics = async (
   });
 
   // Calculate metrics - exclude CANCELLED from appointment counts
-  const totalAppointments = appointments.length;
   const nonCancelledStatuses = ['SCHEDULED', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'NO_SHOW', 'RESCHEDULED'];
   const todayAppointments = appointments.filter(apt => {
     const aptDate = new Date(apt.scheduledAt);
@@ -318,7 +317,6 @@ export const getDoctorAnalytics = async (
     })
   ]);
 
-  const cancelledAppointments = appointments.filter(apt => apt.status === 'CANCELLED').length;
 
   const todayCompletedCount = appointments.filter(apt => {
     const aptDate = new Date(apt.scheduledAt);
@@ -400,7 +398,7 @@ export const getDoctorAnalytics = async (
   const revenueDataFormatted = revenueTrends.map(t => {
     const d = new Date(t.date);
     const dateKey = d.toISOString().split('T')[0];
-    const displayDate = trendPeriod === 'day'
+    const displayDate = period === 'day'
       ? d.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true })
       : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     return {
