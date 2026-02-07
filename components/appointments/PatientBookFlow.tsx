@@ -65,8 +65,16 @@ export function PatientBookFlow() {
       if (search && search.trim()) {
         params.set("search", search.trim())
       }
-      const data: any = await apiService.get(`/doctors/search?${params}`)
-      const list = data?.doctors ?? (Array.isArray(data) ? data : [])
+      let data: any = await apiService.get(`/doctors/search?${params}`)
+      let list = data?.doctors ?? (Array.isArray(data) ? data : [])
+      // If city filter returned no results, retry without city so patient sees some doctors
+      if (list.length === 0 && city && city.trim()) {
+        const paramsNoCity = new URLSearchParams()
+        paramsNoCity.set("limit", "100")
+        if (search && search.trim()) paramsNoCity.set("search", search.trim())
+        data = await apiService.get(`/doctors/search?${paramsNoCity}`)
+        list = data?.doctors ?? (Array.isArray(data) ? data : [])
+      }
       setDoctors(list)
       setSearched(true)
       if (list.length === 0) {
@@ -102,8 +110,13 @@ export function PatientBookFlow() {
       if (city && city.trim()) {
         params.set("city", city.trim())
       }
-      const r: any = await apiService.get(`/clinics?${params}`)
-      const list = Array.isArray(r) ? r : (r?.clinics ?? r?.data ?? [])
+      let r: any = await apiService.get(`/clinics?${params}`)
+      let list = Array.isArray(r) ? r : (r?.clinics ?? r?.data ?? [])
+      // If city filter returned no clinics, retry without city
+      if (list.length === 0 && city && city.trim()) {
+        r = await apiService.get("/clinics?limit=50")
+        list = Array.isArray(r) ? r : (r?.clinics ?? r?.data ?? [])
+      }
       setClinics(list)
     } catch {
       setClinics([])

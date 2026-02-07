@@ -80,9 +80,10 @@ export default function Payments() {
     fetchData()
   }, [isDoctor, user?.id])
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, type?: "received" | "paid" | "patient") => {
+    const completedLabel = type === "received" ? "Received" : "Paid"
     const variants: Record<string, { color: string; label: string }> = {
-      COMPLETED: { color: "bg-green-100 text-green-700", label: "Paid" },
+      COMPLETED: { color: "bg-green-100 text-green-700", label: completedLabel },
       PENDING: { color: "bg-yellow-100 text-yellow-700", label: "Pending" },
       FAILED: { color: "bg-red-100 text-red-700", label: "Failed" },
     }
@@ -133,7 +134,7 @@ export default function Payments() {
           <p className={`font-semibold ${isReceived ? "text-green-600" : "text-amber-600"}`}>
             {isReceived ? `+${formatCurrency(amt)}` : `-${formatCurrency(amt)}`}
           </p>
-          {getStatusBadge(transaction.status)}
+          {getStatusBadge(transaction.status, type)}
         </div>
       </div>
     )

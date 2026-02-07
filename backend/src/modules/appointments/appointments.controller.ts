@@ -127,9 +127,17 @@ export const createAppointmentController = async (
       throw new AppError('Patient is required for appointment', 400);
     }
 
+    // Pass only known fields to avoid Prisma/validation issues; ensure scheduledAt is Date
+    const scheduledAt = value.scheduledAt instanceof Date
+      ? value.scheduledAt
+      : new Date(value.scheduledAt);
     const appointment = await createAppointment({
-      ...value,
       patientId,
+      doctorId: value.doctorId,
+      scheduledAt,
+      duration: value.duration,
+      reason: value.reason,
+      notes: value.notes,
       status: (req.user?.role === 'DOCTOR' || req.user?.role === 'RECEPTIONIST') ? 'CONFIRMED' : 'SCHEDULED',
     });
 
