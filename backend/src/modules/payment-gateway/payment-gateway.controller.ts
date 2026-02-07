@@ -140,6 +140,7 @@ export const verifyPayment = async (req: AuthRequest, res: Response, _next: Next
             // Using Prisma directly
             clinic = await prisma.clinic.create({
                 data: {
+                    ownerId: req.user!.id,
                     name: clinicDetails.name,
                     address: clinicDetails.address,
                     city: clinicDetails.city,
@@ -154,9 +155,7 @@ export const verifyPayment = async (req: AuthRequest, res: Response, _next: Next
                     subscriptionStatus: 'ACTIVE',
                     razorpayOrderId: razorpay_order_id,
                     razorpayPaymentId: razorpay_payment_id,
-                    staff: { // Connect using 'staff' relation
-                        connect: { id: req.user!.id }
-                    }
+                    staff: { connect: { id: req.user!.id } }
                 }
             });
 

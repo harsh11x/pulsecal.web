@@ -86,6 +86,8 @@ function AuthStateListener({ children }: { children: React.ReactNode }) {
                         profileImage: userProfile.profileImage,
                         onboardingCompleted: userProfile.onboardingCompleted || false,
                         clinicId: userProfile.clinicId,
+                        ...(userProfile.doctorProfile && { doctorProfile: userProfile.doctorProfile }),
+                        canManageSubscription: userProfile.canManageSubscription ?? (userProfile.role === "ADMIN"),
                       }
                       dispatch(setUser(userData))
                     }

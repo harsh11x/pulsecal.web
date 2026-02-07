@@ -1,20 +1,27 @@
-
 "use client"
 
 import { ProtectedRoute } from "@/routes/ProtectedRoute"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Check, Loader2, AlertTriangle } from "lucide-react"
+import { Check, Loader2, RefreshCw, TrendingUp, IndianRupee, Calendar, ShieldX } from "lucide-react"
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { apiService } from "@/services/api"
 import { useAppSelector } from "@/app/hooks"
 import { toast } from "sonner"
+import { format } from "date-fns"
 
 export default function SubscriptionPage() {
     const { user } = useAppSelector((state) => state.auth)
     const [loading, setLoading] = useState(true)
-    const [currentSubscription, setCurrentSubscription] = useState<any>(null)
+    const [currentSubscription, setCurrentSubscription] = useState<{
+        plan: string
+        status: string
+        expiresAt: string | null
+        lastPaymentAmount: number | null
+        lastPaymentDate: string | null
+    } | null>(null)
     const [processing, setProcessing] = useState<string | null>(null)
 
     const planFeaturesMap: Record<string, string[]> = {
@@ -24,49 +31,6 @@ export default function SubscriptionPage() {
         ENTERPRISE: ["Unlimited Doctors", "Unlimited Appointments", "Receptionist Access", "Queue Management", "Full Prescriptions", "Medical Records", "Export Analytics", "Custom Branding", "Email Support", "Mobile App Access"]
     }
 
-    const plans = [
-        { id: "STARTER", name: "Starter", price: "₹999", period: "/month", description: "Perfect for individual practitioners starting out.", features: planFeaturesMap.STARTER, recommended: false },
-        { id: "BASIC", name: "Basic", price: "₹1,499", period: "/month", description: "For small practices.", features: planFeaturesMap.BASIC, recommended: false },
-        { id: "PROFESSIONAL", name: "Professional", price: "₹2,999", period: "/month", description: "Ideal for growing clinics with multiple staff.", features: planFeaturesMap.PROFESSIONAL, recommended: true },
-        { id: "ENTERPRISE", name: "Enterprise", price: "₹9,999", period: "/month", description: "For large hospitals and multi-location chains.", features: planFeaturesMap.ENTERPRISE, recommended: false }
-    ]
-
-    useEffect(() => {
-        fetchSubscriptionStatus()
-    }, [])
-
-    const fetchSubscriptionStatus = async () => {
-        try {
-            // Try auth profile first, then doctor-profiles/me for subscription info
-            let plan = "STARTER", status = "PENDING", expiresAt = null
-            try {
-                const response: any = await apiService.get("/auth/profile")
-                const dp = response?.doctorProfile
-                plan = dp?.subscriptionPlan || response?.subscriptionPlan || plan
-                status = dp?.subscriptionStatus || response?.subscriptionStatus || status
-                expiresAt = dp?.subscriptionExpiresAt || response?.subscriptionExpiresAt
-            } catch {
-                try {
-                    const profile: any = await apiService.get("/doctor-profiles/me")
-                    plan = profile?.subscriptionPlan || plan
-                    status = profile?.subscriptionStatus || status
-                    expiresAt = profile?.subscriptionExpiresAt
-                } catch { /* use defaults */ }
-            }
-            setCurrentSubscription({ plan, status, expiresAt })
-        } catch (error) {
-            console.error("Failed to fetch subscription", error)
-            // Set default subscription state on error
-            setCurrentSubscription({
-                plan: "STARTER",
-                status: "PENDING",
-                expiresAt: null
-            })
-        } finally {
-            setLoading(false)
-        }
-    }
-
     const PLAN_AMOUNTS: Record<string, number> = {
         STARTER: 999,
         BASIC: 1499,
@@ -74,18 +38,58 @@ export default function SubscriptionPage() {
         ENTERPRISE: 9999
     }
 
-    const handleSubscribe = async (planId: string) => {
+    const plans = [
+        { id: "STARTER", name: "Starter", price: "₹999", amount: 999, period: "/month", description: "Perfect for individual practitioners starting out.", features: planFeaturesMap.STARTER, recommended: false },
+        { id: "BASIC", name: "Basic", price: "₹1,499", amount: 1499, period: "/month", description: "For small practices.", features: planFeaturesMap.BASIC, recommended: false },
+        { id: "PROFESSIONAL", name: "Professional", price: "₹2,999", amount: 2999, period: "/month", description: "Ideal for growing clinics with multiple staff.", features: planFeaturesMap.PROFESSIONAL, recommended: true },
+        { id: "ENTERPRISE", name: "Enterprise", price: "₹9,999", amount: 9999, period: "/month", description: "For large hospitals and multi-location chains.", features: planFeaturesMap.ENTERPRISE, recommended: false }
+    ]
+
+    const planOrder = ["STARTER", "BASIC", "PROFESSIONAL", "ENTERPRISE"]
+    const currentPlanIndex = planOrder.indexOf(currentSubscription?.plan || "STARTER")
+
+    useEffect(() => {
+        fetchSubscriptionStatus()
+    }, [])
+
+    const fetchSubscriptionStatus = async () => {
+        try {
+            const data: any = await apiService.get("/payments/subscription/status")
+            setCurrentSubscription({
+                plan: data?.plan || "STARTER",
+                status: data?.status || "PENDING",
+                expiresAt: data?.expiresAt || null,
+                lastPaymentAmount: data?.lastPaymentAmount ?? null,
+                lastPaymentDate: data?.lastPaymentDate || null,
+            })
+        } catch (error) {
+            console.error("Failed to fetch subscription", error)
+            setCurrentSubscription({
+                plan: "STARTER",
+                status: "PENDING",
+                expiresAt: null,
+                lastPaymentAmount: null,
+                lastPaymentDate: null,
+            })
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const handleSubscribe = async (planId: string, action: "renew" | "upgrade" | "downgrade" = "upgrade") => {
         setProcessing(planId)
         try {
             const data: any = await apiService.post("/payments/subscription/create", { planId })
             const { orderId, key, amount } = data ?? {}
             if (!orderId || !key) {
-                toast.error("Invalid response from server")
+                toast.error("Invalid response from server. Please try again.")
+                setProcessing(null)
                 return
             }
 
             if (!(window as any).Razorpay) {
                 toast.error("Payment gateway not loaded. Please refresh the page.")
+                setProcessing(null)
                 return
             }
 
@@ -135,12 +139,45 @@ export default function SubscriptionPage() {
         try {
             await apiService.post("/payments/subscription/cancel", {})
             toast.success("Subscription cancelled successfully")
-            fetchSubscriptionStatus()
+            await fetchSubscriptionStatus()
         } catch (error: any) {
             toast.error(error.response?.data?.message || "Failed to cancel subscription")
         } finally {
             setProcessing(null)
         }
+    }
+
+    const getPlanButtonLabel = (plan: { id: string; name: string }) => {
+        const isCurrent = currentSubscription?.plan === plan.id && currentSubscription?.status === "ACTIVE"
+        const planIdx = planOrder.indexOf(plan.id)
+        const isHigher = planIdx > currentPlanIndex
+
+        if (isCurrent) return "Current Plan"
+        if (isHigher) return "Upgrade"
+        if (planIdx < currentPlanIndex) return "Change Plan"
+        return "Renew"
+    }
+
+    const isExpired = currentSubscription?.expiresAt && new Date(currentSubscription.expiresAt) < new Date()
+    const expiresWithinWeek = currentSubscription?.expiresAt && new Date(currentSubscription.expiresAt) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    const canRenew = currentSubscription?.status === "EXPIRED" || isExpired || (currentSubscription?.status === "ACTIVE" && expiresWithinWeek)
+
+    // Only clinic creator (head doctor) or solo doctor can manage subscription
+    if (user?.role?.toLowerCase() === "doctor" && user?.canManageSubscription === false) {
+        return (
+            <ProtectedRoute allowedRoles={['DOCTOR', 'ADMIN']}>
+                <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 text-center px-4">
+                    <ShieldX className="h-16 w-16 text-muted-foreground" />
+                    <h2 className="text-xl font-semibold">Access Restricted</h2>
+                    <p className="text-muted-foreground max-w-md">
+                        Only the clinic creator (head doctor) can manage the subscription. Please contact your clinic owner for plan changes.
+                    </p>
+                    <Button asChild variant="outline">
+                        <Link href="/dashboard">Back to Dashboard</Link>
+                    </Button>
+                </div>
+            </ProtectedRoute>
+        )
     }
 
     if (loading) {
@@ -158,19 +195,36 @@ export default function SubscriptionPage() {
             <div className="space-y-8 pb-10">
                 <div>
                     <h1 className="text-3xl font-bold">Subscription & Billing</h1>
-                    <p className="text-muted-foreground">Manage your clinic's subscription plan</p>
+                    <p className="text-muted-foreground">Manage your clinic&apos;s subscription plan</p>
                 </div>
 
                 {/* Current Plan Status */}
                 <Card className="bg-primary/5 border-primary/20">
                     <CardHeader>
-                        <CardTitle className="text-xl">Your Plan: {currentSubscription?.plan || "Starter"}</CardTitle>
-                        <CardDescription>
-                            Status: <Badge variant={currentSubscription?.status === 'ACTIVE' ? 'default' : 'destructive'} className="ml-2">{currentSubscription?.status || "PENDING"}</Badge>
-                            {currentSubscription?.expiresAt && (
-                                <span className="ml-2">• Expires: {new Date(currentSubscription.expiresAt).toLocaleDateString()}</span>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                            <div>
+                                <CardTitle className="text-xl">Your Plan: {plans.find(p => p.id === currentSubscription?.plan)?.name || currentSubscription?.plan || "Starter"}</CardTitle>
+                                <CardDescription className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
+                                    <span>Status: <Badge variant={currentSubscription?.status === 'ACTIVE' && !isExpired ? 'default' : (currentSubscription?.status === 'EXPIRED' || isExpired) ? 'destructive' : 'secondary'} className="ml-1">{isExpired ? "EXPIRED" : (currentSubscription?.status || "PENDING")}</Badge></span>
+                                    {currentSubscription?.expiresAt && (
+                                        <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />Expires: {format(new Date(currentSubscription.expiresAt), "MMM d, yyyy")}</span>
+                                    )}
+                                </CardDescription>
+                            </div>
+                            {(currentSubscription?.lastPaymentAmount != null || currentSubscription?.lastPaymentDate) && (
+                                <div className="flex flex-col gap-1 text-sm">
+                                    {currentSubscription?.lastPaymentAmount != null && (
+                                        <div className="flex items-center gap-1.5">
+                                            <IndianRupee className="h-4 w-4 text-primary" />
+                                            <span className="font-semibold">₹{currentSubscription.lastPaymentAmount.toLocaleString()} paid</span>
+                                        </div>
+                                    )}
+                                    {currentSubscription?.lastPaymentDate && (
+                                        <span className="text-muted-foreground">on {format(new Date(currentSubscription.lastPaymentDate), "MMM d, yyyy")}</span>
+                                    )}
+                                </div>
                             )}
-                        </CardDescription>
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <p className="text-sm font-medium mb-2">Plan Features:</p>
@@ -183,60 +237,83 @@ export default function SubscriptionPage() {
                             ))}
                         </ul>
                     </CardContent>
-                    <CardFooter>
+                    <CardFooter className="flex flex-wrap gap-2">
                         {currentSubscription?.status === 'ACTIVE' && (
                             <Button variant="destructive" onClick={handleCancel} disabled={!!processing}>
                                 {processing === "CANCEL" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 Cancel Subscription
                             </Button>
                         )}
+                        {canRenew && currentSubscription?.plan && (
+                            <Button
+                                variant="outline"
+                                onClick={() => handleSubscribe(currentSubscription.plan, "renew")}
+                                disabled={!!processing}
+                            >
+                                {processing === currentSubscription.plan ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <RefreshCw className="mr-2 h-4 w-4" />
+                                )}
+                                Renew Plan
+                            </Button>
+                        )}
                     </CardFooter>
                 </Card>
 
-                <div className="grid gap-8 md:grid-cols-3">
-                    {plans.map((plan) => (
-                        <Card key={plan.id} className={`relative flex flex-col ${plan.recommended ? 'border-primary shadow-lg scale-105' : ''}`}>
-                            {plan.recommended && (
-                                <div className="absolute -top-4 left-0 right-0 flex justify-center">
-                                    <Badge className="bg-primary text-primary-foreground">Recommended</Badge>
-                                </div>
-                            )}
-                            <CardHeader>
-                                <CardTitle>{plan.name}</CardTitle>
-                                <CardDescription>{plan.description}</CardDescription>
-                            </CardHeader>
-                            <CardContent className="flex-1">
-                                <div className="mb-6">
-                                    <span className="text-4xl font-bold">{plan.price}</span>
-                                    <span className="text-muted-foreground">{plan.period}</span>
-                                </div>
-                                <ul className="space-y-3">
-                                    {plan.features.map((feature, i) => (
-                                        <li key={i} className="flex items-center text-sm text-muted-foreground">
-                                            <Check className="mr-2 h-4 w-4 text-green-500" />
-                                            {feature}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </CardContent>
-                            <CardFooter>
-                                <Button
-                                    className="w-full"
-                                    variant={plan.recommended ? "default" : "outline"}
-                                    onClick={() => handleSubscribe(plan.id)}
-                                    disabled={!!processing || (currentSubscription?.plan === plan.id && currentSubscription?.status === 'ACTIVE')}
-                                >
-                                    {processing === plan.id ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (currentSubscription?.plan === plan.id && currentSubscription?.status === 'ACTIVE') ? (
-                                        "Current Plan"
-                                    ) : (
-                                        "Upgrade"
+                {/* Plan Cards */}
+                <div>
+                    <h2 className="text-xl font-semibold mb-4">Available Plans</h2>
+                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                        {plans.map((plan) => {
+                            const isCurrent = currentSubscription?.plan === plan.id && currentSubscription?.status === "ACTIVE"
+                            const label = getPlanButtonLabel(plan)
+                            const planIdx = planOrder.indexOf(plan.id)
+                            const isUpgrade = planIdx > currentPlanIndex
+
+                            return (
+                                <Card key={plan.id} className={`relative flex flex-col ${plan.recommended ? 'border-primary shadow-lg md:scale-105' : ''}`}>
+                                    {plan.recommended && (
+                                        <div className="absolute -top-3 left-0 right-0 flex justify-center">
+                                            <Badge className="bg-primary text-primary-foreground"><TrendingUp className="h-3 w-3 mr-1" />Recommended</Badge>
+                                        </div>
                                     )}
-                                </Button>
-                            </CardFooter>
-                        </Card>
-                    ))}
+                                    <CardHeader>
+                                        <CardTitle>{plan.name}</CardTitle>
+                                        <CardDescription>{plan.description}</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="flex-1">
+                                        <div className="mb-6">
+                                            <span className="text-4xl font-bold">{plan.price}</span>
+                                            <span className="text-muted-foreground">{plan.period}</span>
+                                        </div>
+                                        <ul className="space-y-3">
+                                            {plan.features.map((feature, i) => (
+                                                <li key={i} className="flex items-center text-sm text-muted-foreground">
+                                                    <Check className="mr-2 h-4 w-4 text-green-500 flex-shrink-0" />
+                                                    {feature}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </CardContent>
+                                    <CardFooter>
+                                        <Button
+                                            className="w-full"
+                                            variant={isUpgrade ? "default" : "outline"}
+                                            onClick={() => handleSubscribe(plan.id, label === "Upgrade" ? "upgrade" : label === "Renew" ? "renew" : "downgrade")}
+                                            disabled={!!processing || label === "Current Plan"}
+                                        >
+                                            {processing === plan.id ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                                label
+                                            )}
+                                        </Button>
+                                    </CardFooter>
+                                </Card>
+                            )
+                        })}
+                    </div>
                 </div>
             </div>
         </ProtectedRoute>

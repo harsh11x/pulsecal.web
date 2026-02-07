@@ -145,11 +145,20 @@ export const getProfile = async (userId: string) => {
       throw new AppError('User not found', 404);
     }
 
-    // Return sanitized user data (exclude sensitive fields)
     const { password, mfaSecret, emailVerificationToken, passwordResetToken, ...safeUser } = user;
 
+    let canManageSubscription = false;
+    if (user.role === 'DOCTOR' || user.role === 'ADMIN') {
+      if (user.role === 'ADMIN') canManageSubscription = true;
+      else if (!user.clinicId) canManageSubscription = true;
+      else {
+        const clinic = await prisma.clinic.findUnique({ where: { id: user.clinicId }, select: { ownerId: true } });
+        canManageSubscription = !clinic?.ownerId || clinic.ownerId === userId;
+      }
+    }
+
     logger.info({ userId, role: user.role }, 'Profile retrieved successfully');
-    return safeUser;
+    return { ...safeUser, canManageSubscription };
   } catch (error: any) {
     if (error instanceof AppError) {
       throw error;
@@ -170,7 +179,7 @@ export const getProfile = async (userId: string) => {
 
 export const updateProfile = async (
   userId: string,
-  data: {
+    data: {
     firstName?: string;
     lastName?: string;
     phone?: string;
@@ -183,6 +192,8 @@ export const updateProfile = async (
     services?: string[];
     workingHours?: any;
     clinicName?: string;
+    bankAccountDetails?: string | null;
+    upiId?: string | null;
   }
 ) => {
   try {
@@ -197,6 +208,8 @@ export const updateProfile = async (
       services,
       workingHours,
       clinicName,
+      bankAccountDetails,
+      upiId,
       ...userData
     } = data;
 
@@ -227,7 +240,9 @@ export const updateProfile = async (
         consultationFee !== undefined ||
         services !== undefined ||
         workingHours !== undefined ||
-        clinicName !== undefined)
+        clinicName !== undefined ||
+        bankAccountDetails !== undefined ||
+        upiId !== undefined)
     ) {
       const doctorProfile = await prisma.doctorProfile.findUnique({
         where: { userId },
@@ -244,6 +259,8 @@ export const updateProfile = async (
             services,
             workingHours,
             clinicName,
+            bankAccountDetails,
+            upiId,
           },
         });
       } else {

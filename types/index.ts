@@ -13,6 +13,8 @@ export interface User {
   createdAt?: string
   updatedAt?: string
   clinicId?: string
+  canManageSubscription?: boolean
+  doctorProfile?: DoctorProfile
   address?: string
   city?: string
   state?: string

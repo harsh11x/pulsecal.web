@@ -19,9 +19,23 @@ const getRevenueTrends = async (doctorId: string, period: string, startDate: Dat
   const payments = await prisma.payment.findMany({
     where: {
       doctorId,
-      updatedAt: { gte: startDate },
+      deletedAt: null,
       status: 'COMPLETED',
-    },
+      AND: [
+        {
+          OR: [
+            { paidAt: { gte: startDate } },
+            { paidAt: null, createdAt: { gte: startDate } }
+          ]
+        },
+        {
+          OR: [
+            { description: null },
+            { NOT: { description: { contains: 'subscription', mode: 'insensitive' } } }
+          ]
+        }
+      ],
+    } as any,
     select: {
       amount: true,
       paidAt: true,
@@ -230,11 +244,12 @@ export const getDoctorAnalytics = async (
     },
   });
 
-  // Calculate metrics
+  // Calculate metrics - exclude CANCELLED from appointment counts
   const totalAppointments = appointments.length;
+  const nonCancelledStatuses = ['SCHEDULED', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'NO_SHOW', 'RESCHEDULED'];
   const todayAppointments = appointments.filter(apt => {
     const aptDate = new Date(apt.scheduledAt);
-    return aptDate.toDateString() === now.toDateString();
+    return aptDate.toDateString() === now.toDateString() && nonCancelledStatuses.includes(apt.status);
   }).length;
 
   const yesterday = new Date(now);
@@ -245,31 +260,34 @@ export const getDoctorAnalytics = async (
   weekStart.setDate(weekStart.getDate() - 7);
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  // Get completed appointment IDs first
-  const completedAppointmentIds = appointments.filter(a => a.status === 'COMPLETED').map(a => a.id);
-  
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const todayEnd = new Date(todayStart);
+  todayEnd.setDate(todayEnd.getDate() + 1);
+  const yesterdayStart = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
+
   const [
     yesterdayAppointments,
     weekAppointments,
     monthAppointments,
     yesterdayStats,
-    payments
+    allConsultationPayments
   ] = await Promise.all([
-    // Yesterday's appointment count
+    // Yesterday's appointment count (exclude CANCELLED)
     prisma.appointment.count({
       where: {
         doctorId,
         scheduledAt: {
-          gte: new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate()),
-          lt: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+          gte: yesterdayStart,
+          lt: todayStart,
         },
         deletedAt: null,
+        status: { not: 'CANCELLED' },
       },
     }),
-    // Week appointments
+    // Week appointments (include scheduledAt for chart breakdown)
     prisma.appointment.findMany({
         where: { doctorId, scheduledAt: { gte: weekStart, lte: now }, deletedAt: null },
-        select: { id: true, status: true }
+        select: { id: true, status: true, scheduledAt: true }
     }),
     // Month appointments
     prisma.appointment.findMany({
@@ -280,64 +298,27 @@ export const getDoctorAnalytics = async (
     prisma.appointment.findMany({
         where: {
             doctorId,
-            scheduledAt: {
-                gte: new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate()),
-                lt: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
-            },
+            scheduledAt: { gte: yesterdayStart, lt: todayStart },
             deletedAt: null
         },
         select: { status: true }
     }),
-    // Payments for current period appointments
-    completedAppointmentIds.length > 0
-      ? prisma.payment.findMany({
-          where: {
-            appointmentId: { in: completedAppointmentIds },
-            status: 'COMPLETED'
-          }
-        })
-      : Promise.resolve([])
+    // All COMPLETED consultation payments for this doctor (exclude subscription payments)
+    prisma.payment.findMany({
+      where: {
+        doctorId,
+        status: 'COMPLETED',
+        deletedAt: null,
+        OR: [
+          { description: null },
+          { NOT: { description: { contains: 'subscription', mode: 'insensitive' } } }
+        ],
+      } as any,
+      select: { amount: true, paidAt: true, createdAt: true }
+    })
   ]);
 
   const cancelledAppointments = appointments.filter(apt => apt.status === 'CANCELLED').length;
-  
-  // Today's revenue
-  const todayPayments = payments.filter(payment => {
-    const paidDate = payment.paidAt ? new Date(payment.paidAt) : new Date(payment.createdAt);
-    return paidDate.toDateString() === now.toDateString();
-  });
-  const todayRevenue = todayPayments.reduce((sum, payment) => sum + Number(payment.amount), 0);
-
-  // Yesterday's revenue (requires separate query as it might not be in main 'payments' if period is 'day')
-  // We need to fetch yesterday's payments explicitly if they aren't covered by 'appointments' range
-  const yesterdayPayments = await prisma.payment.findMany({
-    where: {
-        doctorId,
-        status: 'COMPLETED',
-        paidAt: {
-            gte: new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate()),
-            lt: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
-        },
-    },
-  });
-  const yesterdayRevenue = yesterdayPayments.reduce((sum, payment) => sum + Number(payment.amount), 0);
-
-  // Week/Month Revenue (needs separate payment queries for their ranges)
-  const weekCompletedIds = weekAppointments.filter(a => a.status === 'COMPLETED').map(a => a.id);
-  const monthCompletedIds = monthAppointments.filter(a => a.status === 'COMPLETED').map(a => a.id);
-  
-  const [weekPayments, monthPayments] = await Promise.all([
-    weekCompletedIds.length ? prisma.payment.findMany({ where: { appointmentId: { in: weekCompletedIds }, status: 'COMPLETED' } }) : [],
-    monthCompletedIds.length ? prisma.payment.findMany({ where: { appointmentId: { in: monthCompletedIds }, status: 'COMPLETED' } }) : []
-  ]);
-
-  const weekRevenue = weekPayments.reduce((sum, p) => sum + Number(p.amount), 0);
-  const monthRevenue = monthPayments.reduce((sum, p) => sum + Number(p.amount), 0);
-
-  // Cancellation rate
-  const cancellationRate = totalAppointments > 0
-    ? (cancelledAppointments / totalAppointments) * 100
-    : 0;
 
   const todayCompletedCount = appointments.filter(apt => {
     const aptDate = new Date(apt.scheduledAt);
@@ -352,14 +333,92 @@ export const getDoctorAnalytics = async (
   const weekCancellations = weekAppointments.filter(apt => apt.status === 'CANCELLED').length;
   const monthCancellations = monthAppointments.filter(apt => apt.status === 'CANCELLED').length;
 
+  const getPaidDate = (p: { paidAt: Date | null; createdAt: Date }) => p.paidAt ? new Date(p.paidAt) : new Date(p.createdAt);
+  const payments = allConsultationPayments;
+
+  const todayRevenue = payments
+    .filter(p => {
+      const d = getPaidDate(p);
+      return d >= todayStart && d < todayEnd;
+    })
+    .reduce((sum, p) => sum + Number(p.amount), 0);
+
+  const yesterdayRevenue = payments
+    .filter(p => {
+      const d = getPaidDate(p);
+      return d >= yesterdayStart && d < todayStart;
+    })
+    .reduce((sum, p) => sum + Number(p.amount), 0);
+
+  const weekRevenue = payments
+    .filter(p => {
+      const d = getPaidDate(p);
+      return d >= weekStart && d <= now;
+    })
+    .reduce((sum, p) => sum + Number(p.amount), 0);
+
+  const monthRevenue = payments
+    .filter(p => {
+      const d = getPaidDate(p);
+      return d >= monthStart && d <= now;
+    })
+    .reduce((sum, p) => sum + Number(p.amount), 0);
+
+  const yearStart = new Date(now.getFullYear(), 0, 1);
+  const yearRevenue = payments
+    .filter(p => {
+      const d = getPaidDate(p);
+      return d >= yearStart && d <= now;
+    })
+    .reduce((sum, p) => sum + Number(p.amount), 0);
+
+  // Cancellation rate - use month-wide data for meaningful metric
+  const monthTotal = monthAppointments.length;
+  const monthCancelled = monthCancellations;
+  const cancellationRate = monthTotal > 0
+    ? (monthCancelled / monthTotal) * 100
+    : 0;
+
   // Get reviews
   const { totalReviews, averageRating, recentReviews } = await getDoctorReviews(doctorId);
 
-  // Revenue trends by day/week/month
-  const revenueTrends = await getRevenueTrends(doctorId, period, startDate);
+  // Revenue trends by day/week/month - use 'week' for better dashboard defaults
+  const trendPeriod = period === 'day' ? 'week' : period;
+  const revenueTrends = await getRevenueTrends(doctorId, trendPeriod, period === 'day' ? new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) : startDate);
 
-  // Patient growth
-  const patientGrowth = await getPatientGrowth(doctorId, period, startDate);
+  // Patient growth - use month for meaningful data (growth only supports month/3months/year)
+  const growthPeriod = ['day', 'week'].includes(period) ? 'month' : period;
+  const patientGrowth = await getPatientGrowth(doctorId, growthPeriod, new Date(now.getFullYear(), now.getMonth() - 2, 1));
+
+  // Build revenueData with appointment counts per day (for charts)
+  const appointmentsByDay = new Map<string, number>();
+  weekAppointments.forEach((apt: { scheduledAt: Date }) => {
+    const d = new Date(apt.scheduledAt).toISOString().split('T')[0];
+    appointmentsByDay.set(d, (appointmentsByDay.get(d) || 0) + 1);
+  });
+
+  const revenueDataFormatted = revenueTrends.map(t => {
+    const d = new Date(t.date);
+    const dateKey = d.toISOString().split('T')[0];
+    const displayDate = trendPeriod === 'day'
+      ? d.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true })
+      : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return {
+      date: displayDate,
+      dateKey,
+      revenue: t.revenue,
+      appointments: appointmentsByDay.get(dateKey) || 0,
+    };
+  });
+
+  const patientGrowthFormatted = patientGrowth.map(g => {
+    const d = new Date(g.date);
+    return {
+      month: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+      patients: g.totalPatients,
+      newPatients: g.newPatients,
+    };
+  });
 
   return {
     today: {
@@ -386,15 +445,17 @@ export const getDoctorAnalytics = async (
       patients: monthCompletedCount,
       cancellations: monthCancellations,
     },
-    revenueData: revenueTrends.map(trend => ({
-      date: trend.date,
-      revenue: trend.revenue,
-      appointments: 0, // Will be populated from appointment trends
-    })),
-    patientGrowth: patientGrowth.map(growth => ({
-      month: growth.date,
-      patients: growth.totalPatients,
-    })),
+    thisYear: period === 'year' ? (() => {
+      const yearAppointments = appointments.filter(apt => apt.scheduledAt >= yearStart && apt.scheduledAt <= now);
+      return {
+        appointments: yearAppointments.length,
+        revenue: Number(yearRevenue.toFixed(2)),
+        patients: yearAppointments.filter(apt => apt.status === 'COMPLETED').length,
+        cancellations: yearAppointments.filter(apt => apt.status === 'CANCELLED').length,
+      };
+    })() : undefined,
+    revenueData: revenueDataFormatted,
+    patientGrowth: patientGrowthFormatted,
     cancellationRate: Number(cancellationRate.toFixed(2)),
     reviews: {
       total: totalReviews,
@@ -418,10 +479,16 @@ export const getFinancialReports = async (
   const periodMap = { daily: 'week' as const, monthly: 'month' as const, yearly: 'year' as const };
   const analytics = await getDoctorAnalytics(doctorId, periodMap[type]);
 
-  const totalAppointments = analytics.thisMonth.appointments;
-  const totalRevenue = analytics.thisMonth.revenue;
-  const confirmedAppointments = analytics.thisMonth.patients;
-  const cancelledAppointments = analytics.thisMonth.cancellations;
+  const periodData = type === 'daily'
+    ? analytics.thisWeek
+    : type === 'yearly' && analytics.thisYear
+      ? analytics.thisYear
+      : analytics.thisMonth;
+
+  const totalAppointments = periodData.appointments;
+  const totalRevenue = periodData.revenue;
+  const confirmedAppointments = periodData.patients;
+  const cancelledAppointments = periodData.cancellations;
 
   const periodLabel = type === 'daily'
     ? 'Last 7 days'

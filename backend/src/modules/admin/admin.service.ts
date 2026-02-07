@@ -78,6 +78,36 @@ export const getAuditLogs = async (req: {
   };
 };
 
+export const getDoctorPayouts = async () => {
+  const doctors = await prisma.user.findMany({
+    where: { role: 'DOCTOR', deletedAt: null },
+    include: {
+      doctorProfile: {
+        select: {
+          id: true,
+          specialization: true,
+          consultationFee: true,
+          bankAccountDetails: true,
+          upiId: true,
+        },
+      },
+    },
+    orderBy: { firstName: 'asc' },
+  });
+
+  return doctors.map((d) => ({
+    id: d.id,
+    firstName: d.firstName,
+    lastName: d.lastName,
+    email: d.email,
+    phone: d.phone,
+    specialization: d.doctorProfile?.specialization,
+    consultationFee: d.doctorProfile?.consultationFee,
+    bankAccountDetails: d.doctorProfile?.bankAccountDetails,
+    upiId: d.doctorProfile?.upiId,
+  }));
+};
+
 export const getSystemStats = async () => {
   const [
     totalUsers,

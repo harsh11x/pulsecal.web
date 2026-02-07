@@ -37,11 +37,14 @@ export const createClinicController = async (
     }
     const clinic = await createClinic(value);
 
-    // Associate the creating user (doctor) with the clinic
     if (req.user?.id) {
       await prisma.user.update({
         where: { id: req.user.id },
         data: { clinicId: clinic.id },
+      });
+      await prisma.clinic.update({
+        where: { id: clinic.id },
+        data: { ownerId: req.user.id },
       });
     }
 

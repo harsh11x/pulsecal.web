@@ -148,7 +148,12 @@ export const notifyAppointmentCancelled = async (params: {
       metadata: { appointmentId, type: 'CANCELLATION' } as object,
     },
   });
-  emitNotification(patientId, { type: 'CANCELLATION', title: patientTitle, message: patientMessage });
+  emitNotification(patientId, {
+    type: 'CANCELLATION',
+    title: patientTitle,
+    message: patientMessage,
+    data: { appointmentId, scheduledAt, doctorName, cancellationReason },
+  });
 
   const doctorTitle = 'Appointment Cancelled';
   const doctorMessage = `Appointment with ${patientName} on ${scheduledStr} was cancelled.${reasonStr}`;
@@ -161,7 +166,43 @@ export const notifyAppointmentCancelled = async (params: {
       metadata: { appointmentId, type: 'CANCELLATION' } as object,
     },
   });
-  emitNotification(doctorId, { type: 'CANCELLATION', title: doctorTitle, message: doctorMessage });
+  emitNotification(doctorId, {
+    type: 'CANCELLATION',
+    title: doctorTitle,
+    message: doctorMessage,
+    data: { appointmentId, patientName, scheduledAt, cancellationReason },
+  });
+
+  // Notify receptionists of the doctor's clinic
+  const doctor = await prisma.user.findUnique({
+    where: { id: doctorId },
+    select: { clinicId: true },
+  });
+  if (doctor?.clinicId) {
+    const receptionists = await prisma.user.findMany({
+      where: { clinicId: doctor.clinicId, role: 'RECEPTIONIST', isActive: true, deletedAt: null },
+      select: { id: true },
+    });
+    const recTitle = 'Appointment Cancelled';
+    const recMessage = `Appointment cancelled: ${patientName} was scheduled for ${scheduledStr}.${reasonStr}`;
+    for (const rec of receptionists) {
+      await prisma.notification.create({
+        data: {
+          userId: rec.id,
+          type: 'CANCELLATION',
+          title: recTitle,
+          message: recMessage,
+          metadata: { appointmentId, type: 'CANCELLATION' } as object,
+        },
+      });
+      emitNotification(rec.id, {
+        type: 'CANCELLATION',
+        title: recTitle,
+        message: recMessage,
+        data: { appointmentId, patientName, doctorId, scheduledAt, cancellationReason },
+      });
+    }
+  }
 };
 
 /**
@@ -190,7 +231,12 @@ export const notifyAppointmentCompleted = async (params: {
       metadata: { appointmentId, type: 'COMPLETED_VISIT' } as object,
     },
   });
-  emitNotification(patientId, { type: 'COMPLETED_VISIT', title: patientTitle, message: patientMessage });
+  emitNotification(patientId, {
+    type: 'COMPLETED_VISIT',
+    title: patientTitle,
+    message: patientMessage,
+    data: { appointmentId, doctorName },
+  });
 
   const doctorTitle = 'Appointment Completed';
   const doctorMessage = `Visit with ${patientName} has been marked as completed.`;
@@ -203,7 +249,129 @@ export const notifyAppointmentCompleted = async (params: {
       metadata: { appointmentId, type: 'COMPLETED_VISIT' } as object,
     },
   });
-  emitNotification(doctorId, { type: 'COMPLETED_VISIT', title: doctorTitle, message: doctorMessage });
+  emitNotification(doctorId, {
+    type: 'COMPLETED_VISIT',
+    title: doctorTitle,
+    message: doctorMessage,
+    data: { appointmentId, patientName },
+  });
+
+  // Notify receptionists of the doctor's clinic
+  const doctor = await prisma.user.findUnique({
+    where: { id: doctorId },
+    select: { clinicId: true },
+  });
+  if (doctor?.clinicId) {
+    const receptionists = await prisma.user.findMany({
+      where: { clinicId: doctor.clinicId, role: 'RECEPTIONIST', isActive: true, deletedAt: null },
+      select: { id: true },
+    });
+    const recTitle = 'Appointment Completed';
+    const recMessage = `Visit completed: ${patientName} with doctor.`;
+    for (const rec of receptionists) {
+      await prisma.notification.create({
+        data: {
+          userId: rec.id,
+          type: 'COMPLETED_VISIT',
+          title: recTitle,
+          message: recMessage,
+          metadata: { appointmentId, type: 'COMPLETED_VISIT' } as object,
+        },
+      });
+      emitNotification(rec.id, {
+        type: 'COMPLETED_VISIT',
+        title: recTitle,
+        message: recMessage,
+        data: { appointmentId, patientName, doctorId },
+      });
+    }
+  }
+};
+
+/**
+ * Notify when appointment is rescheduled
+ */
+export const notifyAppointmentRescheduled = async (params: {
+  appointmentId: string;
+  doctorId: string;
+  patientId: string;
+  patientName: string;
+  doctorName?: string;
+  scheduledAt: Date;
+  reason?: string;
+}): Promise<void> => {
+  const { appointmentId, doctorId, patientId, patientName, doctorName, scheduledAt, reason } = params;
+  const scheduledStr = scheduledAt instanceof Date ? scheduledAt.toLocaleString() : String(scheduledAt);
+  const reasonStr = reason ? ` Reason: ${reason}` : '';
+
+  const patientTitle = 'Appointment Rescheduled';
+  const patientMessage = doctorName
+    ? `Your appointment with Dr. ${doctorName} has been rescheduled to ${scheduledStr}.${reasonStr}`
+    : `Your appointment has been rescheduled to ${scheduledStr}.${reasonStr}`;
+
+  await prisma.notification.create({
+    data: {
+      userId: patientId,
+      type: 'APPOINTMENT_REMINDER',
+      title: patientTitle,
+      message: patientMessage,
+      metadata: { appointmentId, type: 'RESCHEDULED' } as object,
+    },
+  });
+  emitNotification(patientId, {
+    type: 'RESCHEDULED',
+    title: patientTitle,
+    message: patientMessage,
+    data: { appointmentId, scheduledAt, doctorName, reason },
+  });
+
+  const doctorTitle = 'Appointment Rescheduled';
+  const doctorMessage = `Appointment with ${patientName} rescheduled to ${scheduledStr}.${reasonStr}`;
+  await prisma.notification.create({
+    data: {
+      userId: doctorId,
+      type: 'APPOINTMENT_REMINDER',
+      title: doctorTitle,
+      message: doctorMessage,
+      metadata: { appointmentId, type: 'RESCHEDULED' } as object,
+    },
+  });
+  emitNotification(doctorId, {
+    type: 'RESCHEDULED',
+    title: doctorTitle,
+    message: doctorMessage,
+    data: { appointmentId, patientName, scheduledAt, reason },
+  });
+
+  const doctor = await prisma.user.findUnique({
+    where: { id: doctorId },
+    select: { clinicId: true },
+  });
+  if (doctor?.clinicId) {
+    const receptionists = await prisma.user.findMany({
+      where: { clinicId: doctor.clinicId, role: 'RECEPTIONIST', isActive: true, deletedAt: null },
+      select: { id: true },
+    });
+    const recTitle = 'Appointment Rescheduled';
+    const recMessage = `Appointment rescheduled: ${patientName} to ${scheduledStr}.`;
+    for (const rec of receptionists) {
+      await prisma.notification.create({
+        data: {
+          userId: rec.id,
+          type: 'APPOINTMENT_REMINDER',
+          title: recTitle,
+          message: recMessage,
+          metadata: { appointmentId, type: 'RESCHEDULED' } as object,
+        },
+      });
+      emitNotification(rec.id, {
+        type: 'RESCHEDULED',
+        title: recTitle,
+        message: recMessage,
+        data: { appointmentId, patientName, doctorId, scheduledAt, reason },
+      });
+    }
+  }
 };
 
 /**

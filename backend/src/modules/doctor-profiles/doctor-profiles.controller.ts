@@ -42,6 +42,8 @@ const updateDoctorProfileSchema = Joi.object({
     services: Joi.array().items(Joi.string()).optional(),
     workingHours: Joi.object().optional(),
     clinicId: Joi.string().optional(),
+    bankAccountDetails: Joi.string().optional().allow('', null),
+    upiId: Joi.string().optional().allow('', null),
 });
 
 export const createDoctorProfileController = async (

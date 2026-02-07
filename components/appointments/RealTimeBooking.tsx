@@ -33,16 +33,30 @@ interface RealTimeBookingProps {
     onBookingSuccess?: () => void
 }
 
+const isValidPhone = (phone: string) => /^\d{10}$/.test(phone)
+
 export function RealTimeBooking({ doctorId, doctorName, consultationFee, onBookingSuccess }: RealTimeBookingProps) {
     const router = useRouter()
     const { token, user } = useAppSelector((state) => state.auth)
     const [days, setDays] = useState<DaySlots[]>([])
     const [selectedDate, setSelectedDate] = useState<string | null>(null)
     const [selectedTime, setSelectedTime] = useState<string | null>(null)
+    const [phone, setPhone] = useState(() => (user as any)?.phone?.replace(/\D/g, '').slice(0, 10) || "")
     const [reason, setReason] = useState("")
     const [notes, setNotes] = useState("")
     const [loading, setLoading] = useState(false)
     const [fetching, setFetching] = useState(true)
+
+    const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))
+    }
+
+    useEffect(() => {
+        const userPhone = (user as any)?.phone
+        if (userPhone && !phone) {
+            setPhone(String(userPhone).replace(/\D/g, '').slice(0, 10))
+        }
+    }, [user])
 
     const fetchSlots = async () => {
         try {
@@ -124,6 +138,10 @@ export function RealTimeBooking({ doctorId, doctorName, consultationFee, onBooki
             toast.error("Please select date, time and provide reason for visit")
             return
         }
+        if (!isValidPhone(phone)) {
+            toast.error("Please enter a valid 10-digit mobile number")
+            return
+        }
 
         const fee = consultationFee ?? 0
 
@@ -136,11 +154,13 @@ export function RealTimeBooking({ doctorId, doctorName, consultationFee, onBooki
                     scheduledAt: selectedTime,
                     reason: reason.trim(),
                     notes: notes.trim() || undefined,
+                    phone: phone.trim(),
                 })
                 toast.success("Appointment booked successfully!")
                 setSelectedTime(null)
                 setReason("")
                 setNotes("")
+                setPhone((user as any)?.phone?.replace(/\D/g, '').slice(0, 10) || "")
                 onBookingSuccess?.()
                 fetchSlots()
                 if (res?.id) router.push(`/appointments/${res.id}`)
@@ -155,6 +175,7 @@ export function RealTimeBooking({ doctorId, doctorName, consultationFee, onBooki
                 reason: reason.trim(),
                 notes: notes.trim() || undefined,
                 amount: fee,
+                phone: phone.trim(),
             })
 
             if (!(window as any).Razorpay) {
@@ -181,6 +202,7 @@ export function RealTimeBooking({ doctorId, doctorName, consultationFee, onBooki
                         setSelectedTime(null)
                         setReason("")
                         setNotes("")
+                        setPhone((user as any)?.phone?.replace(/\D/g, '').slice(0, 10) || "")
                         onBookingSuccess?.()
                         fetchSlots()
                         if (verifyRes?.appointment?.id) {
@@ -224,23 +246,23 @@ export function RealTimeBooking({ doctorId, doctorName, consultationFee, onBooki
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-5 sm:space-y-6">
             <div>
-                <h3 className="text-lg font-semibold mb-2">Select Date</h3>
-                <ScrollArea className="w-full whitespace-nowrap">
-                    <div className="flex w-max space-x-2 pb-4">
+                <h3 className="text-base sm:text-lg font-semibold mb-2">Select Date</h3>
+                <ScrollArea className="w-full whitespace-nowrap -mx-1 sm:mx-0">
+                    <div className="flex w-max gap-2 sm:gap-2 pb-3 sm:pb-4 px-1">
                         {days.map((day) => (
                             <Button
                                 key={day.date}
                                 variant={selectedDate === day.date ? "default" : "outline"}
-                                className={`h-20 w-24 flex-col gap-1 ${day.isFullyBooked ? "opacity-50" : ""}`}
+                                className={`h-16 sm:h-20 w-20 sm:w-24 flex-col gap-0.5 shrink-0 ${day.isFullyBooked ? "opacity-50" : ""}`}
                                 onClick={() => !day.isFullyBooked && setSelectedDate(day.date)}
                                 disabled={day.isFullyBooked}
                             >
-                                <span className="text-xs uppercase text-muted-foreground">
+                                <span className="text-[10px] sm:text-xs uppercase text-muted-foreground">
                                     {day.isFullyBooked ? "Full" : day.dayName}
                                 </span>
-                                <span className="text-xl font-bold">{day.date.split('-')[2]}</span>
+                                <span className="text-lg sm:text-xl font-bold">{day.date.split('-')[2]}</span>
                             </Button>
                         ))}
                     </div>
@@ -250,8 +272,8 @@ export function RealTimeBooking({ doctorId, doctorName, consultationFee, onBooki
 
             {selectedDate && selectedDaySlots && (
                 <div className="animate-in fade-in slide-in-from-top-4 duration-300">
-                    <h3 className="text-lg font-semibold mb-2">Select Time</h3>
-                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                    <h3 className="text-base sm:text-lg font-semibold mb-2">Select Time</h3>
+                    <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-6 gap-1.5 sm:gap-2">
                         {selectedDaySlots.slots.map((slot) => {
                             const timeLabel = new Date(slot.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                             return (
@@ -271,49 +293,80 @@ export function RealTimeBooking({ doctorId, doctorName, consultationFee, onBooki
             )}
 
             {selectedTime && (
-                <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-300 p-4 border rounded-lg bg-accent/10">
-                    <div className="flex items-center gap-2 text-primary font-medium">
-                        <Clock className="h-4 w-4" />
-                        <span>
-                            {format(new Date(selectedTime), "EEEE, MMMM d 'at' h:mm a")}
-                        </span>
+                <>
+                    <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-300 p-4 sm:p-4 border rounded-lg bg-accent/10 pb-36 sm:pb-4">
+                        <div className="flex items-center gap-2 text-primary font-medium text-sm sm:text-base">
+                            <Clock className="h-4 w-4 shrink-0" />
+                            <span className="truncate">
+                                {format(new Date(selectedTime), "EEEE, MMM d 'at' h:mm a")}
+                            </span>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label className="text-sm">Mobile Number *</Label>
+                            <Input
+                                type="tel"
+                                placeholder="10-digit mobile number"
+                                value={phone}
+                                onChange={handlePhoneChange}
+                                maxLength={10}
+                                className={phone && !isValidPhone(phone) ? "border-destructive" : ""}
+                            />
+                            {phone && !isValidPhone(phone) && (
+                                <p className="text-xs text-destructive">Must be exactly 10 digits</p>
+                            )}
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label className="text-sm">Reason for Visit *</Label>
+                            <Textarea
+                                placeholder="Briefly describe your symptoms or reason for visit..."
+                                value={reason}
+                                onChange={(e) => setReason(e.target.value)}
+                                required
+                                rows={3}
+                                className="min-h-[72px] sm:min-h-0"
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label className="text-sm">Additional Notes (Optional)</Label>
+                            <Textarea
+                                placeholder="Any other information you want to share..."
+                                value={notes}
+                                onChange={(e) => setNotes(e.target.value)}
+                                rows={2}
+                                className="min-h-[56px] sm:min-h-0"
+                            />
+                        </div>
+
+                        <div className="rounded-lg bg-muted/50 p-3 text-sm">
+                            <span className="font-medium">
+                                {consultationFee != null && consultationFee > 0
+                                    ? `Consultation fee: ₹${consultationFee} (pay now to confirm)`
+                                    : "Free consultation"}
+                            </span>
+                            {consultationFee != null && consultationFee > 0 && (
+                                <p className="text-muted-foreground text-xs mt-1">Pay via Razorpay to confirm your appointment.</p>
+                            )}
+                        </div>
+                        {/* Desktop: inline button */}
+                        <Button className="hidden sm:flex w-full" size="lg" onClick={handleBook} disabled={loading || !reason.trim() || !isValidPhone(phone)}>
+                            {loading ? "Processing..." : consultationFee != null && consultationFee > 0
+                                ? `Pay ₹${consultationFee} & Book`
+                                : "Confirm Booking"}
+                        </Button>
                     </div>
 
-                    <div className="space-y-2">
-                        <Label>Reason for Visit *</Label>
-                        <Textarea
-                            placeholder="Briefly describe your symptoms or reason for visit..."
-                            value={reason}
-                            onChange={(e) => setReason(e.target.value)}
-                            required
-                        />
+                    {/* Mobile: sticky bottom CTA bar (above MobileNav ~64px) */}
+                    <div className="sm:hidden fixed bottom-16 left-0 right-0 z-40 p-4 pt-3 pb-3 bg-background/95 backdrop-blur border-t shadow-[0_-4px_12px_rgba(0,0,0,0.08)]">
+                        <Button className="w-full" size="lg" onClick={handleBook} disabled={loading || !reason.trim() || !isValidPhone(phone)}>
+                            {loading ? "Processing..." : consultationFee != null && consultationFee > 0
+                                ? `Pay ₹${consultationFee} & Book`
+                                : "Confirm Booking"}
+                        </Button>
                     </div>
-
-                    <div className="space-y-2">
-                        <Label>Additional Notes (Optional)</Label>
-                        <Textarea
-                            placeholder="Any other information you want to share..."
-                            value={notes}
-                            onChange={(e) => setNotes(e.target.value)}
-                        />
-                    </div>
-
-                    <div className="rounded-lg bg-muted/50 p-3 text-sm">
-                        <span className="font-medium">
-                            {consultationFee != null && consultationFee > 0
-                                ? `Consultation fee: ₹${consultationFee} (pay now to confirm)`
-                                : "Free consultation"}
-                        </span>
-                        {consultationFee != null && consultationFee > 0 && (
-                            <p className="text-muted-foreground text-xs mt-1">Click below to pay via Razorpay. Appointment is confirmed only after successful payment.</p>
-                        )}
-                    </div>
-                    <Button className="w-full" size="lg" onClick={handleBook} disabled={loading || !reason.trim()}>
-                        {loading ? "Processing..." : consultationFee != null && consultationFee > 0
-                            ? `Pay ₹${consultationFee} & Book`
-                            : "Confirm Booking"}
-                    </Button>
-                </div>
+                </>
             )}
         </div>
     )

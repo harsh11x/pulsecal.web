@@ -254,6 +254,19 @@ export const rescheduleAppointmentController = async (
       value.scheduledAt
     );
 
+    const apt = appointment as any;
+    const patientName = apt.patient ? `${apt.patient.firstName || ''} ${apt.patient.lastName || ''}`.trim() || 'Patient' : 'Patient';
+    const doctorName = apt.doctor ? `Dr. ${apt.doctor.firstName || ''} ${apt.doctor.lastName || ''}`.trim() : undefined;
+    const { notifyAppointmentRescheduled } = await import('../../utils/notificationHelper');
+    notifyAppointmentRescheduled({
+      appointmentId: appointment.id,
+      doctorId: appointment.doctorId,
+      patientId: appointment.patientId || '',
+      patientName,
+      doctorName,
+      scheduledAt: appointment.scheduledAt,
+    }).catch((err) => console.error('Failed to send reschedule notifications:', err));
+
     // Emit real-time update
     const { emitAppointmentUpdate } = await import('../../utils/socketEmitter');
     emitAppointmentUpdate({
@@ -343,11 +356,20 @@ export const createPatientAppointmentController = async (
       duration: Joi.number().optional(),
       reason: Joi.string().optional().allow('', null),
       notes: Joi.string().optional().allow('', null),
+      phone: Joi.string().pattern(/^\d{10}$/).required().messages({ 'string.pattern.base': 'Phone must be exactly 10 digits' }),
     });
     const { error, value } = schema.validate(req.body, { abortEarly: false, allowUnknown: true, stripUnknown: true });
     if (error) throw new AppError(error.details[0].message, 400);
 
     const scheduledAt = typeof value.scheduledAt === 'string' ? new Date(value.scheduledAt) : value.scheduledAt;
+
+    if (value.phone) {
+      await prisma.user.update({
+        where: { id: req.user!.id },
+        data: { phone: value.phone },
+      });
+    }
+
     const appointment = await createAppointment({
       ...value,
       scheduledAt,

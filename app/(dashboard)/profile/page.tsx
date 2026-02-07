@@ -12,7 +12,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Camera, Save } from "lucide-react"
+import { Camera, Save, Wallet, Building2, CreditCard } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 
@@ -53,6 +53,7 @@ export default function ProfilePage() {
   const isDoctor = user?.role === "DOCTOR"
   const existingAddress = isDoctor ? ((user as any)?.doctorProfile?.clinicAddress || "") : ""
   const parsed = parseAddress(existingAddress)
+  const dp = (user as any)?.doctorProfile
 
   const [formData, setFormData] = useState({
     firstName: user?.firstName || "",
@@ -64,6 +65,8 @@ export default function ProfilePage() {
     city: parsed.city,
     state: parsed.state,
     pincode: parsed.pincode,
+    bankAccountDetails: dp?.bankAccountDetails || "",
+    upiId: dp?.upiId || "",
   })
 
   // Get Indian states
@@ -88,7 +91,11 @@ export default function ProfilePage() {
         lastName: formData.lastName,
         phone: formData.phone,
       }
-      if (isDoctor) payload.clinicAddress = fullClinicAddress
+      if (isDoctor) {
+        payload.clinicAddress = fullClinicAddress
+        payload.bankAccountDetails = formData.bankAccountDetails?.trim() || null
+        payload.upiId = formData.upiId?.trim() || null
+      }
       
       // Only include dateOfBirth if it's provided and valid
       // Backend expects Date object, but Joi will parse ISO string
@@ -119,7 +126,9 @@ export default function ProfilePage() {
           doctorProfile: {
             ...(user as any)?.doctorProfile,
             ...(updatedUser as any)?.doctorProfile,
-            clinicAddress: fullClinicAddress
+            clinicAddress: fullClinicAddress,
+            bankAccountDetails: payload.bankAccountDetails ?? formData.bankAccountDetails,
+            upiId: payload.upiId ?? formData.upiId,
           }
         } : {})
       }
@@ -310,6 +319,50 @@ export default function ProfilePage() {
                 onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
                 placeholder="e.g. 400001"
               />
+            </div>
+          </div>
+          )}
+
+          {isDoctor && (
+          <div className="space-y-4 pt-4 border-t">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Wallet className="h-5 w-5" />
+              Payout Details
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Add your bank account details or UPI ID to receive payments every 15 days. You can provide either one.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="bankAccountDetails" className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4" />
+                  Bank Account Details
+                </Label>
+                <Input
+                  id="bankAccountDetails"
+                  value={formData.bankAccountDetails}
+                  onChange={(e) => setFormData({ ...formData, bankAccountDetails: e.target.value })}
+                  placeholder="Bank name, Account number, IFSC, Account holder name"
+                />
+                <p className="text-xs text-muted-foreground">
+                  e.g. HDFC Bank, A/c 1234567890, IFSC HDFC0001234, John Doe
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="upiId" className="flex items-center gap-2">
+                  <CreditCard className="h-4 w-4" />
+                  UPI ID
+                </Label>
+                <Input
+                  id="upiId"
+                  value={formData.upiId}
+                  onChange={(e) => setFormData({ ...formData, upiId: e.target.value })}
+                  placeholder="yourname@upi or 9876543210@paytm"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Provide UPI ID if you prefer UPI over bank transfer
+                </p>
+              </div>
             </div>
           </div>
           )}

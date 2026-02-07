@@ -19,12 +19,13 @@ export default function AnalyticsPage() {
             try {
                 setLoading(true)
                 // Fetch analytics data
-                const analyticsResponse: any = await apiService.get("/doctors/analytics")
-                setStats(analyticsResponse.data || null)
+                const analyticsResponse: any = await apiService.get("/doctors/analytics?period=week")
+                const statsData = analyticsResponse?.data ?? analyticsResponse
+                setStats(statsData || null)
 
                 // Use real reviews from analytics response
-                if (analyticsResponse.data?.reviews?.recent) {
-                    setReviews(analyticsResponse.data.reviews.recent.map((r: any) => ({
+                if (statsData?.reviews?.recent) {
+                    setReviews(statsData.reviews.recent.map((r: any) => ({
                         id: r.id,
                         patientName: r.patient ? `${r.patient.firstName} ${r.patient.lastName}` : "Unknown Patient",
                         rating: r.rating,

@@ -4,6 +4,7 @@ import {
   getSystemStats,
   getAllClinicsWithStats,
   getClinicDetails,
+  getDoctorPayouts,
 } from './admin.service';
 import { sendSuccess, sendPaginated } from '../../utils/apiResponse';
 
@@ -66,6 +67,19 @@ export const getClinicDetailsController = async (
   try {
     const clinic = await getClinicDetails(req.params.id);
     sendSuccess(res, clinic, 'Clinic details retrieved successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getDoctorPayoutsController = async (
+  _req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const doctors = await getDoctorPayouts();
+    sendSuccess(res, { doctors }, 'Doctor payout details retrieved successfully');
   } catch (err) {
     next(err);
   }

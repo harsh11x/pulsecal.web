@@ -38,8 +38,12 @@ interface AnalyticsData {
 }
 
 export function DoctorAnalytics({ data }: { data: AnalyticsData }) {
-  const revenueChange = ((data.today.revenue - data.yesterday.revenue) / data.yesterday.revenue) * 100
-  const appointmentsChange = ((data.today.appointments - data.yesterday.appointments) / data.yesterday.appointments) * 100
+  const revenueChange = data.yesterday.revenue > 0
+    ? ((data.today.revenue - data.yesterday.revenue) / data.yesterday.revenue) * 100
+    : (data.today.revenue > 0 ? 100 : 0)
+  const appointmentsChange = data.yesterday.appointments > 0
+    ? ((data.today.appointments - data.yesterday.appointments) / data.yesterday.appointments) * 100
+    : (data.today.appointments > 0 ? 100 : 0)
 
   return (
     <div className="space-y-6">
@@ -109,7 +113,7 @@ export function DoctorAnalytics({ data }: { data: AnalyticsData }) {
             <XCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data.cancellationRate.toFixed(1)}%</div>
+            <div className="text-2xl font-bold">{(data.cancellationRate ?? 0).toFixed(1)}%</div>
             <p className="text-xs text-muted-foreground">This month</p>
           </CardContent>
         </Card>
@@ -127,20 +131,26 @@ export function DoctorAnalytics({ data }: { data: AnalyticsData }) {
           <Card>
             <CardHeader>
               <CardTitle>Revenue Overview</CardTitle>
-              <CardDescription>Daily revenue and appointment trends</CardDescription>
+              <CardDescription>Last 7 days revenue and appointment trends</CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={data.revenueData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="revenue" stroke="#8884d8" name="Revenue (₹)" />
-                  <Line type="monotone" dataKey="appointments" stroke="#82ca9d" name="Appointments" />
-                </LineChart>
-              </ResponsiveContainer>
+              {(!data.revenueData || data.revenueData.length === 0) ? (
+                <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                  No revenue data yet. Data will appear when patients pay for appointments.
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={data.revenueData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey="revenue" stroke="#8884d8" name="Revenue (₹)" />
+                    <Line type="monotone" dataKey="appointments" stroke="#82ca9d" name="Appointments" />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -152,16 +162,22 @@ export function DoctorAnalytics({ data }: { data: AnalyticsData }) {
               <CardDescription>Weekly appointment breakdown</CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={data.revenueData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="appointments" fill="#8884d8" name="Appointments" />
-                </BarChart>
-              </ResponsiveContainer>
+              {(!data.revenueData || data.revenueData.length === 0) ? (
+                <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                  No appointment data yet.
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={data.revenueData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="appointments" fill="#8884d8" name="Appointments" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -170,19 +186,28 @@ export function DoctorAnalytics({ data }: { data: AnalyticsData }) {
           <Card>
             <CardHeader>
               <CardTitle>Patient Growth</CardTitle>
-              <CardDescription>Monthly new patient acquisition</CardDescription>
+              <CardDescription>Monthly patient acquisition (cumulative)</CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={data.patientGrowth}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="patients" stroke="#82ca9d" name="New Patients" />
-                </LineChart>
-              </ResponsiveContainer>
+              {(!data.patientGrowth || data.patientGrowth.length === 0) ? (
+                <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                  No patient growth data yet.
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={data.patientGrowth}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey="patients" stroke="#82ca9d" name="Total Patients" />
+                    {data.patientGrowth.some((p: any) => p.newPatients != null) && (
+                      <Line type="monotone" dataKey="newPatients" stroke="#8884d8" name="New This Month" />
+                    )}
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -237,7 +262,7 @@ export function DoctorAnalytics({ data }: { data: AnalyticsData }) {
           <CardContent className="space-y-2">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Per Appointment</span>
-              <span className="font-semibold">{formatCurrency(data.thisMonth.revenue / data.thisMonth.appointments || 0)}</span>
+              <span className="font-semibold">{formatCurrency(data.thisMonth.appointments > 0 ? data.thisMonth.revenue / data.thisMonth.appointments : 0)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Daily Average</span>
@@ -245,7 +270,7 @@ export function DoctorAnalytics({ data }: { data: AnalyticsData }) {
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Cancellation Rate</span>
-              <span className="font-semibold">{data.cancellationRate.toFixed(1)}%</span>
+              <span className="font-semibold">{(data.cancellationRate ?? 0).toFixed(1)}%</span>
             </div>
           </CardContent>
         </Card>

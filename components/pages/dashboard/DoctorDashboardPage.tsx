@@ -8,7 +8,7 @@ import DoctorFinancialReports from "@/components/dashboard/DoctorFinancialReport
 import DoctorServicesManager from "@/components/dashboard/DoctorServicesManager"
 import ClinicManager from "@/components/dashboard/ClinicManager"
 import { Button } from "@/components/ui/button"
-import { Calendar, DollarSign, Users, TrendingUp, Clock, Settings, FileText } from "lucide-react"
+import { Calendar, DollarSign, Users, TrendingUp, Clock, Settings, FileText, RefreshCw } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import { useEffect, useState } from "react"
@@ -56,6 +56,8 @@ interface DashboardStats {
 export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [todayAppointments, setTodayAppointments] = useState<any[]>([])
 
   useEffect(() => {
@@ -89,36 +91,38 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
 
       socketService.on("appointment:new", (newAppointment: any) => {
         toast.info(`New Appointment: ${newAppointment.patientName}`)
-        // Refresh data to get full details and updated stats
-        fetchDashboardData()
+        fetchDashboardData(false)
       })
 
-      socketService.on("appointment:update", (updatedAppointment: any) => {
+      socketService.on("appointment:update", () => {
         toast.info("Appointment updated")
-        // Refresh data
-        fetchDashboardData()
+        fetchDashboardData(false)
+      })
+
+      socketService.on("payment:update", () => {
+        toast.info("Payment received")
+        fetchDashboardData(false)
       })
     }
 
     connectSocket()
 
-    // Poll for updates every 60 seconds as fallback
-    const interval = setInterval(fetchDashboardData, 60000)
+    const interval = setInterval(() => fetchDashboardData(false), 45000)
 
     return () => {
       clearInterval(interval)
       socketService.off("appointment:new")
       socketService.off("appointment:update")
+      socketService.off("payment:update")
     }
   }, [])
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (showLoader = true) => {
     try {
-      setLoading(true)
-      console.log("🔍 Fetching dashboard data...")
+      if (showLoader) setLoading(true)
+      else setRefreshing(true)
 
-      // Fetch analytics data
-      const analyticsResponse: any = await apiService.get("/doctors/analytics")
+      const analyticsResponse: any = await apiService.get("/doctors/analytics?period=week")
       console.log("✅ Analytics response:", analyticsResponse)
       
       // Handle both wrapped and unwrapped responses
@@ -147,6 +151,7 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
         patientName: apt.patientName || (apt.patient ? `${apt.patient.firstName || ""} ${apt.patient.lastName || ""}`.trim() || "Patient" : "Patient"),
       }))
       setTodayAppointments(appointmentsList)
+      setLastUpdated(new Date())
     } catch (error: any) {
       console.error("❌ Failed to fetch dashboard data:", error)
       console.error("Error details:", {
@@ -191,8 +196,11 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
       })
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
   }
+
+  const handleRefresh = () => fetchDashboardData(false)
 
   if (loading || !stats) {
     return (
@@ -377,29 +385,54 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
           </div>
 
           <Card>
-            <CardHeader>
-              <CardTitle>Revenue Summary</CardTitle>
-              <CardDescription>This month's financial overview</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <div>
+                <CardTitle>Revenue Summary</CardTitle>
+                <CardDescription>
+                  This month's financial overview
+                  {lastUpdated && (
+                    <span className="block text-xs mt-1 text-muted-foreground/80">
+                      Updated {format(lastUpdated, "h:mm a")}
+                    </span>
+                  )}
+                </CardDescription>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="shrink-0"
+              >
+                <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+                <span className="ml-1.5 sr-only sm:not-sr-only">Refresh</span>
+              </Button>
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 md:grid-cols-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Total Revenue</p>
                   <p className="text-2xl font-bold">{formatCurrency(stats.thisMonth.revenue)}</p>
+                  <p className="text-xs text-muted-foreground">Consultation fees this month</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Appointments</p>
                   <p className="text-2xl font-bold">{stats.thisMonth.appointments}</p>
+                  <p className="text-xs text-muted-foreground">Total scheduled</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Average per Visit</p>
                   <p className="text-2xl font-bold">
-                    {formatCurrency(stats.thisMonth.revenue / stats.thisMonth.appointments || 0)}
+                    {stats.thisMonth.patients > 0
+                      ? formatCurrency(stats.thisMonth.revenue / stats.thisMonth.patients)
+                      : "—"}
                   </p>
+                  <p className="text-xs text-muted-foreground">Revenue ÷ completed visits</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Cancellation Rate</p>
-                  <p className="text-2xl font-bold">{stats.cancellationRate.toFixed(1)}%</p>
+                  <p className="text-2xl font-bold">{(stats.cancellationRate ?? 0).toFixed(1)}%</p>
+                  <p className="text-xs text-muted-foreground">This month</p>
                 </div>
               </div>
             </CardContent>

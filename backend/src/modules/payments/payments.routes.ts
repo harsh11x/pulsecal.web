@@ -8,6 +8,7 @@ import {
   createRazorpaySubscriptionController,
   verifyRazorpaySubscriptionController,
   cancelSubscriptionController,
+  getSubscriptionStatusController,
   createSubscriptionOrderController,
   verifySubscriptionOrderController,
   cancelSubscriptionStatusController,
@@ -28,6 +29,7 @@ router.post('/verify-subscription', authenticate, verifyRazorpaySubscriptionCont
 router.post('/cancel-subscription/:id', authenticate, cancelSubscriptionController);
 
 // Subscription upgrade via one-time payment (Order-based - simpler, works without Razorpay Plans)
+router.get('/subscription/status', authenticate, getSubscriptionStatusController);
 router.post('/subscription/create', authenticate, createSubscriptionOrderController);
 router.post('/subscription/verify', authenticate, verifySubscriptionOrderController);
 router.post('/subscription/cancel', authenticate, cancelSubscriptionStatusController);

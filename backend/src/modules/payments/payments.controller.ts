@@ -257,6 +257,7 @@ const createAppointmentOrderSchema = Joi.object({
   reason: Joi.string().optional().allow('', null),
   notes: Joi.string().optional().allow('', null),
   amount: Joi.number().required().min(1),
+  phone: Joi.string().pattern(/^\d{10}$/).required().messages({ 'string.pattern.base': 'Phone must be exactly 10 digits' }),
 });
 
 const verifyAppointmentPaymentSchema = Joi.object({
@@ -289,6 +290,7 @@ export const createAppointmentOrderController = async (
         duration: String(value.duration || 30),
         reason: String(value.reason || ''),
         notes: String(value.notes || ''),
+        phone: String(value.phone || ''),
       }
     };
 
@@ -338,6 +340,15 @@ export const verifyAppointmentPaymentController = async (
     const duration = parseInt(notes.duration as string, 10) || 30;
     const reason = (notes.reason as string) || undefined;
     const notesText = (notes.notes as string) || undefined;
+    const patientPhone = (notes.phone as string) || undefined;
+
+    if (patientPhone && req.user?.id) {
+      const prisma = (await import('../../config/database')).default;
+      await prisma.user.update({
+        where: { id: req.user.id },
+        data: { phone: patientPhone },
+      });
+    }
 
     const { createAppointment } = await import('../appointments/appointments.service');
     const appointment = await createAppointment({
@@ -350,7 +361,7 @@ export const verifyAppointmentPaymentController = async (
       status: 'CONFIRMED',
     });
 
-    await createPayment({
+    const payment = await createPayment({
       patientId: req.user!.id,
       doctorId,
       appointmentId: appointment.id,
@@ -364,6 +375,17 @@ export const verifyAppointmentPaymentController = async (
       status: 'COMPLETED',
       description: 'Consultation Fee',
     });
+
+    try {
+      const { emitPaymentUpdate } = await import('../../utils/socketEmitter');
+      emitPaymentUpdate({
+        id: (payment as any).id,
+        appointmentId: appointment.id,
+        doctorId,
+        amount: Number(order.amount) / 100,
+        status: 'COMPLETED',
+      });
+    } catch (_) {}
 
     const { notifyAppointmentCreated } = await import('../../utils/notificationHelper');
     const aptWithRelations = appointment as any;
@@ -411,6 +433,67 @@ const verifySubscriptionOrderSchema = Joi.object({
   razorpay_signature: Joi.string().required(),
 });
 
+const ensureCanManageSubscription = async (req: AuthRequest): Promise<void> => {
+  if (req.user?.role === 'ADMIN') return;
+  if (req.user?.role !== 'DOCTOR') throw new AppError('Only doctors can manage subscription', 403);
+  if (!req.user?.clinicId) return;
+  const clinic = await prisma.clinic.findUnique({ where: { id: req.user.clinicId }, select: { ownerId: true } });
+  if (clinic?.ownerId && clinic.ownerId !== req.user.id) {
+    throw new AppError('Only the clinic creator (head doctor) can manage subscription', 403);
+  }
+};
+
+export const getSubscriptionStatusController = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (req.user?.role !== 'DOCTOR' && req.user?.role !== 'ADMIN') {
+      throw new AppError('Only doctors can view subscription status', 403);
+    }
+    await ensureCanManageSubscription(req);
+    const userId = req.user!.id;
+
+    const [doctorProfile, clinic, lastSubscriptionPayment] = await Promise.all([
+      prisma.doctorProfile.findUnique({
+        where: { userId },
+        select: { subscriptionPlan: true, subscriptionStatus: true, subscriptionExpiresAt: true },
+      }),
+      req.user?.clinicId
+        ? prisma.clinic.findUnique({
+            where: { id: req.user.clinicId },
+            select: { subscriptionPlan: true, subscriptionStatus: true },
+          })
+        : null,
+      prisma.payment.findFirst({
+        where: {
+          patientId: userId,
+          status: 'COMPLETED',
+          deletedAt: null,
+          description: { contains: 'Subscription' },
+        },
+        orderBy: { createdAt: 'desc' },
+        select: { amount: true, createdAt: true, description: true },
+      }),
+    ]);
+
+    const plan = clinic?.subscriptionPlan || doctorProfile?.subscriptionPlan || 'STARTER';
+    const status = clinic?.subscriptionStatus || doctorProfile?.subscriptionStatus || 'PENDING';
+    const expiresAt = doctorProfile?.subscriptionExpiresAt;
+
+    sendSuccess(res, {
+      plan,
+      status,
+      expiresAt: expiresAt ? expiresAt.toISOString() : null,
+      lastPaymentAmount: lastSubscriptionPayment ? Number(lastSubscriptionPayment.amount) : null,
+      lastPaymentDate: lastSubscriptionPayment?.createdAt ? lastSubscriptionPayment.createdAt.toISOString() : null,
+    }, 'Subscription status retrieved');
+  } catch (err: any) {
+    next(new AppError(err.message || 'Failed to fetch subscription status', 500));
+  }
+};
+
 export const createSubscriptionOrderController = async (
   req: AuthRequest,
   res: Response,
@@ -420,6 +503,7 @@ export const createSubscriptionOrderController = async (
     if (req.user?.role !== 'DOCTOR' && req.user?.role !== 'ADMIN') {
       throw new AppError('Only doctors can upgrade subscription', 403);
     }
+    await ensureCanManageSubscription(req);
     const { error, value } = createSubscriptionOrderSchema.validate(req.body);
     if (error) throw new AppError(error.details[0].message, 400);
 
@@ -462,6 +546,7 @@ export const verifySubscriptionOrderController = async (
     if (req.user?.role !== 'DOCTOR' && req.user?.role !== 'ADMIN') {
       throw new AppError('Only doctors can verify subscription payment', 403);
     }
+    await ensureCanManageSubscription(req);
     const { error, value } = verifySubscriptionOrderSchema.validate(req.body);
     if (error) throw new AppError(error.details[0].message, 400);
 
@@ -543,6 +628,7 @@ export const cancelSubscriptionStatusController = async (
     if (req.user?.role !== 'DOCTOR' && req.user?.role !== 'ADMIN') {
       throw new AppError('Only doctors can cancel subscription', 403);
     }
+    await ensureCanManageSubscription(req);
     const userId = req.user!.id;
 
     await prisma.doctorProfile.updateMany({

@@ -25,17 +25,17 @@ export default function BookAppointmentPage() {
   }, [doctorId])
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 px-1 sm:px-0">
       {/* Always show consultation fee prominently before booking */}
       <Card className="border-primary/30 bg-primary/5">
-        <CardHeader className="py-4">
-          <CardTitle className="text-base flex items-center gap-2">
-            <IndianRupee className="h-4 w-4" />
+        <CardHeader className="py-3 sm:py-4 px-4 sm:px-6">
+          <CardTitle className="text-sm sm:text-base flex items-center gap-2">
+            <IndianRupee className="h-4 w-4 shrink-0" />
             {loading ? "Loading..." : (fee != null && fee > 0)
-              ? `Doctor's rate: ₹${fee} (pay to confirm appointment)`
+              ? `Doctor's rate: ₹${fee} (pay to confirm)`
               : "Free consultation"}
           </CardTitle>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs sm:text-sm text-muted-foreground">
             {fee != null && fee > 0
               ? "Select date & time below, then pay via Razorpay to book."
               : "Select date & time below to book at no cost."}

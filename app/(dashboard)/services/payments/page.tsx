@@ -5,14 +5,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { CreditCard, Download, Plus, Loader2, AlertCircle } from "lucide-react"
+import { CreditCard, Download, Plus, Loader2, AlertCircle, ArrowDownLeft, ArrowUpRight, User } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { formatCurrency } from "@/utils/helpers"
 import { useEffect, useState } from "react"
 import { apiService } from "@/services/api"
 import { format } from "date-fns"
+import { useAppSelector } from "@/app/hooks"
+
 export default function Payments() {
-  const [data, setData] = useState<any>({ transactions: [], summary: { totalPaid: 0, totalPending: 0 } })
+  const { user } = useAppSelector((state) => state.auth)
+  const isDoctor = user?.role === "DOCTOR"
+  const [data, setData] = useState<any>({
+    transactions: [],
+    received: [],
+    paid: [],
+    summary: { totalPaid: 0, totalPending: 0, totalReceived: 0, totalPaidOut: 0 },
+  })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -27,32 +36,49 @@ export default function Payments() {
     const fetchData = async () => {
       try {
         setError(null)
-        const res = await apiService.get<unknown>("/payments?limit=100")
-        // Handle array (from sendPaginated unwrap) or object with payments/data
-        const list = Array.isArray(res)
-          ? res
-          : (res as any)?.payments ?? (res as any)?.data ?? []
+        const res = await apiService.get<unknown>("/payments?limit=200")
+        const list = Array.isArray(res) ? res : (res as any)?.payments ?? (res as any)?.data ?? []
         const arr = Array.isArray(list) ? list : []
-        const totalPaid = arr
-          .filter((p: any) => p?.status === "COMPLETED")
-          .reduce((sum: number, p: any) => sum + parseAmount(p?.amount), 0)
-        const totalPending = arr
-          .filter((p: any) => p?.status === "PENDING")
-          .reduce((sum: number, p: any) => sum + parseAmount(p?.amount), 0)
-        setData({
-          transactions: arr,
-          summary: { totalPaid, totalPending },
-        })
+
+        if (isDoctor) {
+          const received = arr.filter((p: any) => p?.doctorId === user?.id && !(p?.description || "").includes("Subscription"))
+          const paid = arr.filter((p: any) => p?.patientId === user?.id && (p?.description || "").includes("Subscription"))
+          const totalReceived = received
+            .filter((p: any) => p?.status === "COMPLETED")
+            .reduce((sum: number, p: any) => sum + parseAmount(p?.amount), 0)
+          const totalPaidOut = paid
+            .filter((p: any) => p?.status === "COMPLETED")
+            .reduce((sum: number, p: any) => sum + parseAmount(p?.amount), 0)
+          setData({
+            transactions: arr,
+            received,
+            paid,
+            summary: { totalReceived, totalPaidOut, totalPaid: totalReceived, totalPending: 0 },
+          })
+        } else {
+          const totalPaid = arr
+            .filter((p: any) => p?.status === "COMPLETED")
+            .reduce((sum: number, p: any) => sum + parseAmount(p?.amount), 0)
+          const totalPending = arr
+            .filter((p: any) => p?.status === "PENDING")
+            .reduce((sum: number, p: any) => sum + parseAmount(p?.amount), 0)
+          setData({
+            transactions: arr,
+            received: [],
+            paid: [],
+            summary: { totalPaid, totalPending, totalReceived: 0, totalPaidOut: 0 },
+          })
+        }
       } catch (err: any) {
         console.error("Failed to fetch payments:", err)
         setError(err?.response?.data?.message || err?.message || "Failed to load payments")
-        setData({ transactions: [], summary: { totalPaid: 0, totalPending: 0 } })
+        setData({ transactions: [], received: [], paid: [], summary: { totalPaid: 0, totalPending: 0, totalReceived: 0, totalPaidOut: 0 } })
       } finally {
         setLoading(false)
       }
     }
     fetchData()
-  }, [])
+  }, [isDoctor, user?.id])
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { color: string; label: string }> = {
@@ -68,6 +94,51 @@ export default function Payments() {
     )
   }
 
+  const renderTransaction = (transaction: any, type: "received" | "paid" | "patient") => {
+    const amt = parseAmount(transaction.amount)
+    const isReceived = type === "received"
+    const patientName = transaction.patient
+      ? `${transaction.patient.firstName || ""} ${transaction.patient.lastName || ""}`.trim()
+      : "Patient"
+    const desc = transaction.description || (type === "received" ? "Consultation Fee" : type === "paid" ? "Subscription" : "Payment")
+
+    return (
+      <div
+        key={transaction.id}
+        className="flex items-center justify-between border-b border-border pb-3 last:border-0 last:pb-0"
+      >
+        <div className="flex items-center gap-3">
+          <div
+            className={`h-10 w-10 rounded-full flex items-center justify-center ${
+              isReceived ? "bg-green-100" : "bg-amber-100"
+            }`}
+          >
+            {isReceived ? (
+              <ArrowDownLeft className="h-5 w-5 text-green-600" />
+            ) : (
+              <ArrowUpRight className="h-5 w-5 text-amber-600" />
+            )}
+          </div>
+          <div>
+            <p className="font-medium">
+              {type === "received" ? `${desc} from ${patientName}` : desc}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {format(new Date(transaction.createdAt), "MMM dd, yyyy")}
+              {transaction.paidAt && ` · ${format(new Date(transaction.paidAt), "h:mm a")}`}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <p className={`font-semibold ${isReceived ? "text-green-600" : "text-amber-600"}`}>
+            {isReceived ? `+${formatCurrency(amt)}` : `-${formatCurrency(amt)}`}
+          </p>
+          {getStatusBadge(transaction.status)}
+        </div>
+      </div>
+    )
+  }
+
   if (loading) {
     return (
       <ProtectedRoute>
@@ -78,7 +149,7 @@ export default function Payments() {
     )
   }
 
-  const { transactions, summary } = data
+  const { transactions, received, paid, summary } = data
 
   return (
     <ProtectedRoute>
@@ -92,98 +163,189 @@ export default function Payments() {
         )}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-balance">Payments & Billing</h1>
-            <p className="text-muted-foreground">Manage your payments and billing information</p>
+            <h1 className="text-3xl font-bold text-balance">
+              {isDoctor ? "Payments & Revenue" : "Payments & Billing"}
+            </h1>
+            <p className="text-muted-foreground">
+              {isDoctor
+                ? "Track money received from patients and subscription payments"
+                : "Manage your payments and billing information"}
+            </p>
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Paid (Lifetime)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold">{formatCurrency(summary.totalPaid)}</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-medium text-muted-foreground">Pending Amount</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold">{formatCurrency(summary.totalPending)}</p>
-              {summary.totalPending > 0 && <p className="text-sm text-yellow-600 mt-1">Action required</p>}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-medium text-muted-foreground">Next Payment Due</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold">{formatCurrency(0)}</p>
-              <p className="text-sm text-muted-foreground mt-1">No upcoming bills</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Tabs defaultValue="history" className="space-y-6">
-          <TabsList className="grid w-full max-w-md grid-cols-2">
-            <TabsTrigger value="history">History</TabsTrigger>
-            <TabsTrigger value="methods">Payment Methods</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="history" className="space-y-4">
-            <Card>
+        {isDoctor ? (
+          <div className="grid gap-6 md:grid-cols-3">
+            <Card className="border-green-200/50 bg-green-50/30 dark:bg-green-950/20">
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>Transaction History</CardTitle>
-                  <Button variant="outline" size="sm">
-                    <Download className="mr-2 h-4 w-4" />
-                    Export
-                  </Button>
-                </div>
+                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                  <ArrowDownLeft className="h-4 w-4 text-green-600" />
+                  Total Received
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                {transactions.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No transactions found.
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {transactions.map((transaction: any) => (
-                      <div
-                        key={transaction.id}
-                        className="flex items-center justify-between border-b border-border pb-3 last:border-0 last:pb-0"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`h-10 w-10 rounded-full flex items-center justify-center ${parseAmount(transaction.amount) > 0 ? "bg-green-100" : "bg-muted"
-                              }`}
-                          >
-                            <span className={`text-lg font-bold ${parseAmount(transaction.amount) > 0 ? "text-green-600" : "text-muted-foreground"}`}>₹</span>
-                          </div>
-                          <div>
-                            <p className="font-medium">{transaction.description || "Payment"}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {format(new Date(transaction.createdAt), 'MMM dd, yyyy')}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-semibold">
-                            {formatCurrency(parseAmount(transaction.amount))}
-                          </p>
-                          {getStatusBadge(transaction.status)}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <p className="text-3xl font-bold text-green-700 dark:text-green-400">
+                  {formatCurrency(summary.totalReceived)}
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">From patient consultations</p>
               </CardContent>
             </Card>
-          </TabsContent>
+            <Card className="border-amber-200/50 bg-amber-50/30 dark:bg-amber-950/20">
+              <CardHeader>
+                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                  <ArrowUpRight className="h-4 w-4 text-amber-600" />
+                  Subscription Paid
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold text-amber-700 dark:text-amber-400">
+                  {formatCurrency(summary.totalPaidOut)}
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">Plan payments</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Net Revenue</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold">
+                  {formatCurrency(summary.totalReceived - summary.totalPaidOut)}
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">Received minus subscription</p>
+              </CardContent>
+            </Card>
+          </div>
+        ) : (
+          <div className="grid gap-6 md:grid-cols-3">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Paid (Lifetime)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold">{formatCurrency(summary.totalPaid)}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Pending Amount</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold">{formatCurrency(summary.totalPending)}</p>
+                {summary.totalPending > 0 && <p className="text-sm text-yellow-600 mt-1">Action required</p>}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Next Payment Due</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold">{formatCurrency(0)}</p>
+                <p className="text-sm text-muted-foreground mt-1">No upcoming bills</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        <Tabs defaultValue={isDoctor ? "received" : "history"} className="space-y-6">
+          {isDoctor ? (
+            <TabsList className="grid w-full max-w-md grid-cols-2">
+              <TabsTrigger value="received">Received</TabsTrigger>
+              <TabsTrigger value="paid">Paid (Subscription)</TabsTrigger>
+            </TabsList>
+          ) : (
+            <TabsList className="grid w-full max-w-md grid-cols-2">
+              <TabsTrigger value="history">History</TabsTrigger>
+              <TabsTrigger value="methods">Payment Methods</TabsTrigger>
+            </TabsList>
+          )}
+
+          {isDoctor && (
+            <>
+              <TabsContent value="received" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2">
+                        <ArrowDownLeft className="h-5 w-5 text-green-600" />
+                        Payments Received
+                      </CardTitle>
+                      <Button variant="outline" size="sm">
+                        <Download className="mr-2 h-4 w-4" />
+                        Export
+                      </Button>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Consultation fees received from patients for appointments
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    {received.length === 0 ? (
+                      <div className="text-center py-12 text-muted-foreground">
+                        <User className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                        <p>No payments received yet.</p>
+                        <p className="text-sm mt-1">Revenue will appear when patients pay for their appointments.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">{received.map((t: any) => renderTransaction(t, "received"))}</div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="paid" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2">
+                        <ArrowUpRight className="h-5 w-5 text-amber-600" />
+                        Subscription Payments
+                      </CardTitle>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Payments you made for your clinic subscription plan
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    {paid.length === 0 ? (
+                      <div className="text-center py-12 text-muted-foreground">
+                        <CreditCard className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                        <p>No subscription payments yet.</p>
+                        <p className="text-sm mt-1">Manage your plan in the Subscription page.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">{paid.map((t: any) => renderTransaction(t, "paid"))}</div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </>
+          )}
+
+          {!isDoctor && (
+            <TabsContent value="history" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>Transaction History</CardTitle>
+                    <Button variant="outline" size="sm">
+                      <Download className="mr-2 h-4 w-4" />
+                      Export
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {transactions.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">No transactions found.</div>
+                  ) : (
+                    <div className="space-y-3">
+                      {transactions.map((t: any) => renderTransaction(t, "patient"))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
 
           <TabsContent value="methods" className="space-y-4">
             <Card>
@@ -209,4 +371,3 @@ export default function Payments() {
     </ProtectedRoute>
   )
 }
-

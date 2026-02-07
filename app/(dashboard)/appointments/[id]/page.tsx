@@ -6,7 +6,7 @@ import { useRouter, useParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Calendar, Clock, MapPin, User, Loader2, CreditCard } from "lucide-react"
+import { ArrowLeft, Calendar, Clock, MapPin, User, Loader2, CreditCard, Phone } from "lucide-react"
 import { apiService } from "@/services/api"
 import { format } from "date-fns"
 import { useAppSelector } from "@/app/hooks"
@@ -148,7 +148,12 @@ export default function AppointmentDetail() {
               ) : (
                 <>
                   <p className="text-lg font-medium">{appointment.patient?.firstName} {appointment.patient?.lastName}</p>
-                  <p className="text-muted-foreground">{appointment.patient?.phone}</p>
+                  {(appointment.patient?.phone || (appointment as any).patientPhone) && (
+                    <p className="text-muted-foreground flex items-center gap-1 mt-1">
+                      <Phone className="h-3 w-3" />
+                      {appointment.patient?.phone || (appointment as any).patientPhone}
+                    </p>
+                  )}
                 </>
               )}
             </div>
@@ -164,6 +169,18 @@ export default function AppointmentDetail() {
                 {format(new Date(appointment.scheduledAt), "h:mm a")} ({appointment.duration} mins)
               </p>
             </div>
+
+            {isPatient && (appointment.patient?.phone || (appointment as any).patientPhone) && (
+              <div className="border p-4 rounded-lg md:col-span-2">
+                <h3 className="font-semibold mb-2 flex items-center gap-2">
+                  <Phone className="h-4 w-4" />
+                  Your contact
+                </h3>
+                <p className="text-lg font-medium">
+                  {appointment.patient?.phone || (appointment as any).patientPhone}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Payment Details */}

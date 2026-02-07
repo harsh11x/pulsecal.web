@@ -17,6 +17,7 @@ import {
   Shield,
   Building2,
   Stethoscope,
+  Wallet,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAppSelector } from "@/app/hooks"
@@ -28,6 +29,7 @@ interface NavItem {
   href: string
   icon: React.ElementType
   permission?: keyof typeof import("@/utils/permissions").PERMISSIONS
+  requiresCanManageSubscription?: boolean
 }
 
 const navItems: NavItem[] = [
@@ -97,10 +99,16 @@ const navItems: NavItem[] = [
     permission: "VIEW_ADMIN_DASHBOARD",
   },
   {
+    title: "Doctor Payouts",
+    href: "/admin/doctors/payouts",
+    icon: Wallet,
+    permission: "VIEW_ADMIN_DASHBOARD",
+  },
+  {
     title: "Subscription",
     href: "/subscription",
     icon: CreditCard,
-    permission: "MANAGE_SUBSCRIPTION", // Need to ensure this permission exists or use role check in filter
+    requiresCanManageSubscription: true, // Only clinic creator/head doctor or solo doctor; controlled by backend canManageSubscription
   },
 ]
 
@@ -121,8 +129,9 @@ export function Sidebar({ className }: SidebarProps) {
         "/admin/clinics",
         "/admin/users",
         "/admin/reports",
+        "/admin/doctors/payouts",
         "/dashboard/analytics",
-        "/dashboard" // Optional, maybe remove generic dashboard too?
+        "/dashboard"
       ];
       // Allow strictly admin paths + analytics
       if (adminAllowed.includes(item.href)) return true;
@@ -138,6 +147,11 @@ export function Sidebar({ className }: SidebarProps) {
         "/queue/status"
       ];
       if (hiddenForAdmin.includes(item.href)) return false;
+    }
+
+    // Subscription: only show if user can manage subscription (clinic creator/head doctor or solo doctor)
+    if (item.requiresCanManageSubscription) {
+      return user?.canManageSubscription === true
     }
 
     if (!item.permission) return true
