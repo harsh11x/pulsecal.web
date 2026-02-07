@@ -417,7 +417,7 @@ export const verifyAppointmentPaymentController = async (
 
 // ========== Subscription Upgrade (One-Time Payment via Order) ==========
 const PLAN_AMOUNTS: Record<string, number> = {
-  STARTER: 999,
+  STARTER: 1,
   BASIC: 1499,
   PROFESSIONAL: 2999,
   ENTERPRISE: 4999,
@@ -519,7 +519,7 @@ export const createSubscriptionOrderController = async (
     const { error, value } = createSubscriptionOrderSchema.validate(req.body);
     if (error) throw new AppError(error.details[0].message, 400);
 
-    const amount = PLAN_AMOUNTS[value.planId] ?? 999;
+    const amount = PLAN_AMOUNTS[value.planId] ?? 1;
     const options: any = {
       amount: amount * 100, // paise
       currency: 'INR',

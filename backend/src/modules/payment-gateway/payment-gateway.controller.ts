@@ -57,7 +57,7 @@ export const createOrder = async (req: AuthRequest, res: Response, _next: NextFu
         }
 
         const planPricing: Record<string, number> = {
-            STARTER: 99900, // ₹999
+            STARTER: 100, // ₹1
             BASIC: 149900, // ₹1499
             PROFESSIONAL: 299900, // ₹2999
             ENTERPRISE: 499900, // ₹4999 (matches home screen)
@@ -263,7 +263,7 @@ export const verifyPayment = async (req: AuthRequest, res: Response, _next: Next
 
         // Create Payment Record (Transaction)
         const planAmounts: Record<string, number> = {
-            STARTER: 999,
+            STARTER: 1,
             BASIC: 1499,
             PROFESSIONAL: 2999,
             ENTERPRISE: 4999,

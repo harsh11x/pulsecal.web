@@ -3,7 +3,7 @@
  * Used by: home page, dashboard subscription page, doctor onboarding, payment gateway.
  */
 export const PLAN_AMOUNTS: Record<string, number> = {
-  STARTER: 999,
+  STARTER: 1,
   BASIC: 1499,
   PROFESSIONAL: 2999,
   ENTERPRISE: 4999,

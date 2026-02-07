@@ -77,7 +77,7 @@ export default function SubscriptionPage() {
 
             const options = {
                 key,
-                amount: amount ?? (PLAN_AMOUNTS[planId] ?? 999) * 100,
+                amount: amount ?? (PLAN_AMOUNTS[planId] ?? 1) * 100,
                 currency: "INR",
                 order_id: orderId,
                 name: "PulseCal",
