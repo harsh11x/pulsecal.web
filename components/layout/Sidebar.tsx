@@ -29,7 +29,6 @@ interface NavItem {
   href: string
   icon: React.ElementType
   permission?: keyof typeof import("@/utils/permissions").PERMISSIONS
-  requiresCanManageSubscription?: boolean
 }
 
 const navItems: NavItem[] = [
@@ -108,7 +107,7 @@ const navItems: NavItem[] = [
     title: "Subscription",
     href: "/subscription",
     icon: CreditCard,
-    requiresCanManageSubscription: true, // Only clinic creator/head doctor or solo doctor; controlled by backend canManageSubscription
+    permission: "MANAGE_SUBSCRIPTION", // Doctors & admins; page/API restrict actual management to clinic creator
   },
 ]
 
@@ -147,11 +146,6 @@ export function Sidebar({ className }: SidebarProps) {
         "/queue/status"
       ];
       if (hiddenForAdmin.includes(item.href)) return false;
-    }
-
-    // Subscription: only show if user can manage subscription (clinic creator/head doctor or solo doctor)
-    if (item.requiresCanManageSubscription) {
-      return user?.canManageSubscription === true
     }
 
     if (!item.permission) return true
