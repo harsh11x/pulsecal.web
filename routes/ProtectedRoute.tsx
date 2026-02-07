@@ -48,9 +48,13 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
     return null
   }
 
-  // Role restriction render check
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return null
+  // Role restriction render check (case-insensitive)
+  if (allowedRoles) {
+    const userRole = user.role?.toUpperCase?.() ?? ""
+    const allowed = allowedRoles.map((r) => (r ?? "").toUpperCase())
+    if (!allowed.includes(userRole)) {
+      return null
+    }
   }
 
   return <>{children}</>
