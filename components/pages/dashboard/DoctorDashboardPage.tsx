@@ -227,7 +227,9 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
       title: "Today's Revenue",
       value: formatCurrency(stats.today.revenue),
       trend: {
-        value: Math.round(((stats.today.revenue - stats.yesterday.revenue) / stats.yesterday.revenue) * 100),
+        value: stats.yesterday.revenue === 0
+          ? (stats.today.revenue > 0 ? 100 : 0)
+          : Math.round(((stats.today.revenue - stats.yesterday.revenue) / stats.yesterday.revenue) * 100),
         isPositive: stats.today.revenue >= stats.yesterday.revenue,
         label: "from yesterday"
       },

@@ -15,33 +15,29 @@ const getDoctorReviews = async (_doctorId: string) => {
 /**
  * Get revenue trends for a period
  */
+/** Exclude subscription payments (filter in JS to avoid Prisma nullable + NOT contains issues) */
+const isSubscriptionPayment = (p: { description?: string | null }) =>
+  p.description?.toLowerCase().includes('subscription') ?? false;
+
 const getRevenueTrends = async (doctorId: string, period: string, startDate: Date) => {
-  const payments = await prisma.payment.findMany({
+  const allPayments = await prisma.payment.findMany({
     where: {
       doctorId,
       deletedAt: null,
       status: 'COMPLETED',
-      AND: [
-        {
-          OR: [
-            { paidAt: { gte: startDate } },
-            { paidAt: null, createdAt: { gte: startDate } }
-          ]
-        },
-        {
-          OR: [
-            { description: null },
-            { NOT: { description: { contains: 'subscription', mode: 'insensitive' } } }
-          ]
-        }
+      OR: [
+        { paidAt: { gte: startDate } },
+        { paidAt: null, createdAt: { gte: startDate } }
       ],
-    } as any,
+    },
     select: {
       amount: true,
       paidAt: true,
       createdAt: true,
+      description: true,
     },
   });
+  const payments = allPayments.filter(p => !isSubscriptionPayment(p));
 
   const trends: { date: string; revenue: number }[] = [];
   const now = new Date();
@@ -302,18 +298,14 @@ export const getDoctorAnalytics = async (
         },
         select: { status: true }
     }),
-    // All COMPLETED consultation payments for this doctor (exclude subscription payments)
+    // All COMPLETED payments for this doctor (exclude subscription in JS to avoid Prisma nullable filter issues)
     prisma.payment.findMany({
       where: {
         doctorId,
         status: 'COMPLETED',
         deletedAt: null,
-        OR: [
-          { description: null },
-          { NOT: { description: { contains: 'subscription', mode: 'insensitive' } } }
-        ],
-      } as any,
-      select: { amount: true, paidAt: true, createdAt: true }
+      },
+      select: { amount: true, paidAt: true, createdAt: true, description: true }
     })
   ]);
 
@@ -332,7 +324,7 @@ export const getDoctorAnalytics = async (
   const monthCancellations = monthAppointments.filter(apt => apt.status === 'CANCELLED').length;
 
   const getPaidDate = (p: { paidAt: Date | null; createdAt: Date }) => p.paidAt ? new Date(p.paidAt) : new Date(p.createdAt);
-  const payments = allConsultationPayments;
+  const payments = allConsultationPayments.filter((p: { description?: string | null }) => !isSubscriptionPayment(p));
 
   const todayRevenue = payments
     .filter(p => {
