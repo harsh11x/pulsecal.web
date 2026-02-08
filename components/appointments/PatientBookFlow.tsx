@@ -63,11 +63,20 @@ export function PatientBookFlow() {
       const params = new URLSearchParams()
       params.set("limit", "200")
       if (search && search.trim()) params.set("search", search.trim())
-      const data: any = await apiService.get(`/doctors/search?${params}`)
-      const list = data?.doctors ?? data?.data?.doctors ?? (Array.isArray(data) ? data : [])
-      setDoctors(Array.isArray(list) ? list : [])
+      const raw: any = await apiService.get(`/doctors/search?${params}`)
+      const list =
+        Array.isArray(raw)
+          ? raw
+          : Array.isArray(raw?.doctors)
+            ? raw.doctors
+            : Array.isArray(raw?.data?.doctors)
+              ? raw.data.doctors
+              : Array.isArray(raw?.data)
+                ? raw.data
+                : []
+      setDoctors(list)
       setSearched(true)
-      if ((Array.isArray(list) ? list : []).length === 0) {
+      if (list.length === 0 && !search) {
         toast.info("No doctors in the system yet. They’ll appear once doctors register and complete their profile.")
       }
     } catch (e: any) {
