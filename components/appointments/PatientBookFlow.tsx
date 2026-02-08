@@ -68,7 +68,7 @@ export function PatientBookFlow() {
       setDoctors(Array.isArray(list) ? list : [])
       setSearched(true)
       if ((Array.isArray(list) ? list : []).length === 0) {
-        toast.info("No doctors found. Try a different search term.")
+        toast.info("No doctors in the system yet. They’ll appear once doctors register and complete their profile.")
       }
     } catch (e: any) {
       const msg = e?.response?.data?.message || e?.message || "Could not load doctors"
@@ -186,7 +186,12 @@ export function PatientBookFlow() {
             ) : loading ? (
               <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
             ) : doctors.length === 0 ? (
-              <p className="text-center py-8 text-muted-foreground text-sm">No doctors found. Try a different search term.</p>
+              <div className="text-center py-8 space-y-2">
+                <p className="text-muted-foreground text-sm font-medium">No doctors available yet.</p>
+                <p className="text-muted-foreground text-xs max-w-sm mx-auto">
+                  Doctors appear here once they register and complete their profile. Try again later or ask your clinic to add doctors to the platform.
+                </p>
+              </div>
             ) : (
               <ScrollArea className="h-[400px] rounded-lg border p-2">
                 <div className="space-y-3 pr-4">
@@ -268,7 +273,8 @@ export function PatientBookFlow() {
           {searched && doctors.length === 0 && !loading && (
             <div className="text-center py-8 text-muted-foreground">
               <Stethoscope className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No doctors found. Try a different search term.</p>
+              <p className="font-medium">No doctors available yet.</p>
+              <p className="text-sm mt-1 max-w-sm mx-auto">Doctors will appear here once they register and complete their profile.</p>
             </div>
           )}
         </CardContent>
@@ -366,7 +372,12 @@ export function PatientBookFlow() {
                 ) : loadingClinics ? (
                   <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
                 ) : clinics.length === 0 ? (
-                  <p className="text-center py-12 text-muted-foreground">No clinics found.</p>
+                  <div className="text-center py-12 space-y-2">
+                    <p className="text-muted-foreground font-medium">No clinics available yet.</p>
+                    <p className="text-muted-foreground text-sm max-w-sm mx-auto">
+                      Clinics appear here once doctors create them or an admin adds them. Try again later.
+                    </p>
+                  </div>
                 ) : (
                   <ScrollArea className="h-[300px] rounded-md border p-2">
                     <div className="space-y-2 pr-4">
