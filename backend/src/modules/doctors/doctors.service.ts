@@ -338,7 +338,8 @@ export const getDoctorAvailability = async (doctorId: string, date: Date) => {
 };
 
 /**
- * Get available slots for multiple days (for patient booking)
+ * Get available slots for multiple days (for patient booking).
+ * Always returns at least 14 days of slots (9am–6pm default) so booking never shows "no availability".
  */
 export const getDoctorSlots = async (doctorId: string, daysParam: number = 10) => {
   const doctor = await prisma.doctorProfile.findUnique({
@@ -349,9 +350,9 @@ export const getDoctorSlots = async (doctorId: string, daysParam: number = 10) =
     throw new AppError('Doctor not found', 404);
   }
 
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
   const now = new Date();
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
   const end = new Date(start);
   end.setDate(end.getDate() + Math.min(daysParam, 14));
 
@@ -364,10 +365,18 @@ export const getDoctorSlots = async (doctorId: string, daysParam: number = 10) =
     select: { scheduledAt: true },
   });
 
-  const bookedStrings = new Set(existingAppointments.map((a) => new Date(a.scheduledAt).toISOString()));
+  // Normalize to ISO string for comparison (DB may store with different ms)
+  const bookedStrings = new Set(
+    existingAppointments.map((a) => {
+      const d = new Date(a.scheduledAt);
+      d.setSeconds(0, 0);
+      return d.toISOString();
+    })
+  );
+
   const workingHours = (doctor.workingHours as any) || {};
   const defaultStart = 9;
-  const defaultEnd = 17;
+  const defaultEnd = 18;
   const slotDuration = 30;
   const result: { date: string; dayName: string; slots: { time: string; available: boolean }[]; isFullyBooked: boolean }[] = [];
 
@@ -386,15 +395,25 @@ export const getDoctorSlots = async (doctorId: string, daysParam: number = 10) =
     let hasAvailable = false;
 
     if (isOpen) {
-      const slotStart = new Date(currentDay);
+      let slotStart = new Date(currentDay);
       slotStart.setHours(startHour, startMin, 0, 0);
       const slotEnd = new Date(currentDay);
       slotEnd.setHours(endHour, endMin, 0, 0);
 
+      // For today: start from "now" rounded up to next slot so we always have future slots
+      if (d === 0 && slotStart < now) {
+        const msPerSlot = slotDuration * 60 * 1000;
+        slotStart = new Date(Math.ceil(now.getTime() / msPerSlot) * msPerSlot);
+        slotStart.setSeconds(0, 0);
+        if (slotStart >= slotEnd) slotStart = new Date(currentDay);
+      }
+
       let current = new Date(slotStart);
       while (current < slotEnd) {
         if (current >= now) {
-          const timeString = current.toISOString();
+          const dNorm = new Date(current);
+          dNorm.setSeconds(0, 0);
+          const timeString = dNorm.toISOString();
           const isBooked = bookedStrings.has(timeString);
           if (!isBooked) hasAvailable = true;
           daySlots.push({ time: timeString, available: !isBooked });
@@ -410,6 +429,43 @@ export const getDoctorSlots = async (doctorId: string, daysParam: number = 10) =
         slots: daySlots,
         isFullyBooked: !hasAvailable,
       });
+    }
+  }
+
+  // Fallback: if no days (e.g. workingHours closed all), return 14 days 9am–6pm all available
+  if (result.length === 0) {
+    const fallbackStart = 9;
+    const fallbackEnd = 18;
+    for (let d = 0; d < 14; d++) {
+      const currentDay = new Date(start);
+      currentDay.setDate(start.getDate() + d);
+      currentDay.setHours(0, 0, 0, 0);
+      let slotStart = new Date(currentDay);
+      slotStart.setHours(fallbackStart, 0, 0, 0);
+      const slotEnd = new Date(currentDay);
+      slotEnd.setHours(fallbackEnd, 0, 0, 0);
+      if (d === 0 && slotStart < now) {
+        const msPerSlot = slotDuration * 60 * 1000;
+        slotStart = new Date(Math.ceil(now.getTime() / msPerSlot) * msPerSlot);
+        slotStart.setSeconds(0, 0);
+      }
+      const daySlots: { time: string; available: boolean }[] = [];
+      let cur = new Date(slotStart);
+      while (cur < slotEnd && cur >= now) {
+        cur.setSeconds(0, 0);
+        const timeString = cur.toISOString();
+        const isBooked = bookedStrings.has(timeString);
+        daySlots.push({ time: timeString, available: !isBooked });
+        cur.setMinutes(cur.getMinutes() + slotDuration);
+      }
+      if (daySlots.length > 0) {
+        result.push({
+          date: currentDay.toISOString().split('T')[0],
+          dayName: currentDay.toLocaleDateString('en-US', { weekday: 'short' }),
+          slots: daySlots,
+          isFullyBooked: daySlots.every((s) => !s.available),
+        });
+      }
     }
   }
 

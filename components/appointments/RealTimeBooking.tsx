@@ -60,8 +60,14 @@ export function RealTimeBooking({ doctorId, doctorName, consultationFee, onBooki
 
     const fetchSlots = async () => {
         try {
-            const data: any = await apiService.get(`/doctors/${doctorId}/slots?days=10`)
-            const slotsArray = Array.isArray(data) ? data : (data?.data ?? data?.slots ?? [])
+            const data: any = await apiService.get(`/doctors/${doctorId}/slots?days=14`)
+            const slotsArray = Array.isArray(data)
+                ? data
+                : Array.isArray(data?.data)
+                    ? data.data
+                    : Array.isArray(data?.slots)
+                        ? data.slots
+                        : []
             setDays(slotsArray)
         } catch (error) {
             console.error("Failed to fetch slots", error)
