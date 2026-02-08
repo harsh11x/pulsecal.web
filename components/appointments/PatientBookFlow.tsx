@@ -139,15 +139,15 @@ export function PatientBookFlow() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
-      <Tabs defaultValue="symptom">
-        <TabsList className="grid w-full grid-cols-2">
+    <div className="flex flex-col min-h-[calc(100vh-8rem)] space-y-6 max-w-4xl mx-auto">
+      <Tabs defaultValue="symptom" className="flex flex-col flex-1">
+        <TabsList className="grid w-full grid-cols-2 flex-shrink-0">
           <TabsTrigger value="symptom">Find Doctors</TabsTrigger>
           <TabsTrigger value="clinic" onClick={() => fetchClinics()}>Browse Clinics</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="symptom" className="space-y-6 mt-4">
-      <Card>
+        <TabsContent value="symptom" className="flex flex-col flex-1 mt-4 space-y-4 data-[state=active]:flex">
+      <Card className="flex flex-col flex-1 min-h-0">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Stethoscope className="h-5 w-5" />
@@ -157,7 +157,7 @@ export function PatientBookFlow() {
             All doctors and clinics are shown (no location filter). Search by name, specialty, or clinic.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="flex flex-col flex-1 min-h-0 space-y-4">
             <div className="space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Search by name, specialty, or clinic</label>
@@ -183,8 +183,8 @@ export function PatientBookFlow() {
             </div>
           </div>
 
-          <div className="space-y-3">
-            <label className="text-sm font-medium">Select Doctor</label>
+          <div className="flex flex-col flex-1 min-h-0 space-y-3">
+            <label className="text-sm font-medium flex-shrink-0">Select Doctor</label>
             {doctorsError ? (
               <div className="text-center py-8 rounded-lg border border-destructive/50 bg-destructive/5 p-4">
                 <p className="text-sm text-destructive font-medium">{doctorsError}</p>
@@ -202,7 +202,7 @@ export function PatientBookFlow() {
                 </p>
               </div>
             ) : (
-              <ScrollArea className="h-[400px] rounded-lg border p-2">
+              <ScrollArea className="h-[70vh] min-h-[400px] rounded-lg border p-2">
                 <div className="space-y-3 pr-4">
                   {doctors.map((doc) => {
                     const isSelected = selectedDoctor && doctorId(selectedDoctor) === doctorId(doc)
@@ -388,7 +388,7 @@ export function PatientBookFlow() {
                     </p>
                   </div>
                 ) : (
-                  <ScrollArea className="h-[300px] rounded-md border p-2">
+                  <ScrollArea className="h-[70vh] min-h-[400px] rounded-md border p-2">
                     <div className="space-y-2 pr-4">
                       {clinics.map((c: any) => (
                         <Card key={c.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => openClinic(c)}>

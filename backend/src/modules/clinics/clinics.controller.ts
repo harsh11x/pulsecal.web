@@ -63,7 +63,7 @@ export const getClinicsController = async (
     const result = await getClinics(req);
     sendPaginated(
       res,
-      result.clinics,
+      result.clinics as Array<Record<string, unknown>>,
       result.pagination,
       'Clinics retrieved successfully'
     );

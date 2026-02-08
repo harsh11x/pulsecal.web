@@ -78,7 +78,8 @@ export const searchDoctors = async (params: {
       const limitNum = Math.min(limit, 200);
       const skipNum = skip;
       const [countRow] = await prisma.$queryRaw<Array<{ count: bigint }>>`
-        SELECT COUNT(*) as count FROM doctor_profiles dp INNER JOIN users u ON u.id = dp."userId"
+        SELECT COUNT(*) as count FROM doctor_profiles dp
+        INNER JOIN users u ON u.id = dp."userId" AND u.role = 'DOCTOR'
       `;
       const total = Number(countRow?.count ?? 0);
       const raw = await prisma.$queryRaw<
@@ -101,10 +102,16 @@ export const searchDoctors = async (params: {
                dp.bio, dp.services, dp."clinicLatitude", dp."clinicLongitude",
                u."firstName", u."lastName", u."profileImage"
         FROM doctor_profiles dp
-        INNER JOIN users u ON u.id = dp."userId"
+        INNER JOIN users u ON u.id = dp."userId" AND u.role = 'DOCTOR'
         ORDER BY dp."userId"
         LIMIT ${limitNum} OFFSET ${skipNum}
       `;
+      const parseFee = (v: unknown): number => {
+        if (v == null) return 0;
+        if (typeof v === 'number' && !Number.isNaN(v)) return v;
+        const n = typeof v === 'string' ? parseFloat(v) : Number(v);
+        return Number.isFinite(n) ? n : 0;
+      };
       const mappedDoctors = raw.map((d) => ({
         id: d.userId,
         userId: d.userId,
@@ -116,7 +123,7 @@ export const searchDoctors = async (params: {
         clinicCity: null,
         clinicLatitude: d.clinicLatitude != null ? Number(d.clinicLatitude) : null,
         clinicLongitude: d.clinicLongitude != null ? Number(d.clinicLongitude) : null,
-        consultationFee: d.consultationFee != null ? Number(d.consultationFee) : 0,
+        consultationFee: parseFee(d.consultationFee),
         bio: d.bio ?? null,
         services: Array.isArray(d.services) ? d.services : [],
         profileImage: d.profileImage ?? null,

@@ -80,7 +80,55 @@ export const getClinics = async (req: {
   const lat = req.query.latitude ? parseFloat(req.query.latitude) : undefined;
   const lng = req.query.longitude ? parseFloat(req.query.longitude) : undefined;
   let radius = req.query.radius ? parseFloat(req.query.radius) : 10;
-  if (radius > 50) radius = 50; // Cap at 50km to prevent global results
+  if (radius > 50) radius = 50;
+
+  const hasFilters = (req.query.city && req.query.city.trim()) || req.query.state || (req.query.search && req.query.search.trim()) || (lat !== undefined && lng !== undefined);
+
+  // NO FILTERS: raw SQL so all clinics show (bypass Prisma schema/relation issues)
+  if (!hasFilters) {
+    const limitNum = Math.min(limit, 100);
+    const [countRow] = await prisma.$queryRaw<Array<{ count: bigint }>>`
+      SELECT COUNT(*) as count FROM clinics WHERE "isActive" = true AND "deletedAt" IS NULL
+    `;
+    const total = Number(countRow?.count ?? 0);
+    const raw = await prisma.$queryRaw<Array<{
+      id: string;
+      name: string;
+      address: string;
+      city: string;
+      state: string;
+      zipCode: string;
+      country: string | null;
+      phone: string;
+      email: string | null;
+      latitude: unknown;
+      longitude: unknown;
+    }>>`
+      SELECT id, name, address, city, state, "zipCode", country, phone, email, latitude, longitude
+      FROM clinics
+      WHERE "isActive" = true AND "deletedAt" IS NULL
+      ORDER BY name ASC
+      LIMIT ${limitNum} OFFSET ${skip}
+    `;
+    const clinics = raw.map((c) => ({
+      id: c.id,
+      name: c.name,
+      address: c.address,
+      city: c.city,
+      state: c.state,
+      zipCode: c.zipCode,
+      country: c.country ?? 'India',
+      phone: c.phone,
+      email: c.email ?? null,
+      latitude: c.latitude != null ? Number(c.latitude) : null,
+      longitude: c.longitude != null ? Number(c.longitude) : null,
+      staff: [] as any[],
+    }));
+    return {
+      clinics,
+      pagination: { page, limit, total, totalPages: total > 0 ? Math.ceil(total / limit) : 0 },
+    };
+  }
 
   const where: any = {
     isActive: true,
@@ -100,10 +148,10 @@ export const getClinics = async (req: {
     where.state = req.query.state;
   }
 
-  if (req.query.search) {
+  if (req.query.search && req.query.search.trim()) {
     where.OR = [
-      { name: { contains: req.query.search, mode: 'insensitive' } },
-      { address: { contains: req.query.search, mode: 'insensitive' } },
+      { name: { contains: req.query.search.trim(), mode: 'insensitive' } },
+      { address: { contains: req.query.search.trim(), mode: 'insensitive' } },
     ];
   }
 
@@ -134,7 +182,6 @@ export const getClinics = async (req: {
     },
   });
 
-  // Filter by 10km radius if lat/lng provided
   if (lat !== undefined && lng !== undefined) {
     clinics = clinics.filter((c) => {
       const clat = c.latitude ? Number(c.latitude) : null;
@@ -152,7 +199,6 @@ export const getClinics = async (req: {
   const total = clinics.length;
   const paginatedClinics = lat && lng ? clinics.slice(skip, skip + limit) : clinics;
 
-  // Serialize to plain objects so Prisma Decimal (latitude, longitude, consultationFee) don't break JSON
   const serialized = paginatedClinics.map((c) => ({
     ...c,
     latitude: c.latitude != null ? Number(c.latitude) : null,
@@ -170,12 +216,7 @@ export const getClinics = async (req: {
 
   return {
     clinics: serialized,
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    },
+    pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
   };
   } catch (err: any) {
     console.error('[getClinics]', err?.message, err?.stack);
