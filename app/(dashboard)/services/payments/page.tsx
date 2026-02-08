@@ -15,7 +15,8 @@ import { useAppSelector } from "@/app/hooks"
 
 export default function Payments() {
   const { user } = useAppSelector((state) => state.auth)
-  const isDoctor = user?.role === "DOCTOR"
+  // Fix: case-insensitive check for doctor role
+  const isDoctor = user?.role?.toLowerCase() === "doctor"
   const [data, setData] = useState<any>({
     transactions: [],
     received: [],
@@ -41,14 +42,18 @@ export default function Payments() {
         const arr = Array.isArray(list) ? list : []
 
         if (isDoctor) {
+          // Doctor logic: calculate received (revenue) and paid (expenses like subscription)
           const received = arr.filter((p: any) => p?.doctorId === user?.id && !(p?.description || "").includes("Subscription"))
           const paid = arr.filter((p: any) => p?.patientId === user?.id && (p?.description || "").includes("Subscription"))
+
           const totalReceived = received
             .filter((p: any) => p?.status === "COMPLETED")
-            .reduce((sum: number, p: any) => sum + parseAmount(p?.amount), 0)
+            .reduce((sum: number, p: any) => sum + Math.abs(parseAmount(p?.amount)), 0)
+
           const totalPaidOut = paid
             .filter((p: any) => p?.status === "COMPLETED")
-            .reduce((sum: number, p: any) => sum + parseAmount(p?.amount), 0)
+            .reduce((sum: number, p: any) => sum + Math.abs(parseAmount(p?.amount)), 0)
+
           setData({
             transactions: arr,
             received,
@@ -81,11 +86,15 @@ export default function Payments() {
   }, [isDoctor, user?.id])
 
   const getStatusBadge = (status: string, type?: "received" | "paid" | "patient") => {
-    const completedLabel = type === "received" ? "Received" : "Paid"
+    // Determine label based on type
+    let completedLabel = "Paid"
+    if (type === "received") completedLabel = "Received"
+
     const variants: Record<string, { color: string; label: string }> = {
       COMPLETED: { color: "bg-green-100 text-green-700", label: completedLabel },
       PENDING: { color: "bg-yellow-100 text-yellow-700", label: "Pending" },
       FAILED: { color: "bg-red-100 text-red-700", label: "Failed" },
+      PAID: { color: "bg-green-100 text-green-700", label: completedLabel }, // Handle explicit PAID status
     }
     const statusInfo = variants[status] || variants.PENDING
     return (
@@ -96,7 +105,8 @@ export default function Payments() {
   }
 
   const renderTransaction = (transaction: any, type: "received" | "paid" | "patient") => {
-    const amt = parseAmount(transaction.amount)
+    // Ensure amount is always positive for display
+    const amt = Math.abs(parseAmount(transaction.amount))
     const isReceived = type === "received"
     const patientName = transaction.patient
       ? `${transaction.patient.firstName || ""} ${transaction.patient.lastName || ""}`.trim()
@@ -110,9 +120,8 @@ export default function Payments() {
       >
         <div className="flex items-center gap-3">
           <div
-            className={`h-10 w-10 rounded-full flex items-center justify-center ${
-              isReceived ? "bg-green-100" : "bg-amber-100"
-            }`}
+            className={`h-10 w-10 rounded-full flex items-center justify-center ${isReceived ? "bg-green-100" : "bg-amber-100"
+              }`}
           >
             {isReceived ? (
               <ArrowDownLeft className="h-5 w-5 text-green-600" />
@@ -165,7 +174,7 @@ export default function Payments() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-balance">
-              {isDoctor ? "Payments & Revenue" : "Payments & Billing"}
+              {isDoctor ? "Revenue & Billing" : "Payments & Billing"}
             </h1>
             <p className="text-muted-foreground">
               {isDoctor
