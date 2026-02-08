@@ -53,7 +53,7 @@ export default function CreateAppointmentPage() {
   // Schedule settings from doctor's profile
   const [workingHours, setWorkingHours] = useState({ start: "09:00", end: "17:00" })
   const [slotDuration, setSlotDuration] = useState(30)
-  const [blockedSlots, setBlockedSlots] = useState<{startTime: string, endTime: string}[]>([])
+  const [blockedSlots, setBlockedSlots] = useState<{ startTime: string, endTime: string }[]>([])
 
   const [formData, setFormData] = useState({
     patientDetails: {
@@ -85,9 +85,9 @@ export default function CreateAppointmentPage() {
               const c = data?.address?.city || data?.address?.town || data?.address?.village || data?.address?.county
               if (c) setCity(c)
             })
-            .catch(() => {})
+            .catch(() => { })
         },
-        () => {}
+        () => { }
       )
     }
   }, [])
@@ -196,10 +196,10 @@ export default function CreateAppointmentPage() {
 
     while (currentHour < endHour || (currentHour === endHour && currentMin < endMin)) {
       const slotStart = `${String(currentHour).padStart(2, "0")}:${String(currentMin).padStart(2, "0")}`
-      
+
       // Check if this slot is blocked
       const isBlocked = blockedSlots.some(b => b.startTime === slotStart)
-      
+
       if (!isBlocked) {
         slots.push(slotStart)
       }
@@ -245,11 +245,19 @@ export default function CreateAppointmentPage() {
       }
 
       const response: any = await apiService.post("/appointments", appointmentData)
+      console.log("PatientBookFlow appointment response:", response)
 
       toast.success("Appointment created successfully")
-      router.push(`/appointments/list`)
-      // Redirect to list or view. response format changed slightly in controller maybe? 
-      // Controller returns appointment object. 
+
+      const aptId = response?.id ?? response?.data?.id ?? response?.appointment?.id
+      console.log("Redirecting to created appointment ID:", aptId)
+
+      if (aptId) {
+        router.push(`/appointments/${aptId}`)
+      } else {
+        console.error("No appointment ID found in PatientBookFlow response:", response)
+        router.push(`/appointments/list`)
+      }
 
     } catch (error: any) {
       console.error("Failed to create appointment:", error)
@@ -265,11 +273,11 @@ export default function CreateAppointmentPage() {
   // Filter clinic doctors by search (name, specialty) - for receptionist
   const filteredClinicDoctors = doctorSearchQuery.trim()
     ? clinicDoctors.filter((doc) => {
-        const q = doctorSearchQuery.toLowerCase()
-        const name = `${doc.firstName} ${doc.lastName}`.toLowerCase()
-        const spec = (doc.doctorProfile?.specialization ?? "").toLowerCase()
-        return name.includes(q) || spec.includes(q)
-      })
+      const q = doctorSearchQuery.toLowerCase()
+      const name = `${doc.firstName} ${doc.lastName}`.toLowerCase()
+      const spec = (doc.doctorProfile?.specialization ?? "").toLowerCase()
+      return name.includes(q) || spec.includes(q)
+    })
     : clinicDoctors
 
   return (
@@ -342,9 +350,8 @@ export default function CreateAppointmentPage() {
                         {filteredClinicDoctors.map((doc) => (
                           <div
                             key={doc.id}
-                            className={`flex items-start space-x-3 rounded-lg border p-2 cursor-pointer transition-colors ${
-                              selectedDoctorId === doc.id ? "border-primary bg-primary/10" : "hover:bg-muted/50"
-                            }`}
+                            className={`flex items-start space-x-3 rounded-lg border p-2 cursor-pointer transition-colors ${selectedDoctorId === doc.id ? "border-primary bg-primary/10" : "hover:bg-muted/50"
+                              }`}
                             onClick={() => setSelectedDoctorId(doc.id)}
                           >
                             <Checkbox

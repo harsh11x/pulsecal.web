@@ -29,12 +29,23 @@ export default function AppointmentDetail() {
   const fetchAppointment = async () => {
     if (!id) return
     try {
+      console.log("Fetching appointment with ID:", id)
       const response: any = await apiService.get(`/appointments/${id}`)
+      console.log("Appointment response:", response)
       const apt = response?.data ?? response?.appointment ?? response
+
+      if (!apt) {
+        console.error("Appointment data missing in response:", response)
+        throw new Error("Appointment data missing")
+      }
+
       setAppointment(apt && typeof apt === 'object' && apt.id ? apt : null)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch appointment:", error)
-      toast.error("Failed to load appointment details")
+      const errorMessage = error.response?.data?.message || error.message || "Failed to load appointment details"
+      const statusCode = error.response?.status
+
+      toast.error(`Error ${statusCode ? `(${statusCode})` : ''}: ${errorMessage}`)
       setAppointment(null)
     } finally {
       setLoading(false)
@@ -97,8 +108,12 @@ export default function AppointmentDetail() {
 
   if (!appointment) {
     return (
-      <div className="container mx-auto py-8">
-        <p className="text-center text-muted-foreground">Appointment not found</p>
+      <div className="container mx-auto py-8 flex flex-col items-center justify-center gap-4">
+        <p className="text-center text-muted-foreground text-lg">Appointment not found</p>
+        <p className="text-sm text-muted-foreground">ID: {id}</p>
+        <Button onClick={() => router.push('/appointments/list')} variant="outline">
+          Back to Appointments
+        </Button>
       </div>
     )
   }

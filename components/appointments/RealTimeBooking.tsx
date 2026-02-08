@@ -127,12 +127,12 @@ export function RealTimeBooking({ doctorId, doctorName, consultationFee, onBooki
         // Check if we can use sockets (must have HTTPS backend when frontend is HTTPS)
         const isHttps = window.location.protocol === 'https:'
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL
-        
+
         if (isHttps && backendUrl && backendUrl.startsWith('http://')) {
             console.warn("[RealTimeBooking] Frontend is HTTPS but backend is HTTP. Socket connections disabled.")
             return // Don't connect sockets if there's a mixed content issue
         }
-        
+
         // Use HTTPS backend URL if available
         let socketUrl: string
         if (backendUrl && backendUrl.startsWith('https://')) {
@@ -142,9 +142,9 @@ export function RealTimeBooking({ doctorId, doctorName, consultationFee, onBooki
             socketUrl = "/api/v1/notifications"
             console.warn("[RealTimeBooking] Using relative path - may not work. Configure HTTPS backend.")
         }
-        
+
         console.log(`[RealTimeBooking] Connecting socket to: ${socketUrl}`)
-        
+
         const socket = io(socketUrl, {
             auth: {
                 token: token
@@ -152,7 +152,7 @@ export function RealTimeBooking({ doctorId, doctorName, consultationFee, onBooki
             transports: ['websocket', 'polling'],
             autoConnect: backendUrl?.startsWith('https://') || false, // Only auto-connect if HTTPS
         })
-        
+
         // Only connect if we have HTTPS
         if (backendUrl && backendUrl.startsWith('https://')) {
             socket.connect()
@@ -203,6 +203,9 @@ export function RealTimeBooking({ doctorId, doctorName, consultationFee, onBooki
                     notes: notes.trim() || undefined,
                     phone: phone.trim(),
                 })
+
+                console.log("Appointment created response:", res)
+
                 toast.success("Appointment booked successfully!")
                 setSelectedTime(null)
                 setReason("")
@@ -210,11 +213,15 @@ export function RealTimeBooking({ doctorId, doctorName, consultationFee, onBooki
                 setPhone((user as any)?.phone?.replace(/\D/g, '').slice(0, 10) || "")
                 onBookingSuccess?.()
                 fetchSlots()
+
                 const appointmentId = res?.id ?? res?.data?.id ?? res?.appointment?.id
+                console.log("Redirecting to appointment ID:", appointmentId)
+
                 if (appointmentId) {
-                  router.push(`/appointments/${appointmentId}`)
+                    router.push(`/appointments/${appointmentId}`)
                 } else {
-                  router.push("/appointments/list")
+                    console.error("No appointment ID found in response:", res)
+                    router.push("/appointments/list")
                 }
                 setLoading(false)
                 return
@@ -250,6 +257,8 @@ export function RealTimeBooking({ doctorId, doctorName, consultationFee, onBooki
                             razorpay_payment_id: response.razorpay_payment_id,
                             razorpay_signature: response.razorpay_signature
                         })
+                        console.log("Payment verification response:", verifyRes)
+
                         toast.success("Appointment booked successfully!")
                         setSelectedTime(null)
                         setReason("")
@@ -257,8 +266,15 @@ export function RealTimeBooking({ doctorId, doctorName, consultationFee, onBooki
                         setPhone((user as any)?.phone?.replace(/\D/g, '').slice(0, 10) || "")
                         onBookingSuccess?.()
                         fetchSlots()
-                        if (verifyRes?.appointment?.id) {
-                            router.push(`/appointments/${verifyRes.appointment.id}`)
+
+                        const aptId = verifyRes?.appointment?.id ?? verifyRes?.data?.appointment?.id ?? verifyRes?.id
+                        console.log("Redirecting to paid appointment ID:", aptId)
+
+                        if (aptId) {
+                            router.push(`/appointments/${aptId}`)
+                        } else {
+                            console.error("No appointment ID found in verify response:", verifyRes)
+                            router.push("/appointments/list")
                         }
                     } catch (err: any) {
                         toast.error(err.message || "Payment verification failed. Please contact support.")
