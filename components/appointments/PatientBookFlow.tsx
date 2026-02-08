@@ -53,13 +53,13 @@ export function PatientBookFlow() {
     }
   }, [])
 
-  const fetchDoctors = async (search?: string) => {
+  const fetchDoctors = async (search?: string, useCityFilter?: boolean) => {
     setLoading(true)
     setSelectedDoctor(null)
     try {
       const params = new URLSearchParams()
-      params.set("limit", "100")
-      if (city && city.trim()) {
+      params.set("limit", "200")
+      if (useCityFilter !== false && city && city.trim()) {
         params.set("city", city.trim())
       }
       if (search && search.trim()) {
@@ -67,10 +67,9 @@ export function PatientBookFlow() {
       }
       let data: any = await apiService.get(`/doctors/search?${params}`)
       let list = data?.doctors ?? (Array.isArray(data) ? data : [])
-      // If city filter returned no results, retry without city so patient sees some doctors
       if (list.length === 0 && city && city.trim()) {
         const paramsNoCity = new URLSearchParams()
-        paramsNoCity.set("limit", "100")
+        paramsNoCity.set("limit", "200")
         if (search && search.trim()) paramsNoCity.set("search", search.trim())
         data = await apiService.get(`/doctors/search?${paramsNoCity}`)
         list = data?.doctors ?? (Array.isArray(data) ? data : [])
@@ -88,12 +87,18 @@ export function PatientBookFlow() {
     }
   }
 
+  // On mount: load all doctors and all clinics (no city filter) so something always shows
   useEffect(() => {
-    fetchDoctors()
+    fetchDoctors(undefined, false)
+    fetchClinics(false)
+  }, [])
+
+  useEffect(() => {
+    if (city) fetchDoctors(undefined, true)
   }, [city])
 
   const handleSearch = () => {
-    fetchDoctors(searchQuery.trim() || undefined)
+    fetchDoctors(searchQuery.trim() || undefined, true)
   }
 
   const doctorId = (d: Doctor) => d.user?.id ?? d.userId ?? d.id ?? ""
@@ -103,18 +108,17 @@ export function PatientBookFlow() {
   const [clinicDoctors, setClinicDoctors] = useState<Doctor[]>([])
   const [loadingClinics, setLoadingClinics] = useState(false)
 
-  const fetchClinics = async () => {
+  const fetchClinics = async (useCityFilter = true) => {
     setLoadingClinics(true)
     try {
-      const params = new URLSearchParams({ limit: "50" })
-      if (city && city.trim()) {
+      const params = new URLSearchParams({ limit: "100" })
+      if (useCityFilter && city && city.trim()) {
         params.set("city", city.trim())
       }
       let r: any = await apiService.get(`/clinics?${params}`)
       let list = Array.isArray(r) ? r : (r?.clinics ?? r?.data ?? [])
-      // If city filter returned no clinics, retry without city
       if (list.length === 0 && city && city.trim()) {
-        r = await apiService.get("/clinics?limit=50")
+        r = await apiService.get("/clinics?limit=100")
         list = Array.isArray(r) ? r : (r?.clinics ?? r?.data ?? [])
       }
       setClinics(list)
@@ -144,7 +148,7 @@ export function PatientBookFlow() {
       <Tabs defaultValue="symptom">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="symptom">Find Doctors</TabsTrigger>
-          <TabsTrigger value="clinic" onClick={() => fetchClinics()}>Browse Clinics</TabsTrigger>
+          <TabsTrigger value="clinic" onClick={() => fetchClinics(true)}>Browse Clinics</TabsTrigger>
         </TabsList>
 
         <TabsContent value="symptom" className="space-y-6 mt-4">

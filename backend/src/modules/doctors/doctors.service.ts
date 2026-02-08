@@ -79,7 +79,7 @@ export const searchDoctors = async (params: {
     where.clinicName = { contains: clinicName, mode: 'insensitive' };
   }
 
-  // Filter by city - match clinicAddress or linked clinic's city; include doctors with no clinic so they still appear
+  // Filter by city - match clinicAddress or linked clinic's city (frontend falls back to all if empty)
   if (city && city.trim()) {
     const cityTerm = city.trim();
     where.AND = where.AND || [];
@@ -87,7 +87,6 @@ export const searchDoctors = async (params: {
       OR: [
         { clinicAddress: { contains: cityTerm, mode: 'insensitive' } },
         { user: { clinic: { city: { contains: cityTerm, mode: 'insensitive' } } } },
-        { user: { clinicId: null } }, // Include doctors not linked to a clinic so list is never empty
       ],
     });
   }
