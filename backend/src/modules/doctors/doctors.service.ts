@@ -71,6 +71,77 @@ export const searchDoctors = async (params: {
   }
 
   const hasFilters = !!(city && city.trim()) || !!(search || reason) || !!specialization || !!clinicName || !!services || minFee !== undefined || maxFee !== undefined;
+  const onlySearchOrReason = hasFilters && !(city && city.trim()) && !specialization && !clinicName && !services && minFee === undefined && maxFee === undefined && !!(search || reason);
+
+  // SEARCH-ONLY: raw SQL with ILIKE so search bar works without Prisma relation issues
+  if (onlySearchOrReason && (search || reason)) {
+    const term = `${(search || reason || '').trim()}`;
+    if (term.length > 0) {
+      try {
+        const limitNum = Math.min(limit, 200);
+        const pattern = `%${term.replace(/%/g, '\\%')}%`;
+        const raw = await prisma.$queryRaw<
+          Array<{
+            userId: string;
+            specialization: string | null;
+            clinicName: string | null;
+            clinicAddress: string | null;
+            consultationFee: unknown;
+            bio: string | null;
+            services: string[] | null;
+            clinicLatitude: number | null;
+            clinicLongitude: number | null;
+            firstName: string | null;
+            lastName: string | null;
+            profileImage: string | null;
+          }>
+        >`
+          SELECT dp."userId", dp.specialization, dp."clinicName", dp."clinicAddress", dp."consultationFee",
+                 dp.bio, dp.services, dp."clinicLatitude", dp."clinicLongitude",
+                 u."firstName", u."lastName", u."profileImage"
+          FROM doctor_profiles dp
+          INNER JOIN users u ON u.id = dp."userId" AND u.role = 'DOCTOR'
+          WHERE (
+            u."firstName" ILIKE ${pattern}
+            OR u."lastName" ILIKE ${pattern}
+            OR dp.specialization ILIKE ${pattern}
+            OR dp."clinicName" ILIKE ${pattern}
+          )
+          ORDER BY dp."userId"
+          LIMIT ${limitNum}
+        `;
+        const parseFee = (v: unknown): number => {
+          if (v == null) return 0;
+          if (typeof v === 'number' && !Number.isNaN(v)) return v;
+          const n = typeof v === 'string' ? parseFloat(v) : Number(v);
+          return Number.isFinite(n) ? n : 0;
+        };
+        const mappedDoctors = raw.map((d) => ({
+          id: d.userId,
+          userId: d.userId,
+          firstName: d.firstName ?? '',
+          lastName: d.lastName ?? '',
+          specialization: d.specialization ?? 'General',
+          clinicName: d.clinicName ?? null,
+          clinicAddress: d.clinicAddress ?? null,
+          clinicCity: null,
+          clinicLatitude: d.clinicLatitude != null ? Number(d.clinicLatitude) : null,
+          clinicLongitude: d.clinicLongitude != null ? Number(d.clinicLongitude) : null,
+          consultationFee: parseFee(d.consultationFee),
+          bio: d.bio ?? null,
+          services: Array.isArray(d.services) ? d.services : [],
+          profileImage: d.profileImage ?? null,
+        }));
+        return {
+          doctors: mappedDoctors,
+          pagination: { page, limit, total: mappedDoctors.length, totalPages: 1 },
+        };
+      } catch (searchErr: any) {
+        console.error('[searchDoctors search-raw]', searchErr?.message);
+        return emptyResult();
+      }
+    }
+  }
 
   // NO FILTERS: use raw SQL so we never hit Prisma schema/relation issues. Returns ALL doctors.
   if (!hasFilters) {

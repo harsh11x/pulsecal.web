@@ -76,6 +76,9 @@ export function PatientBookFlow() {
                 : []
       setDoctors(list)
       setSearched(true)
+      if (search && search.trim() && list.length > 0) {
+        toast.success(list.length === 1 ? "1 doctor found" : `${list.length} doctors found`)
+      }
       if (list.length === 0 && !search) {
         toast.info("No doctors in the system yet. They’ll appear once doctors register and complete their profile.")
       }
@@ -84,6 +87,7 @@ export function PatientBookFlow() {
       setDoctorsError(msg)
       setDoctors([])
       setSearched(true)
+      toast.error(msg)
     } finally {
       setLoading(false)
     }

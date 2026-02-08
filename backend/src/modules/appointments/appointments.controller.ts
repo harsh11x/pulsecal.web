@@ -80,38 +80,46 @@ export const createAppointmentController = async (
     if (value.patientDetails) {
       const { firstName, lastName, phone, email, dob } = value.patientDetails;
       const emailVal = (email && String(email).trim()) ? String(email).trim() : null;
-
-      // Check if patient exists (by phone; include email only if provided)
-      const whereClause: any = { OR: [{ phone }] };
-      if (emailVal) whereClause.OR.push({ email: emailVal });
-
-      let patient = await prisma.user.findFirst({
-        where: whereClause
-      });
-
-      if (!patient) {
-        // Create new Shadow Patient - User model requires unique email; use placeholder when empty
-        const bcrypt = await import('bcrypt');
-        const crypto = await import('crypto');
-        const patientEmail = emailVal || `patient-${phone.replace(/\D/g, '')}-${crypto.randomBytes(4).toString('hex')}@pulsecal.local`;
-        patient = await prisma.user.create({
-          data: {
-            firstName,
-            lastName: lastName || '',
-            phone,
-            email: patientEmail,
-            role: 'PATIENT',
-            password: await bcrypt.hash('Pulsecal@123', 10), // Default password
-            isActive: true,
-            dateOfBirth: dob,
-          }
-        });
-        // Also create patient profile
-        await prisma.patientProfile.create({
-          data: { userId: patient.id }
-        });
+      const phoneStr = String(phone || '').trim();
+      if (!firstName || !phoneStr) {
+        throw new AppError('Patient first name and phone are required', 400);
       }
-      patientId = patient.id;
+
+      try {
+        const whereClause: any = { OR: [{ phone: phoneStr }] };
+        if (emailVal) whereClause.OR.push({ email: emailVal });
+
+        let patient = await prisma.user.findFirst({
+          where: whereClause,
+          select: { id: true },
+        });
+
+        if (!patient) {
+          const bcrypt = await import('bcrypt');
+          const crypto = await import('crypto');
+          const patientEmail = emailVal || `patient-${phoneStr.replace(/\D/g, '')}-${crypto.randomBytes(4).toString('hex')}@pulsecal.local`;
+          patient = await prisma.user.create({
+            data: {
+              firstName: String(firstName).trim(),
+              lastName: (lastName && String(lastName).trim()) || '',
+              phone: phoneStr,
+              email: patientEmail,
+              role: 'PATIENT',
+              password: await bcrypt.hash('Pulsecal@123', 10),
+              isActive: true,
+              dateOfBirth: dob || undefined,
+            },
+            select: { id: true },
+          });
+          await prisma.patientProfile.create({
+            data: { userId: patient.id },
+          });
+        }
+        patientId = patient.id;
+      } catch (createErr: any) {
+        console.error('[createAppointment] Patient find/create error:', createErr?.message);
+        throw new AppError(createErr?.message?.includes('Unique constraint') ? 'A patient with this phone or email already exists.' : 'Could not create or find patient. Please check details.', 400);
+      }
     }
 
     // Role-based Payment Logic
@@ -370,12 +378,17 @@ export const createPatientAppointmentController = async (
     if (error) throw new AppError(error.details[0].message, 400);
 
     const scheduledAt = typeof value.scheduledAt === 'string' ? new Date(value.scheduledAt) : value.scheduledAt;
+    if (isNaN(scheduledAt.getTime())) throw new AppError('Invalid date/time', 400);
 
     if (value.phone) {
-      await prisma.user.update({
-        where: { id: req.user!.id },
-        data: { phone: value.phone },
-      });
+      try {
+        await prisma.user.update({
+          where: { id: req.user!.id },
+          data: { phone: value.phone },
+        });
+      } catch (e) {
+        // Non-blocking: phone update failure should not block booking
+      }
     }
 
     const appointment = await createAppointment({
