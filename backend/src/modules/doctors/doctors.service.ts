@@ -146,11 +146,13 @@ export const searchDoctors = async (params: {
 
   let filteredDoctors = doctors;
 
-  // Filter by name if provided
+  // Filter by name if provided (guard null user)
   if (name) {
     const nameLower = name.toLowerCase();
     filteredDoctors = filteredDoctors.filter((doctor) => {
-      const fullName = `${doctor.user.firstName} ${doctor.user.lastName}`.toLowerCase();
+      const first = doctor.user?.firstName ?? '';
+      const last = doctor.user?.lastName ?? '';
+      const fullName = `${first} ${last}`.trim().toLowerCase();
       return fullName.includes(nameLower);
     });
   }

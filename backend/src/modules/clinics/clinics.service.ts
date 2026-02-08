@@ -74,7 +74,8 @@ export const getClinics = async (req: {
   };
 }) => {
   const { page, limit, skip } = getPaginationParams(req as never);
-  const { orderBy, order } = getSortParams(req as never);
+  const { orderBy: rawOrderBy, order } = getSortParams(req as never);
+  const safeOrderBy = ['createdAt', 'name', 'city', 'updatedAt'].includes(rawOrderBy) ? rawOrderBy : 'createdAt';
   const lat = req.query.latitude ? parseFloat(req.query.latitude) : undefined;
   const lng = req.query.longitude ? parseFloat(req.query.longitude) : undefined;
   let radius = req.query.radius ? parseFloat(req.query.radius) : 10;
@@ -109,7 +110,7 @@ export const getClinics = async (req: {
     where,
     skip: lat && lng ? 0 : skip,
     take: lat && lng ? 500 : limit,
-    orderBy: { [orderBy]: order },
+    orderBy: { [safeOrderBy]: order },
     include: {
       staff: {
         where: { role: 'DOCTOR', isActive: true },
@@ -150,8 +151,24 @@ export const getClinics = async (req: {
   const total = clinics.length;
   const paginatedClinics = lat && lng ? clinics.slice(skip, skip + limit) : clinics;
 
+  // Serialize to plain objects so Prisma Decimal (latitude, longitude, consultationFee) don't break JSON
+  const serialized = paginatedClinics.map((c) => ({
+    ...c,
+    latitude: c.latitude != null ? Number(c.latitude) : null,
+    longitude: c.longitude != null ? Number(c.longitude) : null,
+    staff: (c.staff ?? []).map((s: any) => ({
+      ...s,
+      doctorProfile: s.doctorProfile
+        ? {
+            ...s.doctorProfile,
+            consultationFee: s.doctorProfile.consultationFee != null ? Number(s.doctorProfile.consultationFee) : 0,
+          }
+        : null,
+    })),
+  }));
+
   return {
-    clinics: paginatedClinics,
+    clinics: serialized,
     pagination: {
       page,
       limit,
