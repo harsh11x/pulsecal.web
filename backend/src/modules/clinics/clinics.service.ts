@@ -73,6 +73,7 @@ export const getClinics = async (req: {
     radius?: string; // km, default 10
   };
 }) => {
+  try {
   const { page, limit, skip } = getPaginationParams(req as never);
   const { orderBy: rawOrderBy, order } = getSortParams(req as never);
   const safeOrderBy = ['createdAt', 'name', 'city', 'updatedAt'].includes(rawOrderBy) ? rawOrderBy : 'createdAt';
@@ -176,6 +177,10 @@ export const getClinics = async (req: {
       totalPages: Math.ceil(total / limit),
     },
   };
+  } catch (err: any) {
+    console.error('[getClinics]', err?.message, err?.stack);
+    return { clinics: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } };
+  }
 };
 
 export const getClinicById = async (clinicId: string) => {

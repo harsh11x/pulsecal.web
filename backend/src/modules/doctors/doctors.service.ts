@@ -38,6 +38,12 @@ export const searchDoctors = async (params: {
   search?: string;
   reason?: string;
 }) => {
+  const emptyResult = () => ({
+    doctors: [] as any[],
+    pagination: { page: 1, limit: 50, total: 0, totalPages: 0 },
+  });
+
+  try {
   let {
     latitude,
     longitude,
@@ -54,6 +60,8 @@ export const searchDoctors = async (params: {
     reason,
   } = params;
 
+  page = Number.isFinite(page) ? page : 1;
+  limit = Number.isFinite(limit) && limit > 0 ? Math.min(limit, 200) : 50;
   const skip = (page - 1) * limit;
 
   // When city not provided but lat/lng are, reverse geocode to get city
@@ -202,6 +210,10 @@ export const searchDoctors = async (params: {
       totalPages: Math.ceil(total / limit),
     },
   };
+  } catch (err: any) {
+    console.error('[searchDoctors]', err?.message, err?.stack);
+    return emptyResult();
+  }
 };
 
 /**

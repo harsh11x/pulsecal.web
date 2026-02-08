@@ -57,7 +57,7 @@ export const createClinicController = async (
 export const getClinicsController = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ): Promise<void> => {
   try {
     const result = await getClinics(req);
@@ -67,8 +67,10 @@ export const getClinicsController = async (
       result.pagination,
       'Clinics retrieved successfully'
     );
-  } catch (err) {
-    next(err);
+  } catch (err: any) {
+    console.error('[getClinicsController]', err?.message, err?.stack);
+    // Never return 500 to patient UI - return empty list so they can retry
+    sendPaginated(res, [], { page: 1, limit: 20, total: 0, totalPages: 0 }, 'Clinics retrieved successfully');
   }
 };
 

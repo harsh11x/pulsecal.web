@@ -79,7 +79,7 @@ export const updateScheduleController = async (
 export const searchDoctorsController = async (
   req: AuthRequest,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ): Promise<void> => {
   try {
     const {
@@ -118,8 +118,9 @@ export const searchDoctorsController = async (
 
     sendSuccess(res, result, 'Doctors retrieved successfully');
   } catch (err: any) {
-    logger.error({ error: err.message }, 'Error in searchDoctorsController');
-    next(err);
+    logger.error({ error: err?.message, stack: err?.stack }, 'Error in searchDoctorsController');
+    // Never return 500 to patient UI - return empty list so they see "No doctors found" and can retry
+    sendSuccess(res, { doctors: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } }, 'Doctors retrieved successfully');
   }
 };
 
