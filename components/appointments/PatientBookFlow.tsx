@@ -64,7 +64,7 @@ export function PatientBookFlow() {
       params.set("limit", "200")
       if (search && search.trim()) params.set("search", search.trim())
       const data: any = await apiService.get(`/doctors/search?${params}`)
-      const list = data?.doctors ?? (Array.isArray(data) ? data : [])
+      const list = data?.doctors ?? data?.data?.doctors ?? (Array.isArray(data) ? data : [])
       setDoctors(Array.isArray(list) ? list : [])
       setSearched(true)
       if ((Array.isArray(list) ? list : []).length === 0) {
@@ -103,7 +103,7 @@ export function PatientBookFlow() {
     try {
       const params = new URLSearchParams({ limit: "100" })
       const r: any = await apiService.get(`/clinics?${params}`)
-      let list = Array.isArray(r) ? r : (r?.clinics ?? r?.data ?? [])
+      let list = Array.isArray(r) ? r : (r?.clinics ?? r?.data?.clinics ?? r?.data ?? [])
       if (!Array.isArray(list)) list = []
       setClinics(list)
     } catch (e: any) {

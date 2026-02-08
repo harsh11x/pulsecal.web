@@ -110,10 +110,30 @@ export const getProfile = async (userId: string) => {
       throw new AppError('Invalid user ID', 400);
     }
 
-    // Fetch user with all fields (includes settings if migration has been run)
+    // Explicit select so we don't require columns that may not exist yet (e.g. settings)
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      include: {
+      select: {
+        id: true,
+        email: true,
+        firebaseUid: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        dateOfBirth: true,
+        role: true,
+        isActive: true,
+        isEmailVerified: true,
+        profileImage: true,
+        onboardingCompleted: true,
+        createdAt: true,
+        updatedAt: true,
+        deletedAt: true,
+        googleCalendarAccessToken: true,
+        googleCalendarRefreshToken: true,
+        googleCalendarTokenExpiry: true,
+        googleCalendarConnected: true,
+        clinicId: true,
         patientProfile: {
           select: {
             id: true,
@@ -145,7 +165,7 @@ export const getProfile = async (userId: string) => {
       throw new AppError('User not found', 404);
     }
 
-    const { password, mfaSecret, emailVerificationToken, passwordResetToken, ...safeUser } = user;
+    const { ...safeUser } = user;
 
     let canManageSubscription = false;
     if (user.role === 'DOCTOR' || user.role === 'ADMIN') {
