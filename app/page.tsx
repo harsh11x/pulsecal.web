@@ -460,63 +460,64 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
             {PLANS.map((plan, index) => {
               const monthlyAmount = PLAN_AMOUNTS[plan.id]
               const yearlyAmount = monthlyAmount * 10
               const priceDisplay = isYearly ? `Rs. ${yearlyAmount.toLocaleString("en-IN")}` : `Rs. ${monthlyAmount.toLocaleString("en-IN")}`
               const savings = isYearly ? `Save ₹${(monthlyAmount * 2).toLocaleString("en-IN")}` : null
               return (
-              <div
-                key={plan.id}
-                className={`relative rounded-2xl border-2 p-8 transition-all duration-300 ${plan.recommended
-                  ? "border-primary bg-card shadow-xl scale-105 z-10"
-                  : "border-border bg-card hover:border-primary/50 hover:shadow-lg hover:-translate-y-1"
-                  }`}
-              >
-                {plan.recommended && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                    <span className="rounded-full bg-primary px-4 py-1 text-xs font-semibold text-primary-foreground shadow-md">
-                      Most Popular
-                    </span>
-                  </div>
-                )}
-                {isYearly && (
-                  <div className="absolute top-4 right-4">
-                     <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700 border border-green-200">
+                <div
+                  key={plan.id}
+                  className={`relative rounded-2xl border-2 p-8 transition-all duration-300 ${plan.recommended
+                    ? "border-primary bg-card shadow-xl scale-105 z-10"
+                    : "border-border bg-card hover:border-primary/50 hover:shadow-lg hover:-translate-y-1"
+                    }`}
+                >
+                  {plan.recommended && (
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                      <span className="rounded-full bg-primary px-4 py-1 text-xs font-semibold text-primary-foreground shadow-md">
+                        Most Popular
+                      </span>
+                    </div>
+                  )}
+                  {isYearly && (
+                    <div className="absolute top-4 right-4">
+                      <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700 border border-green-200">
                         12 Months Autopay
-                     </span>
+                      </span>
+                    </div>
+                  )}
+                  <div className="mb-6">
+                    <h3 className="mb-2 text-2xl font-bold text-foreground">{plan.name}</h3>
+                    <p className="text-sm text-muted-foreground">{plan.description}</p>
                   </div>
-                )}
-                <div className="mb-6">
-                  <h3 className="mb-2 text-2xl font-bold text-foreground">{plan.name}</h3>
-                  <p className="text-sm text-muted-foreground">{plan.description}</p>
-                </div>
-                <div className="mb-2">
-                  <span className="text-4xl font-bold text-foreground">{priceDisplay}</span>
-                  <span className="text-muted-foreground"> / {isYearly ? "year" : "month"}</span>
-                </div>
-                {savings && (
-                   <div className="mb-6 text-sm text-green-600 font-semibold animate-pulse">
-                     {savings}
-                   </div>
-                )}
-                 {!savings && <div className="mb-6 h-5"></div>}
+                  <div className="mb-2">
+                    <span className="text-4xl font-bold text-foreground">{priceDisplay}</span>
+                    <span className="text-muted-foreground"> / {isYearly ? "year" : "month"}</span>
+                  </div>
+                  {savings && (
+                    <div className="mb-6 text-sm text-green-600 font-semibold animate-pulse">
+                      {savings}
+                    </div>
+                  )}
+                  {!savings && <div className="mb-6 h-5"></div>}
 
-                <ul className="mb-8 space-y-3">
-                  {plan.features.map((feature, idx) => (
-                    <li key={idx} className="flex items-start gap-3">
-                      <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
-                      <span className="text-sm text-muted-foreground">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-                <GetStartedAction
-                  className="w-full"
-                  variant={plan.recommended ? "default" : "outline"}
-                />
-              </div>
-            )})}
+                  <ul className="mb-8 space-y-3">
+                    {plan.features.map((feature, idx) => (
+                      <li key={idx} className="flex items-start gap-3">
+                        <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
+                        <span className="text-sm text-muted-foreground">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <GetStartedAction
+                    className="w-full"
+                    variant={plan.recommended ? "default" : "outline"}
+                  />
+                </div>
+              )
+            })}
           </div>
         </div>
       </section>
