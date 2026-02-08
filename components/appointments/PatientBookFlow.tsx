@@ -31,8 +31,10 @@ export function PatientBookFlow() {
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null)
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
+  const [doctorsError, setDoctorsError] = useState<string | null>(null)
+  const [clinicsError, setClinicsError] = useState<string | null>(null)
 
-  // Get user's city from geolocation (optional default)
+  // Get user's city from geolocation (optional default) — does not trigger refetch
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -56,10 +58,11 @@ export function PatientBookFlow() {
   const fetchDoctors = async (search?: string, useCityFilter?: boolean) => {
     setLoading(true)
     setSelectedDoctor(null)
+    setDoctorsError(null)
     try {
       const params = new URLSearchParams()
       params.set("limit", "200")
-      if (useCityFilter !== false && city && city.trim()) {
+      if (useCityFilter === true && city && city.trim()) {
         params.set("city", city.trim())
       }
       if (search && search.trim()) {
@@ -74,12 +77,14 @@ export function PatientBookFlow() {
         data = await apiService.get(`/doctors/search?${paramsNoCity}`)
         list = data?.doctors ?? (Array.isArray(data) ? data : [])
       }
-      setDoctors(list)
+      setDoctors(Array.isArray(list) ? list : [])
       setSearched(true)
-      if (list.length === 0) {
+      if ((Array.isArray(list) ? list : []).length === 0) {
         toast.info("No doctors found. Try a different city or search term.")
       }
-    } catch {
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || e?.message || "Could not load doctors"
+      setDoctorsError(msg)
       setDoctors([])
       setSearched(true)
     } finally {
@@ -87,15 +92,11 @@ export function PatientBookFlow() {
     }
   }
 
-  // On mount: load all doctors and all clinics (no city filter) so something always shows
+  // On mount only: load ALL doctors and ALL clinics (no city) so lists always show
   useEffect(() => {
     fetchDoctors(undefined, false)
     fetchClinics(false)
   }, [])
-
-  useEffect(() => {
-    if (city) fetchDoctors(undefined, true)
-  }, [city])
 
   const handleSearch = () => {
     fetchDoctors(searchQuery.trim() || undefined, true)
@@ -110,6 +111,7 @@ export function PatientBookFlow() {
 
   const fetchClinics = async (useCityFilter = true) => {
     setLoadingClinics(true)
+    setClinicsError(null)
     try {
       const params = new URLSearchParams({ limit: "100" })
       if (useCityFilter && city && city.trim()) {
@@ -117,12 +119,16 @@ export function PatientBookFlow() {
       }
       let r: any = await apiService.get(`/clinics?${params}`)
       let list = Array.isArray(r) ? r : (r?.clinics ?? r?.data ?? [])
+      if (!Array.isArray(list)) list = []
       if (list.length === 0 && city && city.trim()) {
         r = await apiService.get("/clinics?limit=100")
         list = Array.isArray(r) ? r : (r?.clinics ?? r?.data ?? [])
+        if (!Array.isArray(list)) list = []
       }
       setClinics(list)
-    } catch {
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || e?.message || "Could not load clinics"
+      setClinicsError(msg)
       setClinics([])
     } finally {
       setLoadingClinics(false)
@@ -188,14 +194,21 @@ export function PatientBookFlow() {
                 placeholder="e.g. Amritsar, Delhi, Mumbai — leave blank for all"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
-                onBlur={() => fetchDoctors()}
+                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleSearch())}
               />
             </div>
           </div>
 
           <div className="space-y-3">
             <label className="text-sm font-medium">Select Doctor</label>
-            {loading ? (
+            {doctorsError ? (
+              <div className="text-center py-8 rounded-lg border border-destructive/50 bg-destructive/5 p-4">
+                <p className="text-sm text-destructive font-medium">{doctorsError}</p>
+                <Button className="mt-3" variant="outline" size="sm" onClick={() => fetchDoctors(undefined, false)}>
+                  Retry
+                </Button>
+              </div>
+            ) : loading ? (
               <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
             ) : doctors.length === 0 ? (
               <p className="text-center py-8 text-muted-foreground text-sm">No doctors found. Try a different city or search.</p>
@@ -368,7 +381,14 @@ export function PatientBookFlow() {
                 <CardDescription>Choose a clinic to see available doctors</CardDescription>
               </CardHeader>
               <CardContent>
-                {loadingClinics ? (
+                {clinicsError ? (
+                  <div className="text-center py-8 rounded-lg border border-destructive/50 bg-destructive/5 p-4">
+                    <p className="text-sm text-destructive font-medium">{clinicsError}</p>
+                    <Button className="mt-3" variant="outline" size="sm" onClick={() => fetchClinics(false)}>
+                      Retry
+                    </Button>
+                  </div>
+                ) : loadingClinics ? (
                   <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
                 ) : clinics.length === 0 ? (
                   <p className="text-center py-12 text-muted-foreground">No clinics found.</p>

@@ -62,12 +62,11 @@ export const searchDoctors = async (params: {
     if (derivedCity) city = derivedCity;
   }
 
-  // Build where clause - filter by city (no radius)
+  // Build where clause - include all active doctors (onboardingCompleted optional so list is never empty)
   const where: any = {
     user: {
       role: 'DOCTOR',
       isActive: true,
-      onboardingCompleted: true,
     },
   };
 
