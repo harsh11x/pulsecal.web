@@ -11,7 +11,7 @@ import { apiService } from "@/services/api"
 import { useAppSelector } from "@/app/hooks"
 import { toast } from "sonner"
 import { format } from "date-fns"
-import { PLANS, PLAN_AMOUNTS, PLAN_FEATURES } from "@/lib/planConfig"
+import { PLANS, PLAN_AMOUNTS, PLAN_FEATURES, PLAN_ORDER } from "@/lib/planConfig"
 
 export default function SubscriptionPage() {
     const { user } = useAppSelector((state) => state.auth)
@@ -27,8 +27,8 @@ export default function SubscriptionPage() {
 
     const planFeaturesMap = PLAN_FEATURES
     const plans = PLANS.map((p) => ({ ...p, price: `${p.price}`, amount: p.amount, period: "/month" }))
-    const planOrder = ["STARTER", "BASIC", "PROFESSIONAL", "ENTERPRISE"]
-    const currentPlanIndex = planOrder.indexOf(currentSubscription?.plan || "STARTER")
+    const planOrder = PLAN_ORDER
+    const currentPlanIndex = planOrder.indexOf((currentSubscription?.plan || "BASIC") as any)
 
     useEffect(() => {
         fetchSubscriptionStatus()
@@ -38,7 +38,7 @@ export default function SubscriptionPage() {
         try {
             const data: any = await apiService.get("/payments/subscription/status")
             setCurrentSubscription({
-                plan: data?.plan || "STARTER",
+                plan: data?.plan || "BASIC",
                 status: data?.status || "PENDING",
                 expiresAt: data?.expiresAt || null,
                 lastPaymentAmount: data?.lastPaymentAmount ?? null,
@@ -47,7 +47,7 @@ export default function SubscriptionPage() {
         } catch (error) {
             console.error("Failed to fetch subscription", error)
             setCurrentSubscription({
-                plan: "STARTER",
+                plan: "BASIC",
                 status: "PENDING",
                 expiresAt: null,
                 lastPaymentAmount: null,
@@ -115,7 +115,7 @@ export default function SubscriptionPage() {
     }
 
     const handleCancel = async () => {
-        if (!confirm("Are you sure you want to cancel your subscription? You will revert to the Starter plan.")) return
+        if (!confirm("Are you sure you want to cancel your subscription? You will revert to the Basic plan.")) return
 
         setProcessing("CANCEL")
         try {
@@ -131,7 +131,7 @@ export default function SubscriptionPage() {
 
     const getPlanButtonLabel = (plan: { id: string; name: string }) => {
         const isCurrent = currentSubscription?.plan === plan.id && currentSubscription?.status === "ACTIVE"
-        const planIdx = planOrder.indexOf(plan.id)
+        const planIdx = planOrder.indexOf(plan.id as any)
         const isHigher = planIdx > currentPlanIndex
 
         if (isCurrent) return "Current Plan"
@@ -185,7 +185,7 @@ export default function SubscriptionPage() {
                     <CardHeader>
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                             <div>
-                                <CardTitle className="text-xl">Your Plan: {plans.find(p => p.id === currentSubscription?.plan)?.name || currentSubscription?.plan || "Starter"}</CardTitle>
+                                <CardTitle className="text-xl">Your Plan: {plans.find(p => p.id === currentSubscription?.plan)?.name || currentSubscription?.plan || "Basic"}</CardTitle>
                                 <CardDescription className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
                                     <span>Status: <Badge variant={currentSubscription?.status === 'ACTIVE' && !isExpired ? 'default' : (currentSubscription?.status === 'EXPIRED' || isExpired) ? 'destructive' : 'secondary'} className="ml-1">{isExpired ? "EXPIRED" : (currentSubscription?.status || "PENDING")}</Badge></span>
                                     {currentSubscription?.expiresAt && (
@@ -211,7 +211,7 @@ export default function SubscriptionPage() {
                     <CardContent>
                         <p className="text-sm font-medium mb-2">Plan Features:</p>
                         <ul className="space-y-1.5 text-sm text-muted-foreground">
-                            {(planFeaturesMap[currentSubscription?.plan || "STARTER"] || planFeaturesMap.STARTER).map((f, i) => (
+                            {(planFeaturesMap[currentSubscription?.plan || "BASIC"] || planFeaturesMap.BASIC).map((f, i) => (
                                 <li key={i} className="flex items-center gap-2">
                                     <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
                                     {f}
@@ -247,7 +247,7 @@ export default function SubscriptionPage() {
                 <div>
                     <h2 className="text-xl font-semibold mb-4">Available Plans</h2>
                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                        {plans.filter((p) => p.id !== "STARTER").map((plan) => {
+                        {plans.map((plan) => {
                             const isCurrent = currentSubscription?.plan === plan.id && currentSubscription?.status === "ACTIVE"
                             const label = getPlanButtonLabel(plan)
                             const planIdx = planOrder.indexOf(plan.id)
