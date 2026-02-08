@@ -149,7 +149,8 @@ export function Sidebar({ className }: SidebarProps) {
     }
 
     if (!item.permission) return true
-    return user?.role && hasPermission(user.role as UserRole, item.permission)
+    // crucial fix: use the lowercase userRole for permission checks
+    return userRole && hasPermission(userRole as UserRole, item.permission)
   })
 
   return (
