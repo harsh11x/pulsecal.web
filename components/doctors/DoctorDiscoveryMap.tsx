@@ -99,7 +99,7 @@ export function DoctorDiscoveryMap() {
               const c = data?.address?.city || data?.address?.town || data?.address?.village || data?.address?.county;
               if (c) setCity(c);
             })
-            .catch(() => {});
+            .catch(() => { });
         },
         (error) => {
           console.error("Error getting location:", error)
@@ -140,6 +140,7 @@ export function DoctorDiscoveryMap() {
       }
 
       const response: any = await apiService.get("/doctors/search", { params })
+      console.log("Doctors search response:", response)
       let doctorsData = response?.doctors ?? response?.data ?? (Array.isArray(response) ? response : [])
 
       if (!Array.isArray(doctorsData)) {
@@ -345,17 +346,17 @@ export function DoctorDiscoveryMap() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-3 h-[calc(100vh-200px)] min-h-[600px]">
         {/* Map */}
-        <Card className="md:col-span-2">
-          <CardHeader>
+        <Card className="lg:col-span-2 h-full flex flex-col">
+          <CardHeader className="flex-none">
             <CardTitle>Map View</CardTitle>
             <CardDescription>
               {filteredDoctors.length} doctor{filteredDoctors.length !== 1 ? "s" : ""} found
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="w-full h-[600px] rounded-lg border overflow-hidden relative z-0">
+          <CardContent className="flex-1 p-0 relative min-h-[400px]">
+            <div className="absolute inset-0">
               <LeafletMap
                 center={mapCenter}
                 zoom={mapZoom}
@@ -368,29 +369,49 @@ export function DoctorDiscoveryMap() {
         </Card>
 
         {/* Doctor List */}
-        <Card>
-          <CardHeader>
+        <Card className="h-full flex flex-col">
+          <CardHeader className="flex-none">
             <CardTitle>Doctors List</CardTitle>
             <CardDescription>Click to view details</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1 overflow-hidden p-0">
             {loading ? (
-              <div className="text-center py-8">Loading doctors...</div>
+              <div className="h-full flex items-center justify-center p-8 text-muted-foreground">
+                <div className="flex flex-col items-center gap-2">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  <p>Loading doctors...</p>
+                </div>
+              </div>
             ) : filteredDoctors.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                No doctors found. Try adjusting your filters.
+              <div className="h-full flex flex-col items-center justify-center p-8 text-center text-muted-foreground">
+                <Search className="h-12 w-12 mb-4 opacity-20" />
+                <p className="text-lg font-medium">No doctors found</p>
+                <p className="text-sm">Try adjusting your filters or search area</p>
+                <Button
+                  variant="link"
+                  onClick={() => {
+                    setSearchQuery("")
+                    setSpecializationFilter("")
+                    setAvailabilityFilter("all")
+                    setPriceRange([0, 5000])
+                    setCity("")
+                  }}
+                  className="mt-2"
+                >
+                  Clear all filters
+                </Button>
               </div>
             ) : (
-              <div className="space-y-3 max-h-[600px] overflow-y-auto">
+              <div className="h-full overflow-y-auto p-4 space-y-4">
                 {filteredDoctors.map((doctor) => (
                   <Card
                     key={doctor.id}
-                    className={`cursor-pointer hover:shadow-lg transition-shadow ${selectedDoctor?.id === doctor.id ? 'border-primary bg-primary/5' : ''}`}
+                    className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedDoctor?.id === doctor.id ? 'border-primary ring-1 ring-primary bg-primary/5' : 'hover:border-primary/50'}`}
                     onClick={() => handleSelectDoctor(doctor)}
                   >
                     <CardContent className="p-4">
                       <div className="flex items-start gap-3">
-                        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center flex-shrink-0 overflow-hidden border">
                           {doctor.profileImage ? (
                             <img
                               src={doctor.profileImage}
@@ -403,11 +424,11 @@ export function DoctorDiscoveryMap() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold truncate">
-                            {doctor.firstName} {doctor.lastName}
+                            Dr. {doctor.firstName} {doctor.lastName}
                           </h3>
                           <p className="text-sm text-muted-foreground truncate">{doctor.specialization}</p>
                           {doctor.clinicName && (
-                            <p className="text-xs flex items-center gap-1 mt-1">
+                            <p className="text-xs flex items-center gap-1 mt-1 text-muted-foreground">
                               <MapPin className="h-3 w-3" />
                               <span className="truncate">{doctor.clinicName}</span>
                             </p>
@@ -422,13 +443,10 @@ export function DoctorDiscoveryMap() {
                               </Badge>
                             )}
                             {doctor.rating && (
-                              <Badge variant="outline" className="text-xs">
+                              <Badge variant="outline" className="text-xs border-yellow-200 bg-yellow-50 text-yellow-700">
                                 <Star className="h-3 w-3 mr-1 fill-yellow-400 text-yellow-400" />
                                 {doctor.rating}
                               </Badge>
-                            )}
-                            {doctor.isAvailable && (
-                              <Badge className="bg-green-500 text-xs">Available</Badge>
                             )}
                           </div>
                         </div>

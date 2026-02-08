@@ -161,7 +161,12 @@ export function Sidebar({ className }: SidebarProps) {
             const isActive = pathname ? (pathname === item.href || pathname.startsWith(item.href + "/")) : false
             const userRole = user?.role?.toLowerCase()
             const isDoctor = userRole === "doctor"
-            const displayTitle = isDoctor && item.href === "/appointments/create" ? "Create Appointment" : item.title
+
+            let displayTitle = item.title
+            if (isDoctor) {
+              if (item.href === "/appointments/create") displayTitle = "Create Appointment"
+              if (item.title === "Payments") displayTitle = "Revenue Dashboard"
+            }
 
             return (
               <Link

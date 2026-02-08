@@ -10,10 +10,10 @@ export const PLAN_AMOUNTS: Record<string, number> = {
 }
 
 export const PLAN_FEATURES: Record<string, string[]> = {
-  STARTER: ["Up to 3 Doctors", "1,000 Appointments/month", "Basic Prescriptions", "Medical Records", "Custom Branding", "Email Support", "Mobile App Access"],
-  BASIC: ["Up to 5 Doctors", "2,000 Appointments/month", "Full Prescriptions", "Medical Records", "Basic Analytics", "Email Support", "Mobile App Access"],
-  PROFESSIONAL: ["Up to 10 Doctors", "Unlimited Appointments", "Receptionist Access", "Queue Management", "Full Prescriptions", "Medical Records", "Full Analytics", "Custom Branding", "Email Support", "Mobile App Access"],
-  ENTERPRISE: ["Unlimited Doctors", "Unlimited Appointments", "Receptionist Access", "Queue Management", "Full Prescriptions", "Medical Records", "Export Analytics", "Custom Branding", "Email Support", "Mobile App Access"],
+  STARTER: ["Up to 3 Doctors", "1,000 Appointments/month", "Basic Prescriptions", "Medical Records"],
+  BASIC: ["Up to 5 Doctors", "2,000 Appointments/month", "Full Prescriptions", "Medical Records", "Basic Analytics"],
+  PROFESSIONAL: ["Up to 10 Doctors", "Unlimited Appointments", "Receptionist Access", "Queue Management", "Full Prescriptions", "Medical Records", "Full Analytics", "Custom Branding"],
+  ENTERPRISE: ["Unlimited Doctors", "Unlimited Appointments", "Receptionist Access", "Queue Management", "Full Prescriptions", "Medical Records", "Export Analytics", "Custom Branding"],
 }
 
 export const PLAN_ORDER = ["STARTER", "BASIC", "PROFESSIONAL", "ENTERPRISE"] as const

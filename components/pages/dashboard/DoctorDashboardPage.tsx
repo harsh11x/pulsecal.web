@@ -19,6 +19,9 @@ import { formatCurrency } from "@/utils/helpers"
 import { socketService } from "@/services/socket"
 import { toast } from "sonner"
 
+import { useAppDispatch } from "@/app/hooks"
+import { setUser } from "@/app/features/authSlice"
+
 interface DoctorDashboardPageProps {
   user: any
 }
@@ -54,6 +57,7 @@ interface DashboardStats {
 }
 
 export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) {
+  const dispatch = useAppDispatch()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -61,11 +65,29 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
   const [todayAppointments, setTodayAppointments] = useState<any[]>([])
 
   useEffect(() => {
+    // Check if clinicId is missing and refresh profile
+    if (user && !user.clinicId) {
+      const refreshProfile = async () => {
+        try {
+          const profile: any = await apiService.get("/auth/profile")
+          if (profile && profile.clinicId) {
+            console.log("Refreshing user profile to get clinicId:", profile.clinicId)
+            dispatch(setUser(profile))
+          }
+        } catch (error) {
+          console.error("Failed to refresh user profile:", error)
+        }
+      }
+      refreshProfile()
+    }
+  }, [user, dispatch])
+
+  useEffect(() => {
     // Wait for token to be ready before fetching
     const waitForToken = async () => {
       let attempts = 0
       const maxAttempts = 10
-      
+
       while (attempts < maxAttempts) {
         const { getIdToken } = await import("@/lib/firebaseAuth")
         const token = await getIdToken()
@@ -77,12 +99,12 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
         attempts++
         await new Promise(resolve => setTimeout(resolve, 200))
       }
-      
+
       // If no token after max attempts, try anyway (might be public endpoint)
       console.warn("⚠️ No token after waiting, attempting fetch anyway...")
       fetchDashboardData()
     }
-    
+
     waitForToken()
 
     // Socket connection for real-time updates
@@ -239,12 +261,12 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
     },
     {
       title: "Today's Revenue",
-      value: formatCurrency(stats.today.revenue),
+      value: formatCurrency(Math.abs(stats.today.revenue)),
       trend: {
         value: stats.yesterday.revenue === 0
           ? (stats.today.revenue > 0 ? 100 : 0)
-          : Math.round(((stats.today.revenue - stats.yesterday.revenue) / stats.yesterday.revenue) * 100),
-        isPositive: stats.today.revenue >= stats.yesterday.revenue,
+          : Math.round(((Math.abs(stats.today.revenue) - Math.abs(stats.yesterday.revenue)) / Math.abs(stats.yesterday.revenue)) * 100),
+        isPositive: Math.abs(stats.today.revenue) >= Math.abs(stats.yesterday.revenue),
         label: "from yesterday"
       },
       icon: DollarSign,
@@ -265,7 +287,7 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
     },
     {
       title: "Monthly Revenue",
-      value: formatCurrency(stats.thisMonth.revenue),
+      value: formatCurrency(Math.abs(stats.thisMonth.revenue)),
       trend: {
         value: 0,
         label: "This month",
@@ -428,7 +450,7 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
               <div className="grid gap-4 md:grid-cols-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Total Revenue</p>
-                  <p className="text-2xl font-bold">{formatCurrency(stats.thisMonth.revenue)}</p>
+                  <p className="text-2xl font-bold">{formatCurrency(Math.abs(stats.thisMonth.revenue))}</p>
                   <p className="text-xs text-muted-foreground">Consultation fees this month</p>
                 </div>
                 <div>
@@ -440,7 +462,7 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
                   <p className="text-sm text-muted-foreground">Average per Visit</p>
                   <p className="text-2xl font-bold">
                     {stats.thisMonth.patients > 0
-                      ? formatCurrency(stats.thisMonth.revenue / stats.thisMonth.patients)
+                      ? formatCurrency(Math.abs(stats.thisMonth.revenue) / stats.thisMonth.patients)
                       : "—"}
                   </p>
                   <p className="text-xs text-muted-foreground">Revenue ÷ completed visits</p>
