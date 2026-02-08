@@ -210,7 +210,12 @@ export function RealTimeBooking({ doctorId, doctorName, consultationFee, onBooki
                 setPhone((user as any)?.phone?.replace(/\D/g, '').slice(0, 10) || "")
                 onBookingSuccess?.()
                 fetchSlots()
-                if (res?.id) router.push(`/appointments/${res.id}`)
+                const appointmentId = res?.id ?? res?.data?.id ?? res?.appointment?.id
+                if (appointmentId) {
+                  router.push(`/appointments/${appointmentId}`)
+                } else {
+                  router.push("/appointments/list")
+                }
                 setLoading(false)
                 return
             }

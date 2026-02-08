@@ -30,10 +30,12 @@ export default function AppointmentDetail() {
     if (!id) return
     try {
       const response: any = await apiService.get(`/appointments/${id}`)
-      setAppointment(response?.data || response)
+      const apt = response?.data ?? response?.appointment ?? response
+      setAppointment(apt && typeof apt === 'object' && apt.id ? apt : null)
     } catch (error) {
       console.error("Failed to fetch appointment:", error)
       toast.error("Failed to load appointment details")
+      setAppointment(null)
     } finally {
       setLoading(false)
     }

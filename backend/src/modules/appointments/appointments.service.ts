@@ -170,8 +170,8 @@ export const getAppointmentById = async (
   userId?: string,
   userRole?: string
 ) => {
-  const appointment = await prisma.appointment.findUnique({
-    where: { id: appointmentId },
+  const appointment = await prisma.appointment.findFirst({
+    where: { id: appointmentId, deletedAt: null },
     include: {
       patient: {
         select: {
@@ -199,10 +199,11 @@ export const getAppointmentById = async (
     throw new AppError('Appointment not found', 404);
   }
 
+  const role = userRole?.toUpperCase?.();
   if (
     userId &&
-    userRole !== 'ADMIN' &&
-    userRole !== 'RECEPTIONIST' &&
+    role !== 'ADMIN' &&
+    role !== 'RECEPTIONIST' &&
     appointment.patientId !== userId &&
     appointment.doctorId !== userId
   ) {
