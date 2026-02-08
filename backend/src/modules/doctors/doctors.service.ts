@@ -72,7 +72,7 @@ export const searchDoctors = async (params: {
 
   const hasFilters = !!(city && city.trim()) || !!(search || reason) || !!specialization || !!clinicName || !!services || minFee !== undefined || maxFee !== undefined;
 
-  // With no filters: return ALL doctor profiles (so the 14 in DB show). With filters: apply them.
+  // With no filters: return ALL doctor profiles. With filters: apply them.
   const where: any = {};
   if (hasFilters) {
     where.user = { isActive: true };
@@ -108,7 +108,7 @@ export const searchDoctors = async (params: {
     }
   }
 
-  // Get all doctors (include clinic for display)
+  // Minimal user select (no clinic relation) to avoid missing columns in DB; clinic from profile or null
   const doctors = await prisma.doctorProfile.findMany({
     where,
     include: {
@@ -117,15 +117,11 @@ export const searchDoctors = async (params: {
           id: true,
           firstName: true,
           lastName: true,
-          email: true,
-          phone: true,
           profileImage: true,
-          clinic: {
-            select: { name: true, latitude: true, longitude: true, city: true },
-          },
         },
       },
     },
+    orderBy: { userId: 'asc' },
     skip,
     take: limit,
   });
@@ -159,23 +155,23 @@ export const searchDoctors = async (params: {
 
   // Transform to flat format with clinicLatitude/clinicLongitude for map (from profile or clinic)
   const mappedDoctors = slice.map((d) => {
-    const clinicLat = d.clinicLatitude ?? (d.user?.clinic?.latitude ? Number(d.user.clinic.latitude) : null);
-    const clinicLng = d.clinicLongitude ?? (d.user?.clinic?.longitude ? Number(d.user.clinic.longitude) : null);
+    const clinicLat = d.clinicLatitude != null ? Number(d.clinicLatitude) : null;
+    const clinicLng = d.clinicLongitude != null ? Number(d.clinicLongitude) : null;
     return {
       id: d.userId,
       userId: d.userId,
       firstName: d.user?.firstName ?? '',
       lastName: d.user?.lastName ?? '',
-      specialization: d.specialization,
-      clinicName: d.clinicName ?? d.user?.clinic?.name ?? null,
-      clinicAddress: d.clinicAddress,
-      clinicCity: d.user?.clinic?.city ?? null,
+      specialization: d.specialization ?? 'General',
+      clinicName: d.clinicName ?? null,
+      clinicAddress: d.clinicAddress ?? null,
+      clinicCity: null,
       clinicLatitude: clinicLat,
       clinicLongitude: clinicLng,
-      consultationFee: d.consultationFee ? Number(d.consultationFee) : 0,
-      bio: d.bio,
-      services: d.services ?? [],
-      profileImage: d.user?.profileImage,
+      consultationFee: d.consultationFee != null ? Number(d.consultationFee) : 0,
+      bio: d.bio ?? null,
+      services: Array.isArray(d.services) ? d.services : [],
+      profileImage: d.user?.profileImage ?? null,
     };
   });
 
