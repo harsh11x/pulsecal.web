@@ -70,43 +70,26 @@ export const searchDoctors = async (params: {
     if (derivedCity) city = derivedCity;
   }
 
-  // Build where clause - any user with a DoctorProfile and active (no role filter so doctors show regardless of role casing)
-  const where: any = {
-    user: {
-      isActive: true,
-    },
-  };
+  const hasFilters = !!(city && city.trim()) || !!(search || reason) || !!specialization || !!clinicName || !!services || minFee !== undefined || maxFee !== undefined;
 
-  if (specialization) {
-    where.specialization = specialization;
-  }
-
-  if (clinicName) {
-    where.clinicName = { contains: clinicName, mode: 'insensitive' };
-  }
-
-  // Filter by city - match clinicAddress or linked clinic's city (frontend falls back to all if empty)
-  if (city && city.trim()) {
-    const cityTerm = city.trim();
-    where.AND = where.AND || [];
-    where.AND.push({
-      OR: [
-        { clinicAddress: { contains: cityTerm, mode: 'insensitive' } },
-        { user: { clinic: { city: { contains: cityTerm, mode: 'insensitive' } } } },
-      ],
-    });
-  }
-
-  // Filter by services (if provided)
-  if (services) {
-     where.services = {
-         has: services
-     };
-  }
-
-  // Search by name, specialty, clinic (OR logic)
-  const searchOrReason = search || reason;
-  if (searchOrReason) {
+  // With no filters: return ALL doctor profiles (so the 14 in DB show). With filters: apply them.
+  const where: any = {};
+  if (hasFilters) {
+    where.user = { isActive: true };
+    if (specialization) where.specialization = specialization;
+    if (clinicName) where.clinicName = { contains: clinicName, mode: 'insensitive' };
+    if (city && city.trim()) {
+      const cityTerm = city.trim();
+      where.AND = [{
+        OR: [
+          { clinicAddress: { contains: cityTerm, mode: 'insensitive' } },
+          { user: { clinic: { city: { contains: cityTerm, mode: 'insensitive' } } } },
+        ],
+      }];
+    }
+    if (services) where.services = { has: services };
+    const searchOrReason = search || reason;
+    if (searchOrReason) {
       const term = (searchOrReason as string).toLowerCase().trim();
       where.AND = where.AND || [];
       where.AND.push({
@@ -117,19 +100,15 @@ export const searchDoctors = async (params: {
           { services: { has: term } },
         ],
       });
-  }
-
-  if (minFee !== undefined || maxFee !== undefined) {
-    where.consultationFee = {};
-    if (minFee !== undefined) {
-      where.consultationFee.gte = minFee;
     }
-    if (maxFee !== undefined) {
-      where.consultationFee.lte = maxFee;
+    if (minFee !== undefined || maxFee !== undefined) {
+      where.consultationFee = {};
+      if (minFee !== undefined) where.consultationFee.gte = minFee;
+      if (maxFee !== undefined) where.consultationFee.lte = maxFee;
     }
   }
 
-  // Get all doctors matching filters (include clinic for lat/lng fallback)
+  // Get all doctors (include clinic for display)
   const doctors = await prisma.doctorProfile.findMany({
     where,
     include: {
