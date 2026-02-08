@@ -55,32 +55,20 @@ export function PatientBookFlow() {
     }
   }, [])
 
-  const fetchDoctors = async (search?: string, useCityFilter?: boolean) => {
+  const fetchDoctors = async (search?: string) => {
     setLoading(true)
     setSelectedDoctor(null)
     setDoctorsError(null)
     try {
       const params = new URLSearchParams()
       params.set("limit", "200")
-      if (useCityFilter === true && city && city.trim()) {
-        params.set("city", city.trim())
-      }
-      if (search && search.trim()) {
-        params.set("search", search.trim())
-      }
-      let data: any = await apiService.get(`/doctors/search?${params}`)
-      let list = data?.doctors ?? (Array.isArray(data) ? data : [])
-      if (list.length === 0 && city && city.trim()) {
-        const paramsNoCity = new URLSearchParams()
-        paramsNoCity.set("limit", "200")
-        if (search && search.trim()) paramsNoCity.set("search", search.trim())
-        data = await apiService.get(`/doctors/search?${paramsNoCity}`)
-        list = data?.doctors ?? (Array.isArray(data) ? data : [])
-      }
+      if (search && search.trim()) params.set("search", search.trim())
+      const data: any = await apiService.get(`/doctors/search?${params}`)
+      const list = data?.doctors ?? (Array.isArray(data) ? data : [])
       setDoctors(Array.isArray(list) ? list : [])
       setSearched(true)
       if ((Array.isArray(list) ? list : []).length === 0) {
-        toast.info("No doctors found. Try a different city or search term.")
+        toast.info("No doctors found. Try a different search term.")
       }
     } catch (e: any) {
       const msg = e?.response?.data?.message || e?.message || "Could not load doctors"
@@ -92,14 +80,14 @@ export function PatientBookFlow() {
     }
   }
 
-  // On mount only: load ALL doctors and ALL clinics (no city) so lists always show
+  // On mount: load ALL doctors and ALL clinics (no location filter)
   useEffect(() => {
-    fetchDoctors(undefined, false)
-    fetchClinics(false)
+    fetchDoctors(undefined)
+    fetchClinics()
   }, [])
 
   const handleSearch = () => {
-    fetchDoctors(searchQuery.trim() || undefined, true)
+    fetchDoctors(searchQuery.trim() || undefined)
   }
 
   const doctorId = (d: Doctor) => d.user?.id ?? d.userId ?? d.id ?? ""
@@ -109,22 +97,14 @@ export function PatientBookFlow() {
   const [clinicDoctors, setClinicDoctors] = useState<Doctor[]>([])
   const [loadingClinics, setLoadingClinics] = useState(false)
 
-  const fetchClinics = async (useCityFilter = true) => {
+  const fetchClinics = async () => {
     setLoadingClinics(true)
     setClinicsError(null)
     try {
       const params = new URLSearchParams({ limit: "100" })
-      if (useCityFilter && city && city.trim()) {
-        params.set("city", city.trim())
-      }
-      let r: any = await apiService.get(`/clinics?${params}`)
+      const r: any = await apiService.get(`/clinics?${params}`)
       let list = Array.isArray(r) ? r : (r?.clinics ?? r?.data ?? [])
       if (!Array.isArray(list)) list = []
-      if (list.length === 0 && city && city.trim()) {
-        r = await apiService.get("/clinics?limit=100")
-        list = Array.isArray(r) ? r : (r?.clinics ?? r?.data ?? [])
-        if (!Array.isArray(list)) list = []
-      }
       setClinics(list)
     } catch (e: any) {
       const msg = e?.response?.data?.message || e?.message || "Could not load clinics"
@@ -154,7 +134,7 @@ export function PatientBookFlow() {
       <Tabs defaultValue="symptom">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="symptom">Find Doctors</TabsTrigger>
-          <TabsTrigger value="clinic" onClick={() => fetchClinics(true)}>Browse Clinics</TabsTrigger>
+          <TabsTrigger value="clinic" onClick={() => fetchClinics()}>Browse Clinics</TabsTrigger>
         </TabsList>
 
         <TabsContent value="symptom" className="space-y-6 mt-4">
@@ -165,7 +145,7 @@ export function PatientBookFlow() {
             Find Doctors
           </CardTitle>
           <CardDescription>
-            Search by name, specialty, or clinic. All doctors (with clinic names and rates) are shown. Enter city to filter by location.
+            All doctors and clinics are shown (no location filter). Search by name, specialty, or clinic.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -189,13 +169,8 @@ export function PatientBookFlow() {
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">City (optional - filter by location)</label>
-              <Input
-                placeholder="e.g. Amritsar, Delhi, Mumbai — leave blank for all"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleSearch())}
-              />
+              <label className="text-sm font-medium">Search (optional)</label>
+              <p className="text-xs text-muted-foreground">All doctors and clinics are listed. Use the search box above to filter by name or specialty.</p>
             </div>
           </div>
 
@@ -204,14 +179,14 @@ export function PatientBookFlow() {
             {doctorsError ? (
               <div className="text-center py-8 rounded-lg border border-destructive/50 bg-destructive/5 p-4">
                 <p className="text-sm text-destructive font-medium">{doctorsError}</p>
-                <Button className="mt-3" variant="outline" size="sm" onClick={() => fetchDoctors(undefined, false)}>
+                <Button className="mt-3" variant="outline" size="sm" onClick={() => fetchDoctors(undefined)}>
                   Retry
                 </Button>
               </div>
             ) : loading ? (
               <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
             ) : doctors.length === 0 ? (
-              <p className="text-center py-8 text-muted-foreground text-sm">No doctors found. Try a different city or search.</p>
+              <p className="text-center py-8 text-muted-foreground text-sm">No doctors found. Try a different search term.</p>
             ) : (
               <ScrollArea className="h-[400px] rounded-lg border p-2">
                 <div className="space-y-3 pr-4">
@@ -293,7 +268,7 @@ export function PatientBookFlow() {
           {searched && doctors.length === 0 && !loading && (
             <div className="text-center py-8 text-muted-foreground">
               <Stethoscope className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No doctors found. Try a different city or search term.</p>
+              <p>No doctors found. Try a different search term.</p>
             </div>
           )}
         </CardContent>
@@ -384,7 +359,7 @@ export function PatientBookFlow() {
                 {clinicsError ? (
                   <div className="text-center py-8 rounded-lg border border-destructive/50 bg-destructive/5 p-4">
                     <p className="text-sm text-destructive font-medium">{clinicsError}</p>
-                    <Button className="mt-3" variant="outline" size="sm" onClick={() => fetchClinics(false)}>
+                    <Button className="mt-3" variant="outline" size="sm" onClick={() => fetchClinics()}>
                       Retry
                     </Button>
                   </div>
