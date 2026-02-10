@@ -22,6 +22,7 @@ enum UserRole {
 enum AppointmentStatus {
   SCHEDULED
   CONFIRMED
+  CHECKED_IN
   IN_PROGRESS
   COMPLETED
   CANCELLED
