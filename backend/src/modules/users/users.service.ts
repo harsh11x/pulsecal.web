@@ -105,7 +105,7 @@ export const createUser = async (data: {
 export const getProfile = async (userId: string) => {
   try {
     logger.info({ userId }, 'Fetching profile from database');
-    
+
     if (!userId || typeof userId !== 'string') {
       throw new AppError('Invalid user ID', 400);
     }
@@ -196,13 +196,13 @@ export const getProfile = async (userId: string) => {
       throw error;
     }
     logger.error(
-      { 
-        error: error.message, 
+      {
+        error: error.message,
         stack: error.stack,
         userId,
         errorName: error.name,
         errorCode: error.code
-      }, 
+      },
       'Error in getProfile service'
     );
     throw new AppError(`Failed to fetch profile: ${error.message}`, 500);
@@ -211,7 +211,7 @@ export const getProfile = async (userId: string) => {
 
 export const updateProfile = async (
   userId: string,
-    data: {
+  data: {
     firstName?: string;
     lastName?: string;
     phone?: string;
@@ -317,11 +317,11 @@ export const updateProfile = async (
     return user;
   } catch (error: any) {
     logger.error(
-      { 
-        error: error.message, 
+      {
+        error: error.message,
         stack: error.stack,
-        userId 
-      }, 
+        userId
+      },
       'Error in updateProfile service'
     );
     throw error;
@@ -331,8 +331,8 @@ export const updateProfile = async (
 export const getAllUsers = async (req: any) => {
   try {
     const { page = 1, limit = 10 } = req.query || {};
-    const { role, search } = req.query || {};
-    
+    const { role, search, sortBy = 'createdAt', order = 'desc' } = req.query || {};
+
     const pageNum = Math.max(1, parseInt(page as string, 10) || 1);
     const limitNum = Math.min(100, Math.max(1, parseInt(limit as string, 10) || 10));
     const skip = (pageNum - 1) * limitNum;
@@ -350,16 +350,21 @@ export const getAllUsers = async (req: any) => {
       ];
     }
 
-    logger.info({ where, pageNum, limitNum }, 'Fetching users with filters');
+    const orderBy: any = {};
+    if (sortBy === 'name') {
+      orderBy.firstName = order;
+    } else {
+      orderBy[sortBy as string] = order;
+    }
+
+    logger.info({ where, pageNum, limitNum, orderBy }, 'Fetching users with filters');
 
     const [users, total] = await Promise.all([
       prisma.user.findMany({
         where,
         skip,
         take: limitNum,
-        orderBy: {
-          createdAt: 'desc',
-        },
+        orderBy,
         select: {
           id: true,
           email: true,

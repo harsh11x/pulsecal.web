@@ -44,42 +44,115 @@ export const searchDoctors = async (params: {
   });
 
   try {
-  let {
-    latitude,
-    longitude,
-    specialization,
-    name,
-    clinicName,
-    minFee,
-    maxFee,
-    city,
-    page = 1,
-    limit = 50,
-    services,
-    search,
-    reason,
-  } = params;
+    let {
+      latitude,
+      longitude,
+      specialization,
+      name,
+      clinicName,
+      minFee,
+      maxFee,
+      city,
+      page = 1,
+      limit = 50,
+      services,
+      search,
+      reason,
+    } = params;
 
-  page = Number.isFinite(page) ? page : 1;
-  limit = Number.isFinite(limit) && limit > 0 ? Math.min(limit, 200) : 50;
-  const skip = (page - 1) * limit;
+    page = Number.isFinite(page) ? page : 1;
+    limit = Number.isFinite(limit) && limit > 0 ? Math.min(limit, 200) : 50;
+    const skip = (page - 1) * limit;
 
-  // When city not provided but lat/lng are, reverse geocode to get city
-  if ((!city || !city.trim()) && latitude != null && longitude != null) {
-    const derivedCity = await reverseGeocodeToCity(latitude, longitude);
-    if (derivedCity) city = derivedCity;
-  }
+    // When city not provided but lat/lng are, reverse geocode to get city
+    if ((!city || !city.trim()) && latitude != null && longitude != null) {
+      const derivedCity = await reverseGeocodeToCity(latitude, longitude);
+      if (derivedCity) city = derivedCity;
+    }
 
-  const hasFilters = !!(city && city.trim()) || !!(search || reason) || !!specialization || !!clinicName || !!services || minFee !== undefined || maxFee !== undefined;
-  const onlySearchOrReason = hasFilters && !(city && city.trim()) && !specialization && !clinicName && !services && minFee === undefined && maxFee === undefined && !!(search || reason);
+    const hasFilters = !!(city && city.trim()) || !!(search || reason) || !!specialization || !!clinicName || !!services || minFee !== undefined || maxFee !== undefined;
+    const onlySearchOrReason = hasFilters && !(city && city.trim()) && !specialization && !clinicName && !services && minFee === undefined && maxFee === undefined && !!(search || reason);
 
-  // SEARCH-ONLY: raw SQL with ILIKE so search bar works without Prisma relation issues
-  if (onlySearchOrReason && (search || reason)) {
-    const term = `${(search || reason || '').trim()}`;
-    if (term.length > 0) {
+    // SEARCH-ONLY: raw SQL with ILIKE so search bar works without Prisma relation issues
+    if (onlySearchOrReason && (search || reason)) {
+      const term = `${(search || reason || '').trim()}`;
+      if (term.length > 0) {
+        try {
+          const limitNum = Math.min(limit, 200);
+          const pattern = `%${term.replace(/%/g, '\\%')}%`;
+          const raw = await prisma.$queryRaw<
+            Array<{
+              userId: string;
+              specialization: string | null;
+              clinicName: string | null;
+              clinicAddress: string | null;
+              consultationFee: unknown;
+              bio: string | null;
+              services: string[] | null;
+              clinicLatitude: number | null;
+              clinicLongitude: number | null;
+              firstName: string | null;
+              lastName: string | null;
+              profileImage: string | null;
+            }>
+          >`
+          SELECT dp."userId", dp.specialization, dp."clinicName", dp."clinicAddress", dp."consultationFee",
+                 dp.bio, dp.services, dp."clinicLatitude", dp."clinicLongitude",
+                 u."firstName", u."lastName", u."profileImage"
+          FROM doctor_profiles dp
+          INNER JOIN users u ON u.id = dp."userId" AND u.role = 'DOCTOR'
+          WHERE (
+            u."firstName" ILIKE ${pattern}
+            OR u."lastName" ILIKE ${pattern}
+            OR dp.specialization ILIKE ${pattern}
+            OR dp."clinicName" ILIKE ${pattern}
+          )
+          ORDER BY u."firstName" ASC, u."lastName" ASC
+          LIMIT ${limitNum}
+        `;
+          const parseFee = (v: unknown): number => {
+            if (v == null) return 0;
+            if (typeof v === 'number' && !Number.isNaN(v)) return v;
+            const n = typeof v === 'string' ? parseFloat(v) : Number(v);
+            return Number.isFinite(n) ? n : 0;
+          };
+          const mappedDoctors = raw.map((d) => ({
+            id: d.userId,
+            userId: d.userId,
+            firstName: d.firstName ?? '',
+            lastName: d.lastName ?? '',
+            specialization: d.specialization ?? 'General',
+            clinicName: d.clinicName ?? null,
+            clinicAddress: d.clinicAddress ?? null,
+            clinicCity: null,
+            clinicLatitude: d.clinicLatitude != null ? Number(d.clinicLatitude) : null,
+            clinicLongitude: d.clinicLongitude != null ? Number(d.clinicLongitude) : null,
+            consultationFee: parseFee(d.consultationFee),
+            bio: d.bio ?? null,
+            services: Array.isArray(d.services) ? d.services : [],
+            profileImage: d.profileImage ?? null,
+          }));
+          return {
+            doctors: mappedDoctors,
+            pagination: { page, limit, total: mappedDoctors.length, totalPages: 1 },
+          };
+        } catch (searchErr: any) {
+          console.error('[searchDoctors search-raw]', searchErr?.message);
+          return emptyResult();
+        }
+      }
+    }
+
+    // NO FILTERS: use raw SQL so we never hit Prisma schema/relation issues. Returns ALL doctors.
+    if (!hasFilters) {
       try {
         const limitNum = Math.min(limit, 200);
-        const pattern = `%${term.replace(/%/g, '\\%')}%`;
+        const skipNum = skip;
+        const [countRow] = await prisma.$queryRaw<Array<{ count: bigint }>>`
+        SELECT COUNT(*) as count FROM doctor_profiles dp
+        INNER JOIN users u ON u.id = dp."userId" AND u.role = 'DOCTOR'
+      `;
+        const total = Number(countRow?.count ?? 0);
         const raw = await prisma.$queryRaw<
           Array<{
             userId: string;
@@ -96,20 +169,14 @@ export const searchDoctors = async (params: {
             profileImage: string | null;
           }>
         >`
-          SELECT dp."userId", dp.specialization, dp."clinicName", dp."clinicAddress", dp."consultationFee",
-                 dp.bio, dp.services, dp."clinicLatitude", dp."clinicLongitude",
-                 u."firstName", u."lastName", u."profileImage"
-          FROM doctor_profiles dp
-          INNER JOIN users u ON u.id = dp."userId" AND u.role = 'DOCTOR'
-          WHERE (
-            u."firstName" ILIKE ${pattern}
-            OR u."lastName" ILIKE ${pattern}
-            OR dp.specialization ILIKE ${pattern}
-            OR dp."clinicName" ILIKE ${pattern}
-          )
-          ORDER BY dp."userId"
-          LIMIT ${limitNum}
-        `;
+        SELECT dp."userId", dp.specialization, dp."clinicName", dp."clinicAddress", dp."consultationFee",
+               dp.bio, dp.services, dp."clinicLatitude", dp."clinicLongitude",
+               u."firstName", u."lastName", u."profileImage"
+        FROM doctor_profiles dp
+        INNER JOIN users u ON u.id = dp."userId" AND u.role = 'DOCTOR'
+        ORDER BY u."firstName" ASC, u."lastName" ASC
+        LIMIT ${limitNum} OFFSET ${skipNum}
+      `;
         const parseFee = (v: unknown): number => {
           if (v == null) return 0;
           if (typeof v === 'number' && !Number.isNaN(v)) return v;
@@ -134,169 +201,106 @@ export const searchDoctors = async (params: {
         }));
         return {
           doctors: mappedDoctors,
-          pagination: { page, limit, total: mappedDoctors.length, totalPages: 1 },
+          pagination: { page, limit, total, totalPages: total > 0 ? Math.ceil(total / limit) : 0 },
         };
-      } catch (searchErr: any) {
-        console.error('[searchDoctors search-raw]', searchErr?.message);
+      } catch (rawErr: any) {
+        console.error('[searchDoctors raw]', rawErr?.message, rawErr?.stack);
         return emptyResult();
       }
     }
-  }
 
-  // NO FILTERS: use raw SQL so we never hit Prisma schema/relation issues. Returns ALL doctors.
-  if (!hasFilters) {
-    try {
-      const limitNum = Math.min(limit, 200);
-      const skipNum = skip;
-      const [countRow] = await prisma.$queryRaw<Array<{ count: bigint }>>`
-        SELECT COUNT(*) as count FROM doctor_profiles dp
-        INNER JOIN users u ON u.id = dp."userId" AND u.role = 'DOCTOR'
-      `;
-      const total = Number(countRow?.count ?? 0);
-      const raw = await prisma.$queryRaw<
-        Array<{
-          userId: string;
-          specialization: string | null;
-          clinicName: string | null;
-          clinicAddress: string | null;
-          consultationFee: unknown;
-          bio: string | null;
-          services: string[] | null;
-          clinicLatitude: number | null;
-          clinicLongitude: number | null;
-          firstName: string | null;
-          lastName: string | null;
-          profileImage: string | null;
-        }>
-      >`
-        SELECT dp."userId", dp.specialization, dp."clinicName", dp."clinicAddress", dp."consultationFee",
-               dp.bio, dp.services, dp."clinicLatitude", dp."clinicLongitude",
-               u."firstName", u."lastName", u."profileImage"
-        FROM doctor_profiles dp
-        INNER JOIN users u ON u.id = dp."userId" AND u.role = 'DOCTOR'
-        ORDER BY dp."userId"
-        LIMIT ${limitNum} OFFSET ${skipNum}
-      `;
-      const parseFee = (v: unknown): number => {
-        if (v == null) return 0;
-        if (typeof v === 'number' && !Number.isNaN(v)) return v;
-        const n = typeof v === 'string' ? parseFloat(v) : Number(v);
-        return Number.isFinite(n) ? n : 0;
-      };
-      const mappedDoctors = raw.map((d) => ({
-        id: d.userId,
-        userId: d.userId,
-        firstName: d.firstName ?? '',
-        lastName: d.lastName ?? '',
-        specialization: d.specialization ?? 'General',
-        clinicName: d.clinicName ?? null,
-        clinicAddress: d.clinicAddress ?? null,
-        clinicCity: null,
-        clinicLatitude: d.clinicLatitude != null ? Number(d.clinicLatitude) : null,
-        clinicLongitude: d.clinicLongitude != null ? Number(d.clinicLongitude) : null,
-        consultationFee: parseFee(d.consultationFee),
-        bio: d.bio ?? null,
-        services: Array.isArray(d.services) ? d.services : [],
-        profileImage: d.profileImage ?? null,
-      }));
-      return {
-        doctors: mappedDoctors,
-        pagination: { page, limit, total, totalPages: total > 0 ? Math.ceil(total / limit) : 0 },
-      };
-    } catch (rawErr: any) {
-      console.error('[searchDoctors raw]', rawErr?.message, rawErr?.stack);
-      return emptyResult();
+    // WITH FILTERS: use Prisma
+    const where: any = {
+      user: { isActive: true },
+    };
+    if (specialization) where.specialization = specialization;
+    if (clinicName) where.clinicName = { contains: clinicName, mode: 'insensitive' };
+    if (city && city.trim()) {
+      const cityTerm = city.trim();
+      where.AND = [{
+        OR: [
+          { clinicAddress: { contains: cityTerm, mode: 'insensitive' } },
+          { user: { clinic: { city: { contains: cityTerm, mode: 'insensitive' } } } },
+        ],
+      }];
     }
-  }
+    if (services) where.services = { has: services };
+    const searchOrReason = search || reason;
+    if (searchOrReason) {
+      const term = (searchOrReason as string).toLowerCase().trim();
+      where.AND = where.AND || [];
+      where.AND.push({
+        OR: [
+          { user: { OR: [{ firstName: { contains: term, mode: 'insensitive' } }, { lastName: { contains: term, mode: 'insensitive' } }] } },
+          { clinicName: { contains: term, mode: 'insensitive' } },
+          { specialization: { contains: term, mode: 'insensitive' } },
+          { services: { has: term } },
+        ],
+      });
+    }
+    if (minFee !== undefined || maxFee !== undefined) {
+      where.consultationFee = {};
+      if (minFee !== undefined) where.consultationFee.gte = minFee;
+      if (maxFee !== undefined) where.consultationFee.lte = maxFee;
+    }
 
-  // WITH FILTERS: use Prisma
-  const where: any = {
-    user: { isActive: true },
-  };
-  if (specialization) where.specialization = specialization;
-  if (clinicName) where.clinicName = { contains: clinicName, mode: 'insensitive' };
-  if (city && city.trim()) {
-    const cityTerm = city.trim();
-    where.AND = [{
-      OR: [
-        { clinicAddress: { contains: cityTerm, mode: 'insensitive' } },
-        { user: { clinic: { city: { contains: cityTerm, mode: 'insensitive' } } } },
-      ],
-    }];
-  }
-  if (services) where.services = { has: services };
-  const searchOrReason = search || reason;
-  if (searchOrReason) {
-    const term = (searchOrReason as string).toLowerCase().trim();
-    where.AND = where.AND || [];
-    where.AND.push({
-      OR: [
-        { user: { OR: [{ firstName: { contains: term, mode: 'insensitive' } }, { lastName: { contains: term, mode: 'insensitive' } }] } },
-        { clinicName: { contains: term, mode: 'insensitive' } },
-        { specialization: { contains: term, mode: 'insensitive' } },
-        { services: { has: term } },
-      ],
-    });
-  }
-  if (minFee !== undefined || maxFee !== undefined) {
-    where.consultationFee = {};
-    if (minFee !== undefined) where.consultationFee.gte = minFee;
-    if (maxFee !== undefined) where.consultationFee.lte = maxFee;
-  }
-
-  const doctors = await prisma.doctorProfile.findMany({
-    where,
-    include: {
-      user: {
-        select: { id: true, firstName: true, lastName: true, profileImage: true },
+    const doctors = await prisma.doctorProfile.findMany({
+      where,
+      include: {
+        user: {
+          select: { id: true, firstName: true, lastName: true, profileImage: true },
+        },
       },
-    },
-    orderBy: { userId: 'asc' },
-    skip,
-    take: limit,
-  });
-
-  let filteredDoctors = doctors;
-  if (name) {
-    const nameLower = name.toLowerCase();
-    filteredDoctors = filteredDoctors.filter((d) => {
-      const first = d.user?.firstName ?? '';
-      const last = d.user?.lastName ?? '';
-      return `${first} ${last}`.trim().toLowerCase().includes(nameLower);
+      orderBy: {
+        user: {
+          firstName: 'asc',
+        },
+      },
+      skip,
+      take: limit,
     });
-  }
-  if (reason) {
-    const reasonLower = reason.toLowerCase();
-    filteredDoctors = filteredDoctors.filter((d) => {
-      const specMatch = d.specialization?.toLowerCase().includes(reasonLower);
-      const servicesMatch = Array.isArray(d.services) && d.services.some((s: string) => s.toLowerCase().includes(reasonLower));
-      return specMatch || servicesMatch;
-    });
-  }
 
-  const total = filteredDoctors.length;
-  const slice = filteredDoctors.slice(0, limit);
-  const mappedDoctors = slice.map((d) => ({
-    id: d.userId,
-    userId: d.userId,
-    firstName: d.user?.firstName ?? '',
-    lastName: d.user?.lastName ?? '',
-    specialization: d.specialization ?? 'General',
-    clinicName: d.clinicName ?? null,
-    clinicAddress: d.clinicAddress ?? null,
-    clinicCity: null,
-    clinicLatitude: d.clinicLatitude != null ? Number(d.clinicLatitude) : null,
-    clinicLongitude: d.clinicLongitude != null ? Number(d.clinicLongitude) : null,
-    consultationFee: d.consultationFee != null ? Number(d.consultationFee) : 0,
-    bio: d.bio ?? null,
-    services: Array.isArray(d.services) ? d.services : [],
-    profileImage: d.user?.profileImage ?? null,
-  }));
+    let filteredDoctors = doctors;
+    if (name) {
+      const nameLower = name.toLowerCase();
+      filteredDoctors = filteredDoctors.filter((d) => {
+        const first = d.user?.firstName ?? '';
+        const last = d.user?.lastName ?? '';
+        return `${first} ${last}`.trim().toLowerCase().includes(nameLower);
+      });
+    }
+    if (reason) {
+      const reasonLower = reason.toLowerCase();
+      filteredDoctors = filteredDoctors.filter((d) => {
+        const specMatch = d.specialization?.toLowerCase().includes(reasonLower);
+        const servicesMatch = Array.isArray(d.services) && d.services.some((s: string) => s.toLowerCase().includes(reasonLower));
+        return specMatch || servicesMatch;
+      });
+    }
 
-  return {
-    doctors: mappedDoctors,
-    pagination: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
-  };
+    const total = filteredDoctors.length;
+    const slice = filteredDoctors.slice(0, limit);
+    const mappedDoctors = slice.map((d) => ({
+      id: d.userId,
+      userId: d.userId,
+      firstName: d.user?.firstName ?? '',
+      lastName: d.user?.lastName ?? '',
+      specialization: d.specialization ?? 'General',
+      clinicName: d.clinicName ?? null,
+      clinicAddress: d.clinicAddress ?? null,
+      clinicCity: null,
+      clinicLatitude: d.clinicLatitude != null ? Number(d.clinicLatitude) : null,
+      clinicLongitude: d.clinicLongitude != null ? Number(d.clinicLongitude) : null,
+      consultationFee: d.consultationFee != null ? Number(d.consultationFee) : 0,
+      bio: d.bio ?? null,
+      services: Array.isArray(d.services) ? d.services : [],
+      profileImage: d.user?.profileImage ?? null,
+    }));
+
+    return {
+      doctors: mappedDoctors,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
+    };
   } catch (err: any) {
     console.error('[searchDoctors]', err?.message, err?.stack);
     return emptyResult();

@@ -11,7 +11,7 @@ import { apiService } from "@/services/api"
 import { useAppSelector } from "@/app/hooks"
 import { toast } from "sonner"
 import { format } from "date-fns"
-import { PLANS, PLAN_AMOUNTS, PLAN_FEATURES, PLAN_ORDER } from "@/lib/planConfig"
+import { PLANS, PLAN_AMOUNTS, PLAN_FEATURES, PLAN_ORDER, SUBSCRIPTION_DURATIONS } from "@/lib/planConfig"
 
 export default function SubscriptionPage() {
     const { user } = useAppSelector((state) => state.auth)
@@ -24,6 +24,7 @@ export default function SubscriptionPage() {
         lastPaymentDate: string | null
     } | null>(null)
     const [processing, setProcessing] = useState<string | null>(null)
+    const [billingInterval, setBillingInterval] = useState<1 | 3 | 6 | 12>(1)
 
     const planFeaturesMap = PLAN_FEATURES
     const plans = PLANS.map((p) => ({ ...p, price: `${p.price}`, amount: p.amount, period: "/month" }))
@@ -61,7 +62,10 @@ export default function SubscriptionPage() {
     const handleSubscribe = async (planId: string, action: "renew" | "upgrade" | "downgrade" = "upgrade") => {
         setProcessing(planId)
         try {
-            const data: any = await apiService.post("/payments/subscription/create", { planId })
+            const data: any = await apiService.post("/payments/subscription/create", {
+                planId,
+                duration: billingInterval
+            })
             const { orderId, key, amount } = data ?? {}
             if (!orderId || !key) {
                 toast.error("Invalid response from server. Please try again.")
@@ -77,11 +81,11 @@ export default function SubscriptionPage() {
 
             const options = {
                 key,
-                amount: amount ?? (PLAN_AMOUNTS[planId] ?? 1) * 100,
+                amount: amount ?? (PLAN_AMOUNTS[planId] ?? 1) * 100 * billingInterval,
                 currency: "INR",
                 order_id: orderId,
                 name: "PulseCal",
-                description: `${planId} Subscription (1 month)`,
+                description: `${planId} Subscription (${billingInterval} month${billingInterval > 1 ? 's' : ''})`,
                 handler: async (rzpResponse: any) => {
                     try {
                         await apiService.post("/payments/subscription/verify", {
@@ -134,7 +138,7 @@ export default function SubscriptionPage() {
         const planIdx = planOrder.indexOf(plan.id as any)
         const isHigher = planIdx > currentPlanIndex
 
-        if (isCurrent) return "Current Plan"
+        if (isCurrent) return "Extend Plan" // Changed from "Current Plan" to allow extension
         if (isHigher) return "Upgrade"
         if (planIdx < currentPlanIndex) return "Change Plan"
         return "Renew"
@@ -226,7 +230,8 @@ export default function SubscriptionPage() {
                                 Cancel Subscription
                             </Button>
                         )}
-                        {canRenew && currentSubscription?.plan && (
+                        {/* Allow extension at any time if plan is active */}
+                        {currentSubscription?.plan && (
                             <Button
                                 variant="outline"
                                 onClick={() => handleSubscribe(currentSubscription.plan, "renew")}
@@ -237,21 +242,53 @@ export default function SubscriptionPage() {
                                 ) : (
                                     <RefreshCw className="mr-2 h-4 w-4" />
                                 )}
-                                Renew Plan
+                                {currentSubscription?.status === 'ACTIVE' && !canRenew ? "Extend Plan" : "Renew Plan"}
                             </Button>
                         )}
                     </CardFooter>
                 </Card>
 
-                {/* Plan Cards — exclude Starter from available plans (still shown in Your Plan above) */}
+                {/* Plan Cards */}
                 <div>
-                    <h2 className="text-xl font-semibold mb-4">Available Plans</h2>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                        <h2 className="text-xl font-semibold">Available Plans</h2>
+
+                        <div className="flex flex-wrap items-center gap-2 bg-muted/30 p-1 rounded-full border border-border">
+                            {SUBSCRIPTION_DURATIONS.map((duration) => (
+                                <button
+                                    key={duration.value}
+                                    onClick={() => setBillingInterval(duration.value)}
+                                    className={`relative px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${billingInterval === duration.value
+                                        ? "bg-primary text-primary-foreground shadow-sm"
+                                        : "text-muted-foreground hover:text-foreground"
+                                        }`}
+                                >
+                                    {duration.label}
+                                    {duration.discount > 0 && (
+                                        <span className={`absolute -top-1.5 -right-1.5 text-[8px] bg-green-100 text-green-700 px-1 py-px rounded-full border border-green-200 font-bold ${billingInterval === duration.value ? "opacity-100" : "opacity-0"
+                                            }`}>
+                                            -{duration.discount}%
+                                        </span>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                         {plans.map((plan) => {
                             const isCurrent = currentSubscription?.plan === plan.id && currentSubscription?.status === "ACTIVE"
                             const label = getPlanButtonLabel(plan)
                             const planIdx = planOrder.indexOf(plan.id)
                             const isUpgrade = planIdx > currentPlanIndex
+
+                            // Calculate price based on interval
+                            const baseAmount = PLAN_AMOUNTS[plan.id]
+                            let multiplier: number = billingInterval
+                            if (billingInterval === 12) multiplier = 10 // pay for 10 get 12
+
+                            const totalAmount = baseAmount * multiplier
+                            const priceDisplay = `Rs. ${totalAmount.toLocaleString("en-IN")}`
 
                             return (
                                 <Card key={plan.id} className={`relative flex flex-col ${plan.recommended ? 'border-primary shadow-lg md:scale-105' : ''}`}>
@@ -260,14 +297,21 @@ export default function SubscriptionPage() {
                                             <Badge className="bg-primary text-primary-foreground"><TrendingUp className="h-3 w-3 mr-1" />Recommended</Badge>
                                         </div>
                                     )}
+                                    {billingInterval > 1 && (
+                                        <div className="absolute top-4 right-4 z-10">
+                                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                                {billingInterval === 12 ? "12 Months Autopay" : `${billingInterval} Months`}
+                                            </Badge>
+                                        </div>
+                                    )}
                                     <CardHeader>
                                         <CardTitle>{plan.name}</CardTitle>
                                         <CardDescription>{plan.description}</CardDescription>
                                     </CardHeader>
                                     <CardContent className="flex-1">
                                         <div className="mb-6">
-                                            <span className="text-4xl font-bold">{plan.price}</span>
-                                            <span className="text-muted-foreground">{plan.period}</span>
+                                            <span className="text-4xl font-bold">{priceDisplay}</span>
+                                            <span className="text-muted-foreground"> / {SUBSCRIPTION_DURATIONS.find(d => d.value === billingInterval)?.label.toLowerCase().replace("months", "mo") || "month"}</span>
                                         </div>
                                         <ul className="space-y-3">
                                             {plan.features.map((feature, i) => (
@@ -282,8 +326,8 @@ export default function SubscriptionPage() {
                                         <Button
                                             className="w-full"
                                             variant={isUpgrade ? "default" : "outline"}
-                                            onClick={() => handleSubscribe(plan.id, label === "Upgrade" ? "upgrade" : label === "Renew" ? "renew" : "downgrade")}
-                                            disabled={!!processing || label === "Current Plan"}
+                                            onClick={() => handleSubscribe(plan.id, label === "Upgrade" ? "upgrade" : (label === "Renew" || label === "Extend Plan") ? "renew" : "downgrade")}
+                                            disabled={!!processing} // Removed check for label === "Current Plan"
                                         >
                                             {processing === plan.id ? (
                                                 <Loader2 className="h-4 w-4 animate-spin" />

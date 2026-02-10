@@ -88,7 +88,7 @@ export const getQueueStatus = async (clinicId?: string) => {
 
   const where: any = {
     checkedInAt: {
-      gte: startOfDay,
+      gte: startOfDay, // This filters by TODAY's check-ins
       lte: endOfDay,
     },
     status: {
@@ -100,6 +100,7 @@ export const getQueueStatus = async (clinicId?: string) => {
     where.clinicId = clinicId;
   }
 
+  // 1. Fetch Real Queue Entries
   const queueEntries = await prisma.queueEntry.findMany({
     where,
     include: {
@@ -117,7 +118,76 @@ export const getQueueStatus = async (clinicId?: string) => {
     },
   });
 
-  return queueEntries;
+  // 2. Fetch Scheduled Appointments for Today (that are NOT in queue)
+  const appointmentWhere: any = {
+    scheduledAt: {
+      gte: startOfDay,
+      lte: endOfDay,
+    },
+    status: {
+      in: ['SCHEDULED', 'CONFIRMED'],
+    },
+    deletedAt: null,
+  };
+
+  if (clinicId) {
+    appointmentWhere.doctor = { clinicId };
+  }
+
+  const scheduledAppointments = await prisma.appointment.findMany({
+    where: appointmentWhere,
+    include: {
+      patient: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          phone: true,
+        },
+      },
+      doctor: {
+        select: {
+          id: true,
+          clinicId: true,
+        },
+      },
+    },
+    orderBy: {
+      scheduledAt: 'asc',
+    },
+  });
+
+  // Filter out patients who are already in the real queue
+  // (Assuming one active queue entry per patient per day is ideal, or at least check if they have a queue entry)
+  const patientsInQueue = new Set(queueEntries.map(q => q.patientId));
+
+  const virtualQueueEntries = scheduledAppointments
+    .filter(apt => !patientsInQueue.has(apt.patientId))
+    .map((apt) => ({
+      id: apt.id, // Use Appointment ID as virtual ID
+      patientId: apt.patientId,
+      doctorId: apt.doctorId,
+      clinicId: apt.doctor.clinicId,
+      position: 9999, // Place them at the end? Or handled by frontend not showing position?
+      // Actually, frontend uses index+1. 
+      // We should probably append these after real queue entries.
+      status: 'waiting', // Display as "Waiting" (needs check-in)
+      estimatedWaitTime: 0,
+      checkedInAt: apt.scheduledAt, // Use scheduled time as proxy? 
+      // Note: Frontend formats date, doesn't use checkInAt explicitly for display usually, 
+      // but sorts or uses it.
+      calledAt: null,
+      completedAt: null,
+      createdAt: apt.createdAt,
+      updatedAt: apt.updatedAt,
+      patient: apt.patient,
+      appointmentTime: new Date(apt.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isVirtual: true // Marker for debugging/frontend if needed (though not in type)
+    }));
+
+  // Combine: Real Queue First, then Scheduled "Virtual" Queue
+  // We map virtual entries to match QueueEntry type (mostly)
+  return [...queueEntries, ...virtualQueueEntries];
 };
 
 /**

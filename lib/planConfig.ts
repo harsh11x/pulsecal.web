@@ -28,3 +28,10 @@ export const PLANS = PLAN_ORDER.map((id) => ({
   features: PLAN_FEATURES[id],
   recommended: id === "PROFESSIONAL",
 }))
+
+export const SUBSCRIPTION_DURATIONS = [
+  { value: 1, label: "Monthly", discount: 0 },
+  { value: 3, label: "3 Months", discount: 0 },
+  { value: 6, label: "6 Months", discount: 0 },
+  { value: 12, label: "Yearly", discount: 16 }, // ~16% off (2 months free)
+] as const

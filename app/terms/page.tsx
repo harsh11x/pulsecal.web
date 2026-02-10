@@ -85,7 +85,14 @@ export default function TermsPage() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold mb-4">6. Contact Us</h2>
+              <h2 className="text-2xl font-semibold mb-4">6. Communication and Reminders</h2>
+              <p className="text-muted-foreground">
+                By using PulseCal, you consent to receive appointment reminders, notifications, and other service-related communications via SMS, WhatsApp, and email. You acknowledge that essential service alerts cannot be opted out of, as they are critical for the delivery of healthcare services.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-semibold mb-4">7. Contact Us</h2>
               <div className="rounded-lg border border-border bg-card p-6">
                 <p className="font-semibold text-foreground">PulseCal Legal Team</p>
                 <p className="text-muted-foreground">Email: legal@pulsecal.com</p>
@@ -93,8 +100,8 @@ export default function TermsPage() {
             </section>
           </div>
         </div>
-      </main>
+      </main >
       <Footer />
-    </div>
+    </div >
   )
 }

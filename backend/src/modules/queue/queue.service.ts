@@ -221,30 +221,106 @@ export const updateQueueEntryStatus = async (queueEntryId: string, status: strin
   if (!valid.includes(status)) {
     throw new AppError('Invalid queue status', 400);
   }
+
+  // 1. Try to find existing QueueEntry
   const entry = await prisma.queueEntry.findUnique({
     where: { id: queueEntryId },
   });
-  if (!entry) {
-    throw new AppError('Queue entry not found', 404);
-  }
-  const data: any = { status };
-  if (status === 'completed') {
-    data.completedAt = new Date();
-  }
-  return prisma.queueEntry.update({
-    where: { id: queueEntryId },
-    data,
-    include: {
-      patient: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          phone: true,
+
+  if (entry) {
+    // Standard update
+    const data: any = { status };
+    if (status === 'completed') {
+      data.completedAt = new Date();
+    }
+    return prisma.queueEntry.update({
+      where: { id: queueEntryId },
+      data,
+      include: {
+        patient: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+          },
         },
       },
-    },
+    });
+  }
+
+  // 2. If not found, check if it's an Appointment ID (Virtual Queue Entry)
+  const appointment = await prisma.appointment.findUnique({
+    where: { id: queueEntryId },
+    include: {
+      doctor: true
+    }
   });
+
+  if (appointment) {
+    // It's a virtual entry being "checked in" or updated
+    // Create a REAL QueueEntry
+    if (status === 'checked_in' || status === 'waiting' || status === 'in_progress') {
+      // Find last position
+      const lastPosition = await prisma.queueEntry.findFirst({
+        where: {
+          doctorId: appointment.doctorId,
+          clinicId: appointment.doctor.clinicId,
+          status: 'waiting',
+        },
+        orderBy: {
+          position: 'desc',
+        },
+      });
+
+      const position = lastPosition ? lastPosition.position + 1 : 1;
+
+      // Update Appointment Status to match if appropriate
+      if (status === 'checked_in') {
+        await prisma.appointment.update({
+          where: { id: appointment.id },
+          data: {
+            status: 'CHECKED_IN',
+            checkInTime: new Date()
+          }
+        });
+      } else if (status === 'in_progress') {
+        await prisma.appointment.update({
+          where: { id: appointment.id },
+          data: {
+            status: 'IN_PROGRESS',
+            startTime: new Date()
+          }
+        });
+      }
+
+      // Create QueueEntry
+      const newEntry = await prisma.queueEntry.create({
+        data: {
+          patientId: appointment.patientId,
+          doctorId: appointment.doctorId,
+          clinicId: appointment.doctor.clinicId,
+          position,
+          status: status, // e.g. 'checked_in'
+          checkedInAt: new Date(),
+        },
+        include: {
+          patient: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              phone: true,
+            },
+          },
+        }
+      });
+
+      return newEntry;
+    }
+  }
+
+  throw new AppError('Queue entry not found', 404);
 };
 
 export const removeFromQueue = async (queueEntryId: string) => {

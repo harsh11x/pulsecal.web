@@ -25,12 +25,12 @@ import {
   Heart,
   Activity,
 } from "lucide-react"
-import { PLANS, PLAN_AMOUNTS } from "@/lib/planConfig"
+import { PLANS, PLAN_AMOUNTS, SUBSCRIPTION_DURATIONS } from "@/lib/planConfig"
 
 export default function Home() {
   const router = useRouter()
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
-  const [isYearly, setIsYearly] = useState(false)
+  const [billingInterval, setBillingInterval] = useState<1 | 3 | 6 | 12>(1)
 
   // Redirect logged-in users to dashboard
   useEffect(() => {
@@ -72,8 +72,8 @@ export default function Home() {
 
               <div className="flex items-center gap-8 text-sm animate-in fade-in slide-in-from-bottom-12 duration-700 delay-300">
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-5 w-5 text-success" />
-                  <span className="text-muted-foreground">No credit card required</span>
+                  <Shield className="h-5 w-5 text-success" />
+                  <span className="text-muted-foreground">Secure & Private</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="h-5 w-5 text-success" />
@@ -444,28 +444,50 @@ export default function Home() {
               Simple, transparent pricing
             </h2>
             <p className="mx-auto max-w-2xl text-pretty text-xl text-muted-foreground leading-relaxed mb-8">
-              Choose the plan that fits your practice. All plans include a 14-day free trial.
+              Choose the plan that fits your practice.
             </p>
 
-            <div className="flex items-center justify-center gap-4 mb-8">
-              <Label htmlFor="billing-mode" className={`text-sm font-medium cursor-pointer ${!isYearly ? "text-foreground" : "text-muted-foreground"}`}>Monthly</Label>
-              <Switch
-                id="billing-mode"
-                checked={isYearly}
-                onCheckedChange={setIsYearly}
-              />
-              <Label htmlFor="billing-mode" className={`text-sm font-medium cursor-pointer ${isYearly ? "text-foreground" : "text-muted-foreground"}`}>
-                Yearly <span className="text-xs text-primary font-bold ml-1">(2 Months Free)</span>
-              </Label>
+            <div className="flex flex-wrap items-center justify-center gap-2 mb-8 bg-muted/30 p-1.5 rounded-full w-fit mx-auto border border-border">
+              {SUBSCRIPTION_DURATIONS.map((duration) => (
+                <button
+                  key={duration.value}
+                  onClick={() => setBillingInterval(duration.value)}
+                  className={`relative px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${billingInterval === duration.value
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                    }`}
+                >
+                  {duration.label}
+                  {duration.discount > 0 && (
+                    <span className={`absolute -top-2 -right-2 text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full border border-green-200 font-bold ${billingInterval === duration.value ? "opacity-100" : "opacity-0"
+                      }`}>
+                      -{duration.discount}%
+                    </span>
+                  )}
+                </button>
+              ))}
             </div>
           </div>
 
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
             {PLANS.map((plan, index) => {
-              const monthlyAmount = PLAN_AMOUNTS[plan.id]
-              const yearlyAmount = monthlyAmount * 10
-              const priceDisplay = isYearly ? `Rs. ${yearlyAmount.toLocaleString("en-IN")}` : `Rs. ${monthlyAmount.toLocaleString("en-IN")}`
-              const savings = isYearly ? `Save ₹${(monthlyAmount * 2).toLocaleString("en-IN")}` : null
+              const baseAmount = PLAN_AMOUNTS[plan.id]
+              let multiplier: number = billingInterval
+              if (billingInterval === 12) multiplier = 10 // pay for 10 get 12
+
+              const totalAmount = baseAmount * multiplier
+              const priceDisplay = `Rs. ${totalAmount.toLocaleString("en-IN")}`
+
+              // Calculate savings
+              let savings = null
+              if (billingInterval > 1) {
+                const regularPrice = baseAmount * billingInterval
+                const savedAmount = regularPrice - totalAmount
+                if (savedAmount > 0) {
+                  savings = `Save ₹${savedAmount.toLocaleString("en-IN")}`
+                }
+              }
+
               return (
                 <div
                   key={plan.id}
@@ -481,10 +503,10 @@ export default function Home() {
                       </span>
                     </div>
                   )}
-                  {isYearly && (
+                  {billingInterval > 1 && (
                     <div className="absolute top-4 right-4">
                       <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700 border border-green-200">
-                        12 Months Autopay
+                        {billingInterval === 12 ? "12 Months Autopay" : `${billingInterval} Months`}
                       </span>
                     </div>
                   )}
@@ -494,7 +516,7 @@ export default function Home() {
                   </div>
                   <div className="mb-2">
                     <span className="text-4xl font-bold text-foreground">{priceDisplay}</span>
-                    <span className="text-muted-foreground"> / {isYearly ? "year" : "month"}</span>
+                    <span className="text-muted-foreground"> / {SUBSCRIPTION_DURATIONS.find(d => d.value === billingInterval)?.label.toLowerCase().replace("months", "mo") || "month"}</span>
                   </div>
                   {savings && (
                     <div className="mb-6 text-sm text-green-600 font-semibold animate-pulse">
@@ -599,8 +621,7 @@ export default function Home() {
             Ready to transform your healthcare practice?
           </h2>
           <p className="mb-8 text-pretty text-xl text-muted-foreground leading-relaxed">
-            Join hundreds of healthcare providers who have already switched to PulseCal. Start your free trial today, no
-            credit card required.
+            Join hundreds of healthcare providers who have already switched to PulseCal. Get started today.
           </p>
           <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
             <GetStartedAction className="text-base shadow-lg hover:shadow-xl transition-shadow" />
@@ -608,11 +629,11 @@ export default function Home() {
               Schedule a demo
             </Button>
           </div>
-          <p className="mt-6 text-sm text-muted-foreground">14-day free trial • HIPAA compliant • 24/7 support</p>
+          <p className="mt-6 text-sm text-muted-foreground">HIPAA compliant • 24/7 support</p>
         </div>
-      </section>
+      </section >
 
       <Footer />
-    </div>
+    </div >
   )
 }

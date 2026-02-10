@@ -385,7 +385,7 @@ export const verifyAppointmentPaymentController = async (
         amount: Number(order.amount) / 100,
         status: 'COMPLETED',
       });
-    } catch (_) {}
+    } catch (_) { }
 
     const { notifyAppointmentCreated } = await import('../../utils/notificationHelper');
     const aptWithRelations = appointment as any;
@@ -425,6 +425,7 @@ const PLAN_AMOUNTS: Record<string, number> = {
 
 const createSubscriptionOrderSchema = Joi.object({
   planId: Joi.string().valid('STARTER', 'BASIC', 'PROFESSIONAL', 'ENTERPRISE').required(),
+  duration: Joi.number().valid(1, 3, 6, 12).optional(),
 });
 
 const verifySubscriptionOrderSchema = Joi.object({
@@ -474,9 +475,9 @@ export const getSubscriptionStatusController = async (
       }),
       req.user?.clinicId
         ? prisma.clinic.findUnique({
-            where: { id: req.user.clinicId },
-            select: { subscriptionPlan: true, subscriptionStatus: true },
-          })
+          where: { id: req.user.clinicId },
+          select: { subscriptionPlan: true, subscriptionStatus: true },
+        })
         : null,
       prisma.payment.findFirst({
         where: {
@@ -519,15 +520,26 @@ export const createSubscriptionOrderController = async (
     const { error, value } = createSubscriptionOrderSchema.validate(req.body);
     if (error) throw new AppError(error.details[0].message, 400);
 
-    const amount = PLAN_AMOUNTS[value.planId] ?? 1;
+    const duration = value.duration || 1; // Default to 1 month
+    const baseAmount = PLAN_AMOUNTS[value.planId] ?? 1;
+    let multiplier = duration;
+
+    // Apply yearly discount (pay for 10 months, get 12)
+    if (duration === 12) {
+      multiplier = 10;
+    }
+
+    const totalAmount = baseAmount * multiplier;
+
     const options: any = {
-      amount: amount * 100, // paise
+      amount: totalAmount * 100, // paise
       currency: 'INR',
       receipt: `sub_${Date.now()}_${req.user!.id.substring(0, 8)}`,
       notes: {
         type: 'SUBSCRIPTION_UPGRADE',
         userId: req.user!.id,
         planId: value.planId,
+        duration: String(duration)
       },
     };
 
@@ -581,9 +593,19 @@ export const verifySubscriptionOrderController = async (
 
     const planId = notes.planId as string;
     const userId = notes.userId;
+    const duration = parseInt(notes.duration || '1', 10);
 
-    const expiresAt = new Date();
-    expiresAt.setMonth(expiresAt.getMonth() + 1);
+    const existingProfile = await prisma.doctorProfile.findUnique({
+      where: { userId },
+      select: { subscriptionExpiresAt: true, subscriptionStatus: true }
+    });
+
+    let expiresAt = existingProfile?.subscriptionExpiresAt && existingProfile.subscriptionExpiresAt > new Date()
+      ? new Date(existingProfile.subscriptionExpiresAt)
+      : new Date();
+
+    // Add duration to the calculated start time
+    expiresAt.setMonth(expiresAt.getMonth() + duration);
 
     await prisma.doctorProfile.upsert({
       where: { userId },

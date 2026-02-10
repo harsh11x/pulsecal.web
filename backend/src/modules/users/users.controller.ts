@@ -89,9 +89,9 @@ export const updateProfileController = async (
     if (!req.user || !req.user.id) {
       throw new AppError('User not authenticated', 401);
     }
-    
+
     logger.info({ userId: req.user.id, body: req.body }, 'Profile update request received');
-    
+
     // NO validation - just pass directly to service
     const profile = await updateProfile(req.user.id, req.body);
     logger.info({ userId: req.user.id }, 'Profile updated successfully');
@@ -142,6 +142,29 @@ export const updateUserStatusController = async (
     const { isActive } = req.body;
     const user = await updateUserStatus(req.params.id, isActive);
     sendSuccess(res, user, 'User status updated successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const uploadProfilePictureController = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      throw new AppError('User not authenticated', 401);
+    }
+    if (!req.file) {
+      throw new AppError('No file uploaded', 400);
+    }
+
+    // Construct public URL (assuming server is accessible via base URL)
+    // In production, you might want to use a full URL from env
+    const fileUrl = `/uploads/profiles/${req.file.filename}`;
+
+    sendSuccess(res, { url: fileUrl }, 'Profile picture uploaded successfully');
   } catch (err) {
     next(err);
   }

@@ -13,9 +13,7 @@ export default function NotificationSettings() {
     const [loading, setLoading] = useState(false)
     const [loadingSettings, setLoadingSettings] = useState(true)
     const [settings, setSettings] = useState({
-        emailNotifications: true,
         appointmentReminders: true,
-        marketingEmails: false,
         securityAlerts: true
     })
 
@@ -79,18 +77,6 @@ export default function NotificationSettings() {
             <CardContent className="space-y-6">
                 <div className="flex items-center justify-between space-x-2">
                     <div className="space-y-1">
-                        <Label htmlFor="email" className="text-base font-medium">Email Notifications</Label>
-                        <p className="text-sm text-muted-foreground">Receive emails about your account activity</p>
-                    </div>
-                    <Switch
-                        id="email"
-                        checked={settings.emailNotifications}
-                        onCheckedChange={() => handleToggle("emailNotifications")}
-                    />
-                </div>
-
-                <div className="flex items-center justify-between space-x-2">
-                    <div className="space-y-1">
                         <Label htmlFor="reminders" className="text-base font-medium">Appointment Reminders</Label>
                         <p className="text-sm text-muted-foreground">Get reminded before your upcoming appointments</p>
                     </div>
@@ -98,18 +84,6 @@ export default function NotificationSettings() {
                         id="reminders"
                         checked={settings.appointmentReminders}
                         onCheckedChange={() => handleToggle("appointmentReminders")}
-                    />
-                </div>
-
-                <div className="flex items-center justify-between space-x-2">
-                    <div className="space-y-1">
-                        <Label htmlFor="marketing" className="text-base font-medium">Marketing Emails</Label>
-                        <p className="text-sm text-muted-foreground">Receive news, updates, and special offers</p>
-                    </div>
-                    <Switch
-                        id="marketing"
-                        checked={settings.marketingEmails}
-                        onCheckedChange={() => handleToggle("marketingEmails")}
                     />
                 </div>
 

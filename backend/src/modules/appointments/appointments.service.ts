@@ -4,6 +4,43 @@ import { AppError } from '../../middlewares/error.middleware';
 
 import { Prisma, AppointmentStatus } from '@prisma/client';
 
+const checkAppointmentConflict = async (
+  doctorId: string,
+  scheduledAt: Date,
+  duration: number,
+  excludeAppointmentId?: string
+) => {
+  const start = new Date(scheduledAt);
+  const end = new Date(start.getTime() + duration * 60000);
+
+  // Fetch appointments that could overlap (same day)
+  const dayStart = new Date(start);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(start);
+  dayEnd.setDate(dayEnd.getDate() + 1);
+  dayEnd.setHours(0, 0, 0, 0);
+
+  const appointments = await prisma.appointment.findMany({
+    where: {
+      doctorId,
+      status: { notIn: ['CANCELLED', 'NO_SHOW'] },
+      scheduledAt: { gte: dayStart, lt: dayEnd },
+      id: excludeAppointmentId ? { not: excludeAppointmentId } : undefined,
+    },
+    select: { id: true, scheduledAt: true, duration: true },
+  });
+
+  const hasConflict = appointments.some((apt) => {
+    const aptStart = new Date(apt.scheduledAt);
+    const aptEnd = new Date(aptStart.getTime() + (apt.duration || 30) * 60000);
+    return start < aptEnd && end > aptStart;
+  });
+
+  if (hasConflict) {
+    throw new AppError('This time slot is already booked', 409);
+  }
+};
+
 export const createAppointment = async (data: {
   patientId: string;
   doctorId: string;
@@ -13,6 +50,8 @@ export const createAppointment = async (data: {
   notes?: string;
   status?: string;
 }) => {
+  await checkAppointmentConflict(data.doctorId, data.scheduledAt, data.duration || 30);
+
   const appointment = await prisma.appointment.create({
     data: {
       patientId: data.patientId,
@@ -63,6 +102,13 @@ export const getAppointments = async (req: {
   user?: { id: string; role: string; clinicId?: string | null };
 }) => {
   const { page, limit, skip } = getPaginationParams(req as never);
+
+  // Default sort by scheduledAt ASC (nearest first) if not provided
+  if (!req.query.sortBy) {
+    req.query.sortBy = 'scheduledAt';
+    req.query.sortOrder = 'asc';
+  }
+
   const { orderBy, order } = getSortParams(req as never);
 
   const where: {
@@ -276,6 +322,13 @@ export const rescheduleAppointment = async (
   if (appointment.status === 'COMPLETED' || appointment.status === 'CANCELLED') {
     throw new AppError('Cannot reschedule completed or cancelled appointment', 400);
   }
+
+  await checkAppointmentConflict(
+    appointment.doctorId,
+    newScheduledAt,
+    appointment.duration || 30,
+    appointmentId
+  );
 
   const updated = await prisma.appointment.update({
     where: { id: appointmentId },

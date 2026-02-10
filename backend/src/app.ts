@@ -37,11 +37,11 @@ app.use((req, res, next) => {
     userAgent: req.get('user-agent'),
     authorization: req.get('authorization') ? 'Present' : 'Missing',
   };
-  
+
   // Log to console (PM2 will capture this)
   console.log(`[REQUEST] ${req.method} ${req.path}`, JSON.stringify(requestInfo));
   logger.info(requestInfo, `Incoming request: ${req.method} ${req.path}`);
-  
+
   // Log response when it finishes
   res.on('finish', () => {
     const duration = Date.now() - start;
@@ -56,7 +56,7 @@ app.use((req, res, next) => {
       `Request completed: ${req.method} ${req.path}`
     );
   });
-  
+
   next();
 });
 
@@ -106,6 +106,10 @@ app.use('/health', (_req, res) => {
 
 // API Routes
 app.use(routes);
+
+// Serve Static Files (Uploads)
+import path from 'path';
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // Error Handlers
 app.use(notFoundHandler);
