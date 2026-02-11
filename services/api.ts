@@ -24,6 +24,11 @@ class ApiService {
         if (token) {
           config.headers.Authorization = `Bearer ${token}`
         }
+        // If sending FormData, let the browser/axios set the correct multipart boundary
+        if (typeof FormData !== "undefined" && config.data instanceof FormData) {
+          // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+          delete (config.headers as any)["Content-Type"]
+        }
         console.debug(`API Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`, { 
           hasAuth: !!token,
           data: config.data ? (typeof config.data === 'string' ? config.data.substring(0, 100) : 'Object') : 'none'

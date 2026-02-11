@@ -183,6 +183,8 @@ export const getAppointments = async (req: {
             firstName: true,
             lastName: true,
             email: true,
+            // Include profile image so all doctor lists/profile views can show avatar
+            profileImage: true,
             clinicId: true,
             clinic: {
               select: {

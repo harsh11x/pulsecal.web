@@ -13,6 +13,7 @@ import { toast } from "sonner"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { socketService } from "@/services/socket"
 import { format } from "date-fns"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -546,7 +547,19 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
                           {apt.patient ? `${apt.patient.firstName} ${apt.patient.lastName}` : apt.patientName || "N/A"}
                         </TableCell>
                         <TableCell className="text-xs sm:text-sm py-2">
-                          {apt.doctor ? `Dr. ${apt.doctor.firstName} ${apt.doctor.lastName}` : "N/A"}
+                          {apt.doctor ? (
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-7 w-7">
+                                <AvatarImage src={(apt.doctor as any).profileImage} alt={`Dr. ${apt.doctor.firstName} ${apt.doctor.lastName}`} />
+                                <AvatarFallback>
+                                  {`Dr. ${apt.doctor.firstName}`.charAt(0).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span>{`Dr. ${apt.doctor.firstName} ${apt.doctor.lastName}`}</span>
+                            </div>
+                          ) : (
+                            "N/A"
+                          )}
                         </TableCell>
                         <TableCell className="text-muted-foreground text-xs sm:text-sm py-2 max-w-[80px] truncate">{apt.reason || "General"}</TableCell>
                         <TableCell className="py-2">

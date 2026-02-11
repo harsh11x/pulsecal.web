@@ -126,6 +126,8 @@ export const getProfile = async (userId: string) => {
         isEmailVerified: true,
         profileImage: true,
         onboardingCompleted: true,
+        // Include JSON settings so notification preferences can be read on the dashboard
+        settings: true,
         createdAt: true,
         updatedAt: true,
         deletedAt: true,

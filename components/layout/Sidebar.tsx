@@ -148,6 +148,11 @@ export function Sidebar({ className }: SidebarProps) {
       if (hiddenForAdmin.includes(item.href)) return false;
     }
 
+    // Hide Subscription link for non-owner doctors (joining doctors)
+    if (item.href === "/subscription" && userRole === "doctor" && (user as any)?.canManageSubscription === false) {
+      return false
+    }
+
     if (!item.permission) return true
     // crucial fix: use the lowercase userRole for permission checks
     return userRole && hasPermission(userRole as UserRole, item.permission)

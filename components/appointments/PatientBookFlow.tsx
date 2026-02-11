@@ -10,6 +10,7 @@ import { apiService } from "@/services/api"
 import { toast } from "sonner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 interface Doctor {
   id?: string
@@ -222,23 +223,31 @@ export function PatientBookFlow() {
                       >
                         <CardContent className="p-4">
                           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-base break-words">{fullName || "Dr. Unknown"}</p>
-                              <p className="text-sm text-muted-foreground mt-0.5">{doc.specialization}</p>
-                              <p className="text-sm flex items-start gap-1.5 mt-2 text-foreground">
-                                <Building2 className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
-                                <span className="break-words">{clinic}</span>
-                              </p>
-                              {services.length > 0 && (
-                                <div className="flex flex-wrap gap-1.5 mt-2">
-                                  {services.slice(0, 5).map((s, i) => (
-                                    <span key={i} className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{s}</span>
-                                  ))}
-                                  {services.length > 5 && (
-                                    <span className="text-xs text-muted-foreground">+{services.length - 5} more</span>
-                                  )}
-                                </div>
-                              )}
+                            <div className="flex items-start gap-3 flex-1 min-w-0">
+                              <Avatar className="h-10 w-10 flex-shrink-0">
+                                <AvatarImage src={(doc as any).profileImage} alt={fullName || "Doctor"} />
+                                <AvatarFallback>
+                                  {((doc.user?.firstName ?? doc.firstName ?? "D")[0] || "D").toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="font-semibold text-base break-words">{fullName || "Dr. Unknown"}</p>
+                                <p className="text-sm text-muted-foreground mt-0.5">{doc.specialization}</p>
+                                <p className="text-sm flex items-start gap-1.5 mt-2 text-foreground">
+                                  <Building2 className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+                                  <span className="break-words">{clinic}</span>
+                                </p>
+                                {services.length > 0 && (
+                                  <div className="flex flex-wrap gap-1.5 mt-2">
+                                    {services.slice(0, 5).map((s, i) => (
+                                      <span key={i} className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{s}</span>
+                                    ))}
+                                    {services.length > 5 && (
+                                      <span className="text-xs text-muted-foreground">+{services.length - 5} more</span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                             <div className="flex flex-col items-end gap-2 flex-shrink-0">
                               <p className="font-semibold text-base flex items-center gap-1">

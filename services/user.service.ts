@@ -13,7 +13,9 @@ export const userService = {
   uploadProfilePicture: async (file: File): Promise<{ url: string }> => {
     const formData = new FormData()
     formData.append("file", file)
-    return await apiService.post<{ url: string }>("/users/profile/picture", formData)
+    return await apiService.post<{ url: string }>("/users/profile/picture", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    })
   },
 
   changePassword: async (currentPassword: string, newPassword: string): Promise<void> => {

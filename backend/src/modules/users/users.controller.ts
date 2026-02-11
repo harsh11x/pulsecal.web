@@ -160,9 +160,29 @@ export const uploadProfilePictureController = async (
       throw new AppError('No file uploaded', 400);
     }
 
-    // Construct public URL (assuming server is accessible via base URL)
-    // In production, you might want to use a full URL from env
-    const fileUrl = `/uploads/profiles/${req.file.filename}`;
+    // Build a public URL for the uploaded file
+    let fileUrl: string;
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+      if (apiUrl) {
+        const base = new URL(apiUrl);
+        base.pathname = '';
+        fileUrl = `${base.toString().replace(/\/$/, '')}/uploads/profiles/${req.file.filename}`;
+      } else {
+        // Fallback to relative URL (works in dev when backend and frontend share origin)
+        fileUrl = `/uploads/profiles/${req.file.filename}`;
+      }
+    } catch {
+      fileUrl = `/uploads/profiles/${req.file.filename}`;
+    }
+
+    // Persist on user profile so all roles see the updated avatar
+    try {
+      await updateProfile(req.user.id, { profileImage: fileUrl });
+    } catch (e) {
+      // Log but don't block the upload response
+      logger.error({ error: (e as Error).message, userId: req.user.id }, 'Failed to persist profileImage after upload');
+    }
 
     sendSuccess(res, { url: fileUrl }, 'Profile picture uploaded successfully');
   } catch (err) {
