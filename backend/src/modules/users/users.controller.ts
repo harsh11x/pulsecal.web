@@ -160,16 +160,19 @@ export const uploadProfilePictureController = async (
       throw new AppError('No file uploaded', 400);
     }
 
-    // Build a public URL for the uploaded file
+    // Build a public URL for the uploaded file based on the current request host
     let fileUrl: string;
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-      if (apiUrl) {
-        const base = new URL(apiUrl);
-        base.pathname = '';
-        fileUrl = `${base.toString().replace(/\/$/, '')}/uploads/profiles/${req.file.filename}`;
+      const proto =
+        (req.headers['x-forwarded-proto'] as string) ||
+        (req as any).protocol ||
+        'http';
+      const host =
+        (req.headers['x-forwarded-host'] as string) ||
+        req.headers.host;
+      if (host) {
+        fileUrl = `${proto}://${host.replace(/\/$/, '')}/uploads/profiles/${req.file.filename}`;
       } else {
-        // Fallback to relative URL (works in dev when backend and frontend share origin)
         fileUrl = `/uploads/profiles/${req.file.filename}`;
       }
     } catch {

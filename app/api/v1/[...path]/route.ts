@@ -8,49 +8,48 @@ export const dynamic = 'force-dynamic';
 async function handleProxy(request: NextRequest, pathArray: string[]) {
     const path = pathArray.join('/');
     const searchParams = request.nextUrl.search || '';
-    const targetUrl = `${BACKEND_URL}/api/v1/${path}${searchParams}`;
+    // Avoid double /api/v1 if BACKEND_URL already includes it
+    const base = BACKEND_URL.replace(/\/+$/, '');
+    const baseWithApi =
+        base.endsWith('/api/v1') || base.endsWith('/api/v1/')
+            ? base.replace(/\/+$/, '')
+            : `${base}/api/v1`;
+    const targetUrl = `${baseWithApi}/${path}${searchParams}`;
     
     try {
-        // Get request body
-        let bodyText: string | undefined = undefined;
-        if (request.method !== 'GET' && request.method !== 'HEAD') {
-            try {
-                bodyText = await request.text();
-            } catch (e) {
-                // No body
-            }
-        }
+        // Forward headers (don’t force JSON; allow multipart, etc.)
+        const headers: HeadersInit = {};
+        request.headers.forEach((value, key) => {
+            const k = key.toLowerCase();
+            // Skip hop-by-hop / auto-managed headers
+            if (k === 'host' || k === 'content-length') return;
+            headers[key] = value;
+        });
+        // Ensure no caching
+        headers['Cache-Control'] = 'no-store';
 
-        // Build headers
-        const headers: HeadersInit = {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-        };
-        
-        // Forward auth header
-        const authHeader = request.headers.get('authorization');
-        if (authHeader) {
-            headers['Authorization'] = authHeader;
-        }
+        // Forward body as binary (works for JSON + multipart)
+        const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
+        const body = hasBody ? await request.arrayBuffer() : undefined;
 
         // Make the request
         const response = await fetch(targetUrl, {
             method: request.method,
             headers,
-            body: bodyText,
+            body: body ? Buffer.from(body) : undefined,
             cache: 'no-store',
         });
 
-        // Read response
-        const responseText = await response.text();
-
-        // Return with proper headers
-        return new NextResponse(responseText, {
+        // Return response preserving content-type (json, text, etc.)
+        const contentType = response.headers.get('content-type') || 'application/json';
+        const responseBody = await response.arrayBuffer();
+        return new NextResponse(responseBody, {
             status: response.status,
             statusText: response.statusText,
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': contentType,
                 'Cache-Control': 'no-store',
+                'X-Proxy-Target': targetUrl,
             },
         });
         
