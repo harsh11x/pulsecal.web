@@ -28,6 +28,7 @@ export const PERMISSIONS = {
   MANAGE_QUEUE: [ROLES.RECEPTIONIST, ROLES.ADMIN],
   VIEW_QUEUE: [ROLES.DOCTOR, ROLES.RECEPTIONIST, ROLES.ADMIN],
   MANAGE_SUBSCRIPTION: [ROLES.DOCTOR, ROLES.ADMIN],
+  MANAGE_CLINIC: [ROLES.DOCTOR, ROLES.ADMIN],
 } as const
 
 export const hasPermission = (userRole: UserRole, permission: keyof typeof PERMISSIONS): boolean => {

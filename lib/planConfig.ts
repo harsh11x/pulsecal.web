@@ -8,6 +8,12 @@ export const PLAN_AMOUNTS: Record<string, number> = {
   ENTERPRISE: 4999,
 }
 
+export const PLAN_LIMITS: Record<string, number> = {
+  BASIC: 3,
+  PROFESSIONAL: 10,
+  ENTERPRISE: Infinity,
+}
+
 export const PLAN_FEATURES: Record<string, string[]> = {
   BASIC: ["Up to 3 Doctors", "Basic Scheduling", "Patient Records", "Email Support", "Mobile App Access"],
   PROFESSIONAL: ["Unlimited Appointments", "Up to 10 Doctors", "Advanced Scheduling", "Analytics Dashboard", "Priority Support", "Custom Branding"],

@@ -13,6 +13,7 @@ import { userService } from "@/services/user.service"
 import { toast } from "sonner"
 import type { User } from "@/types"
 import { Badge } from "@/components/ui/badge"
+import { PLAN_LIMITS } from "@/lib/planConfig"
 
 export default function StaffManager() {
     const currentUser = useAppSelector((state: any) => state.auth.user)
@@ -69,6 +70,14 @@ export default function StaffManager() {
 
     const handleAddStaff = async (e: React.FormEvent) => {
         e.preventDefault()
+
+        const planName = (currentUser as any)?.doctorProfile?.subscriptionPlan || "BASIC"
+        const maxStaff = PLAN_LIMITS[planName] || PLAN_LIMITS["BASIC"]
+        if (staff.length >= maxStaff) {
+            toast.error(`Plan limit reached. Upgrade to add more staff.`)
+            return
+        }
+
         setActionLoading(true)
         try {
             const payload = {
@@ -140,9 +149,21 @@ export default function StaffManager() {
         s.email.toLowerCase().includes(searchTerm.toLowerCase())
     )
 
+    // Determine plan limits
+    // Default to BASIC if not found
+    const planName = (currentUser as any)?.doctorProfile?.subscriptionPlan || "BASIC"
+    const maxStaff = PLAN_LIMITS[planName] || PLAN_LIMITS["BASIC"]
+    const currentStaffCount = staff.length // Includes receptionists + other doctors
+
+    // Note: staff array includes receptionists AND other doctors.
+    // currentUser (owner) is excluded from staff array in fetchStaff logic: u.id !== currentUser.id
+    // So staff.length is exactly the number of "employees" added.
+
+    const canAddStaff = currentStaffCount < maxStaff
+
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div className="relative w-full max-w-sm">
                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -152,94 +173,106 @@ export default function StaffManager() {
                         className="pl-8"
                     />
                 </div>
-                <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                    <DialogTrigger asChild>
-                        <Button>
-                            <Plus className="mr-2 h-4 w-4" />
-                            Add Staff Member
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Add New Staff Member</DialogTitle>
-                            <DialogDescription>
-                                Create an account for a new doctor or receptionist at your clinic.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <form onSubmit={handleAddStaff} className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
+
+                <div className="flex flex-col items-end gap-1">
+                    <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button disabled={!canAddStaff}>
+                                <Plus className="mr-2 h-4 w-4" />
+                                Add Staff Member
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Add New Staff Member</DialogTitle>
+                                <DialogDescription>
+                                    Create an account for a new doctor or receptionist at your clinic.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <form onSubmit={handleAddStaff} className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="firstName">First Name</Label>
+                                        <Input
+                                            id="firstName"
+                                            value={newStaff.firstName}
+                                            onChange={(e) => setNewStaff({ ...newStaff, firstName: e.target.value })}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="lastName">Last Name</Label>
+                                        <Input
+                                            id="lastName"
+                                            value={newStaff.lastName}
+                                            onChange={(e) => setNewStaff({ ...newStaff, lastName: e.target.value })}
+                                            required
+                                        />
+                                    </div>
+                                </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="firstName">First Name</Label>
+                                    <Label htmlFor="email">Email</Label>
                                     <Input
-                                        id="firstName"
-                                        value={newStaff.firstName}
-                                        onChange={(e) => setNewStaff({ ...newStaff, firstName: e.target.value })}
+                                        id="email"
+                                        type="email"
+                                        value={newStaff.email}
+                                        onChange={(e) => setNewStaff({ ...newStaff, email: e.target.value })}
                                         required
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="lastName">Last Name</Label>
+                                    <Label htmlFor="phone">Phone</Label>
                                     <Input
-                                        id="lastName"
-                                        value={newStaff.lastName}
-                                        onChange={(e) => setNewStaff({ ...newStaff, lastName: e.target.value })}
-                                        required
+                                        id="phone"
+                                        value={newStaff.phone}
+                                        onChange={(e) => setNewStaff({ ...newStaff, phone: e.target.value })}
                                     />
                                 </div>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="email">Email</Label>
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    value={newStaff.email}
-                                    onChange={(e) => setNewStaff({ ...newStaff, email: e.target.value })}
-                                    required
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="phone">Phone</Label>
-                                <Input
-                                    id="phone"
-                                    value={newStaff.phone}
-                                    onChange={(e) => setNewStaff({ ...newStaff, phone: e.target.value })}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="role">Role</Label>
-                                <select
-                                    id="role"
-                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                    value={newStaff.role}
-                                    onChange={(e) => setNewStaff({ ...newStaff, role: e.target.value })}
-                                >
-                                    <option value="receptionist">Receptionist</option>
-                                    <option value="doctor">Doctor</option>
-                                </select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="password">Password</Label>
-                                <Input
-                                    id="password"
-                                    type="password"
-                                    value={newStaff.password}
-                                    onChange={(e) => setNewStaff({ ...newStaff, password: e.target.value })}
-                                    required
-                                    minLength={6}
-                                    placeholder="Min 6 characters"
-                                />
-                                <p className="text-xs text-muted-foreground">
-                                    The staff member will use this password along with their email to log in.
-                                </p>
-                            </div>
-                            <DialogFooter>
-                                <Button type="submit" disabled={actionLoading}>
-                                    {actionLoading ? "Adding..." : "Add Member"}
-                                </Button>
-                            </DialogFooter>
-                        </form>
-                    </DialogContent>
-                </Dialog>
+                                <div className="space-y-2">
+                                    <Label htmlFor="role">Role</Label>
+                                    <select
+                                        id="role"
+                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                        value={newStaff.role}
+                                        onChange={(e) => setNewStaff({ ...newStaff, role: e.target.value })}
+                                    >
+                                        <option value="receptionist">Receptionist</option>
+                                        <option value="doctor">Doctor</option>
+                                    </select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="password">Password</Label>
+                                    <Input
+                                        id="password"
+                                        type="password"
+                                        value={newStaff.password}
+                                        onChange={(e) => setNewStaff({ ...newStaff, password: e.target.value })}
+                                        required
+                                        minLength={6}
+                                        placeholder="Min 6 characters"
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                        The staff member will use this password along with their email to log in.
+                                    </p>
+                                </div>
+                                <DialogFooter>
+                                    <Button type="submit" disabled={actionLoading}>
+                                        {actionLoading ? "Adding..." : "Add Member"}
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
+
+                    <p className="text-xs text-muted-foreground">
+                        Plan Limit: {currentStaffCount} / {maxStaff === Infinity ? "Unlimited" : maxStaff} active staff
+                    </p>
+                    {!canAddStaff && (
+                        <p className="text-xs text-destructive font-medium">
+                            Upgrade plan to add more staff
+                        </p>
+                    )}
+                </div>
             </div>
 
             <Card>

@@ -525,108 +525,117 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
                 </div>
               ) : (
                 <div className="overflow-x-auto -mx-2 sm:mx-0 min-w-0">
-                <Table className="min-w-[600px]">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Time</TableHead>
-                      <TableHead>Patient</TableHead>
-                      <TableHead>Doctor</TableHead>
-                      <TableHead>Reason</TableHead>
-                      <TableHead>Contact</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredTodayAppointments.map((apt) => (
-                      <TableRow key={apt.id} className="align-top">
-                        <TableCell className="font-medium whitespace-nowrap text-xs sm:text-sm py-2">
-                          {format(new Date(apt.scheduledAt), "h:mm a")}
-                        </TableCell>
-                        <TableCell className="text-xs sm:text-sm py-2">
-                          {apt.patient ? `${apt.patient.firstName} ${apt.patient.lastName}` : apt.patientName || "N/A"}
-                        </TableCell>
-                        <TableCell className="text-xs sm:text-sm py-2">
-                          {apt.doctor ? (
-                            <div className="flex items-center gap-2">
-                              <Avatar className="h-7 w-7">
-                                <AvatarImage src={(apt.doctor as any).profileImage} alt={`Dr. ${apt.doctor.firstName} ${apt.doctor.lastName}`} />
-                                <AvatarFallback>
-                                  {`Dr. ${apt.doctor.firstName}`.charAt(0).toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span>{`Dr. ${apt.doctor.firstName} ${apt.doctor.lastName}`}</span>
-                            </div>
-                          ) : (
-                            "N/A"
-                          )}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground text-xs sm:text-sm py-2 max-w-[80px] truncate">{apt.reason || "General"}</TableCell>
-                        <TableCell className="py-2">
-                          {apt.patient?.phone && (
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <Phone className="h-3 w-3" />
-                              {apt.patient.phone}
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell className="py-2">{getStatusBadge(apt.status)}</TableCell>
-                        <TableCell className="text-right py-2">
-                          <div className="flex flex-wrap items-center justify-end gap-1">
-                            {(apt.status === "PENDING" || apt.status === "REQUESTED") && (
-                              <Button
-                                size="sm"
-                                className="bg-green-600 hover:bg-green-700 text-white"
-                                onClick={() => handleAcceptAppointment(apt.id)}
-                              >
-                                <CheckCircle className="h-3 w-3 mr-1" /> Accept
-                              </Button>
-                            )}
-                            {(apt.status === "SCHEDULED" || apt.status === "CONFIRMED" || apt.status === "IN_PROGRESS") && (
-                              <>
-                                {apt.status !== "IN_PROGRESS" && (
-                                  <Button size="sm" variant="ghost" onClick={() => handleCheckIn(apt.id)}>
-                                    Check In
-                                  </Button>
-                                )}
-                                <Button
-                                  size="sm"
-                                  variant="default"
-                                  className="bg-green-600 hover:bg-green-700"
-                                  onClick={() => handleMarkCompleted(apt.id)}
-                                >
-                                  <CheckCircle className="h-3 w-3 mr-1" /> Complete
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => {
-                                    setRescheduleId(apt.id)
-                                    setNewScheduleDate(format(new Date(apt.scheduledAt), "yyyy-MM-dd"))
-                                    setNewScheduleTime(format(new Date(apt.scheduledAt), "HH:mm"))
-                                  }}
-                                >
-                                  <Edit className="h-3 w-3" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="text-destructive"
-                                  onClick={() => setCancelId(apt.id)}
-                                >
-                                  <XCircle className="h-3 w-3" />
-                                </Button>
-                              </>
-                            )}
-                            <Button variant="outline" size="sm" asChild>
-                              <Link href={`/appointments/${apt.id}`}>View</Link>
-                            </Button>
-                          </div>
-                        </TableCell>
+                  <Table className="min-w-[600px]">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Time</TableHead>
+                        <TableHead>Patient</TableHead>
+                        <TableHead>Doctor</TableHead>
+                        <TableHead>Reason</TableHead>
+                        <TableHead>Contact</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
-                    ))}
+                    </TableHeader>
+                    <TableBody>
+                      {filteredTodayAppointments.map((apt) => (
+                        <TableRow key={apt.id} className="align-top">
+                          <TableCell className="font-medium whitespace-nowrap text-xs sm:text-sm py-2">
+                            {(() => {
+                              try {
+                                const date = new Date(apt.scheduledAt)
+                                // Check if date is valid
+                                if (isNaN(date.getTime())) return "Invalid Time"
+                                return format(date, "h:mm a")
+                              } catch (e) {
+                                return "Invalid Time"
+                              }
+                            })()}
+                          </TableCell>
+                          <TableCell className="text-xs sm:text-sm py-2">
+                            {apt.patient ? `${apt.patient.firstName} ${apt.patient.lastName}` : apt.patientName || "N/A"}
+                          </TableCell>
+                          <TableCell className="text-xs sm:text-sm py-2">
+                            {apt.doctor ? (
+                              <div className="flex items-center gap-2">
+                                <Avatar className="h-7 w-7">
+                                  <AvatarImage src={(apt.doctor as any).profileImage} alt={`Dr. ${apt.doctor.firstName} ${apt.doctor.lastName}`} />
+                                  <AvatarFallback>
+                                    {`Dr. ${apt.doctor.firstName}`.charAt(0).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span>{`Dr. ${apt.doctor.firstName} ${apt.doctor.lastName}`}</span>
+                              </div>
+                            ) : (
+                              "N/A"
+                            )}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-xs sm:text-sm py-2 max-w-[80px] truncate">{apt.reason || "General"}</TableCell>
+                          <TableCell className="py-2">
+                            {apt.patient?.phone && (
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Phone className="h-3 w-3" />
+                                {apt.patient.phone}
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell className="py-2">{getStatusBadge(apt.status)}</TableCell>
+                          <TableCell className="text-right py-2">
+                            <div className="flex flex-wrap items-center justify-end gap-1">
+                              {(apt.status === "PENDING" || apt.status === "REQUESTED") && (
+                                <Button
+                                  size="sm"
+                                  className="bg-green-600 hover:bg-green-700 text-white"
+                                  onClick={() => handleAcceptAppointment(apt.id)}
+                                >
+                                  <CheckCircle className="h-3 w-3 mr-1" /> Accept
+                                </Button>
+                              )}
+                              {(apt.status === "SCHEDULED" || apt.status === "CONFIRMED" || apt.status === "IN_PROGRESS") && (
+                                <>
+                                  {apt.status !== "IN_PROGRESS" && (
+                                    <Button size="sm" variant="ghost" onClick={() => handleCheckIn(apt.id)}>
+                                      Check In
+                                    </Button>
+                                  )}
+                                  <Button
+                                    size="sm"
+                                    variant="default"
+                                    className="bg-green-600 hover:bg-green-700"
+                                    onClick={() => handleMarkCompleted(apt.id)}
+                                  >
+                                    <CheckCircle className="h-3 w-3 mr-1" /> Complete
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => {
+                                      setRescheduleId(apt.id)
+                                      setNewScheduleDate(format(new Date(apt.scheduledAt), "yyyy-MM-dd"))
+                                      setNewScheduleTime(format(new Date(apt.scheduledAt), "HH:mm"))
+                                    }}
+                                  >
+                                    <Edit className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-destructive"
+                                    onClick={() => setCancelId(apt.id)}
+                                  >
+                                    <XCircle className="h-3 w-3" />
+                                  </Button>
+                                </>
+                              )}
+                              <Button variant="outline" size="sm" asChild>
+                                <Link href={`/appointments/${apt.id}`}>View</Link>
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
                     </TableBody>
-                </Table>
+                  </Table>
                 </div>
               )}
             </CardContent>

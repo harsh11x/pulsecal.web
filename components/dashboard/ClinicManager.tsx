@@ -11,11 +11,20 @@ import { toast } from "sonner"
 import { apiService } from "@/services/api"
 import { Clinic } from "@/types"
 
+import { useAppSelector } from "@/app/hooks"
+
 interface ClinicManagerProps {
     clinicId: string
 }
 
 export default function ClinicManager({ clinicId }: ClinicManagerProps) {
+    const { user } = useAppSelector((state) => state.auth)
+    // Head doctor has canManageSubscription=true (usually) or check if they are the creator. 
+    // Simplified: Role based check or specific flag. 
+    // The requirement: "Only head doctor can see ... Edit Clinic".
+    // If this component renders the edit form, we should check permission.
+    const canEdit = user?.role === "admin" || (user?.role === "doctor" && (user as any)?.canManageSubscription !== false)
+
     const [loading, setLoading] = useState(false)
     const [fetching, setFetching] = useState(true)
     const [formData, setFormData] = useState({
@@ -64,6 +73,11 @@ export default function ClinicManager({ clinicId }: ClinicManagerProps) {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+        if (!canEdit) {
+            toast.error("You do not have permission to edit clinic details")
+            return
+        }
+
         if (!clinicId) {
             toast.error("Clinic ID is missing")
             return
@@ -86,6 +100,41 @@ export default function ClinicManager({ clinicId }: ClinicManagerProps) {
 
     if (fetching) {
         return <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
+    }
+
+    if (!canEdit) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Clinic Information</CardTitle>
+                    <CardDescription>View clinic details</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <Label className="text-muted-foreground">Clinic Name</Label>
+                            <p className="font-medium">{formData.name}</p>
+                        </div>
+                        <div>
+                            <Label className="text-muted-foreground">Phone</Label>
+                            <p className="font-medium">{formData.phone || "N/A"}</p>
+                        </div>
+                        <div>
+                            <Label className="text-muted-foreground">Email</Label>
+                            <p className="font-medium">{formData.email || "N/A"}</p>
+                        </div>
+                        <div>
+                            <Label className="text-muted-foreground">Address</Label>
+                            <p className="font-medium">
+                                {formData.address}<br />
+                                {formData.city}, {formData.state} {formData.zipCode}<br />
+                                {formData.country}
+                            </p>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+        )
     }
 
     return (

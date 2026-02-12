@@ -18,6 +18,7 @@ import {
   Building2,
   Stethoscope,
   Wallet,
+  Users,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAppSelector } from "@/app/hooks"
@@ -104,6 +105,12 @@ const navItems: NavItem[] = [
     permission: "VIEW_ADMIN_DASHBOARD",
   },
   {
+    title: "Staff Management",
+    href: "/dashboard/staff",
+    icon: Users,
+    permission: "MANAGE_CLINIC", // Only for head doctors/admins
+  },
+  {
     title: "Subscription",
     href: "/subscription",
     icon: CreditCard,
@@ -149,7 +156,7 @@ export function Sidebar({ className }: SidebarProps) {
     }
 
     // Hide Subscription link for non-owner doctors (joining doctors)
-    if (item.href === "/subscription" && userRole === "doctor" && (user as any)?.canManageSubscription === false) {
+    if ((item.href === "/subscription" || item.href === "/dashboard/staff") && userRole === "doctor" && (user as any)?.canManageSubscription === false) {
       return false
     }
 

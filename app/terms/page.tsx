@@ -92,7 +92,54 @@ export default function TermsPage() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold mb-4">7. Contact Us</h2>
+              <h2 className="text-2xl font-semibold mb-4">7. Hospital / Clinic Policy</h2>
+              <div className="space-y-4">
+                <h3 className="text-xl font-semibold">Right to Suspend or Remove</h3>
+                <p className="text-muted-foreground">
+                  We reserve the right to suspend, restrict, or permanently remove any hospital or clinic from our platform if:
+                </p>
+                <ul className="list-disc ml-6 space-y-2 text-muted-foreground">
+                  <li>We detect fraudulent activity</li>
+                  <li>False or misleading information is provided</li>
+                  <li>Any illegal or unethical practices are identified</li>
+                  <li>There is a violation of our platform policies</li>
+                </ul>
+                <p className="text-muted-foreground mt-2">
+                  Such actions may be taken without prior notice if deemed necessary to protect patients and platform integrity.
+                </p>
+              </div>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-semibold mb-4">8. Doctor Terms & Conditions</h2>
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-xl font-semibold mb-2">Platform Fee</h3>
+                  <p className="text-muted-foreground">
+                    For every patient appointment booked and paid through the platform, we will deduct <strong>3%</strong> as a platform service fee.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-semibold mb-2">Revenue Payout</h3>
+                  <ul className="list-disc ml-6 space-y-2 text-muted-foreground">
+                    <li>The revenue generated for clinics/doctors will be calculated weekly.</li>
+                    <li>Payments will be transferred to the respective clinic/doctor within <strong>15 days</strong> from the end of each revenue cycle.</li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-semibold mb-2">Banking Details Requirement</h3>
+                  <ul className="list-disc ml-6 space-y-2 text-muted-foreground">
+                    <li>Clinics and doctors must provide valid and verified banking details to receive payouts.</li>
+                    <li>Failure to provide accurate banking information may delay payment processing.</li>
+                  </ul>
+                </div>
+              </div>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-semibold mb-4">9. Contact Us</h2>
               <div className="rounded-lg border border-border bg-card p-6">
                 <p className="font-semibold text-foreground">PulseCal Legal Team</p>
                 <p className="text-muted-foreground">Email: legal@pulsecal.com</p>

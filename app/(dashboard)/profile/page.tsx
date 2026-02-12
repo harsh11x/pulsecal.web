@@ -11,6 +11,7 @@ import { setUser } from "@/app/features/authSlice"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { ImageCropper } from "@/components/ui/image-cropper"
 import { Label } from "@/components/ui/label"
 import { Camera, Save, Wallet, Building2, CreditCard } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
@@ -23,6 +24,7 @@ export default function ProfilePage() {
   const dispatch = useAppDispatch()
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
+  const [selectedImage, setSelectedImage] = useState<string | null>(null)
 
   // Parse existing address or use default
   const parseAddress = (fullAddress: string) => {
@@ -50,7 +52,7 @@ export default function ProfilePage() {
     return { line: fullAddress, city: "", state: "", pincode: "" }
   }
 
-  const isDoctor = user?.role === "DOCTOR"
+  const isDoctor = user?.role === "doctor"
   const existingAddress = isDoctor ? ((user as any)?.doctorProfile?.clinicAddress || "") : ""
   const parsed = parseAddress(existingAddress)
   const dp = (user as any)?.doctorProfile
@@ -96,7 +98,7 @@ export default function ProfilePage() {
         payload.bankAccountDetails = formData.bankAccountDetails?.trim() || null
         payload.upiId = formData.upiId?.trim() || null
       }
-      
+
       // Only include dateOfBirth if it's provided and valid
       // Backend expects Date object, but Joi will parse ISO string
       if (formData.dateOfBirth) {
@@ -107,12 +109,9 @@ export default function ProfilePage() {
         }
       }
 
-      console.log("Submitting profile update:", payload)
-
       // Update profile via API
       const response: any = await userService.updateProfile(payload)
-      console.log("Profile update response:", response)
-      
+
       // apiService now unwraps the response, so response should be the user object directly
       const updatedUser = response
 
@@ -154,18 +153,49 @@ export default function ProfilePage() {
     }
   }
 
-  const handleProfilePictureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    // ... existing logic ...
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file) return
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = () => {
+        setSelectedImage(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleCropComplete = async (croppedBlob: Blob) => {
     try {
       setLoading(true)
-      const { url } = await userService.uploadProfilePicture(file)
-      const updatedUser = await userService.updateProfile({ profileImage: url })
+      // Create a File object from the Blob
+      const file = new File([croppedBlob], "profile-picture.jpg", { type: "image/jpeg" })
+
+      const uploadResponse = await userService.uploadProfilePicture(file)
+
+      if (!uploadResponse?.url) {
+        throw new Error("Upload failed - No URL returned")
+      }
+
+      const updatedUser = await userService.updateProfile({ profileImage: uploadResponse.url })
+
       dispatch(setUser(updatedUser))
+
+      // Double check persistence by fetching fresh profile
+      const freshProfile = await userService.getProfile()
+      if (freshProfile.profileImage !== uploadResponse.url) {
+        // Force update Redux with fresh profile just in case
+        dispatch(setUser(freshProfile))
+      }
+
       toast({ title: "Success", description: "Profile picture updated successfully" })
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to upload profile picture", variant: "destructive" })
+      setSelectedImage(null)
+    } catch (error: any) {
+      console.error("Profile picture upload error:", error)
+      toast({
+        title: "Error",
+        description: error.message || "Failed to upload profile picture",
+        variant: "destructive"
+      })
     } finally {
       setLoading(false)
     }
@@ -207,7 +237,7 @@ export default function ProfilePage() {
                 type="file"
                 accept="image/*"
                 className="hidden"
-                onChange={handleProfilePictureUpload}
+                onChange={handleFileSelect}
                 disabled={loading}
               />
             </label>
@@ -217,6 +247,13 @@ export default function ProfilePage() {
             <p className="text-sm text-muted-foreground capitalize">{user?.role}</p>
           </div>
         </div>
+
+        <ImageCropper
+          imageSrc={selectedImage}
+          open={!!selectedImage}
+          onClose={() => setSelectedImage(null)}
+          onCropComplete={handleCropComplete}
+        />
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -262,109 +299,109 @@ export default function ProfilePage() {
           </div>
 
           {isDoctor && (
-          <div className="space-y-4 pt-4 border-t">
-            <h3 className="text-lg font-semibold">Clinic Address</h3>
+            <div className="space-y-4 pt-4 border-t">
+              <h3 className="text-lg font-semibold">Clinic Address</h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="state">State</Label>
-                <select
-                  id="state"
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  value={formData.state}
-                  onChange={(e) => setFormData({ ...formData, state: e.target.value, city: "" })}
-                >
-                  <option value="">Select State</option>
-                  {states.map((state) => (
-                    <option key={state.isoCode} value={state.name}>
-                      {state.name}
-                    </option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="state">State</Label>
+                  <select
+                    id="state"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={formData.state}
+                    onChange={(e) => setFormData({ ...formData, state: e.target.value, city: "" })}
+                  >
+                    <option value="">Select State</option>
+                    {states.map((state) => (
+                      <option key={state.isoCode} value={state.name}>
+                        {state.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="city">City</Label>
+                  <select
+                    id="city"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={formData.city}
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    disabled={!formData.state}
+                  >
+                    <option value="">Select City</option>
+                    {cities.map((city) => (
+                      <option key={city.name} value={city.name}>
+                        {city.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
+
               <div className="space-y-2">
-                <Label htmlFor="city">City</Label>
-                <select
-                  id="city"
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  value={formData.city}
-                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                  disabled={!formData.state}
-                >
-                  <option value="">Select City</option>
-                  {cities.map((city) => (
-                    <option key={city.name} value={city.name}>
-                      {city.name}
-                    </option>
-                  ))}
-                </select>
+                <Label htmlFor="addressLine">Address Line</Label>
+                <Input
+                  id="addressLine"
+                  value={formData.addressLine}
+                  onChange={(e) => setFormData({ ...formData, addressLine: e.target.value })}
+                  placeholder="Street address, building, suite"
+                />
+              </div>
+
+              <div className="space-y-2 md:w-1/3">
+                <Label htmlFor="pincode">Pin Code</Label>
+                <Input
+                  id="pincode"
+                  value={formData.pincode}
+                  onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
+                  placeholder="e.g. 400001"
+                />
               </div>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="addressLine">Address Line</Label>
-              <Input
-                id="addressLine"
-                value={formData.addressLine}
-                onChange={(e) => setFormData({ ...formData, addressLine: e.target.value })}
-                placeholder="Street address, building, suite"
-              />
-            </div>
-
-            <div className="space-y-2 md:w-1/3">
-              <Label htmlFor="pincode">Pin Code</Label>
-              <Input
-                id="pincode"
-                value={formData.pincode}
-                onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
-                placeholder="e.g. 400001"
-              />
-            </div>
-          </div>
           )}
 
           {isDoctor && (
-          <div className="space-y-4 pt-4 border-t">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <Wallet className="h-5 w-5" />
-              Payout Details
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              Add your bank account details or UPI ID to receive payments every 15 days. You can provide either one.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="bankAccountDetails" className="flex items-center gap-2">
-                  <Building2 className="h-4 w-4" />
-                  Bank Account Details
-                </Label>
-                <Input
-                  id="bankAccountDetails"
-                  value={formData.bankAccountDetails}
-                  onChange={(e) => setFormData({ ...formData, bankAccountDetails: e.target.value })}
-                  placeholder="Bank name, Account number, IFSC, Account holder name"
-                />
-                <p className="text-xs text-muted-foreground">
-                  e.g. HDFC Bank, A/c 1234567890, IFSC HDFC0001234, John Doe
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="upiId" className="flex items-center gap-2">
-                  <CreditCard className="h-4 w-4" />
-                  UPI ID
-                </Label>
-                <Input
-                  id="upiId"
-                  value={formData.upiId}
-                  onChange={(e) => setFormData({ ...formData, upiId: e.target.value })}
-                  placeholder="yourname@upi or 9876543210@paytm"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Provide UPI ID if you prefer UPI over bank transfer
-                </p>
+            <div className="space-y-4 pt-4 border-t">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Wallet className="h-5 w-5" />
+                Payout Details
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Add your bank account details or UPI ID to receive payments every 15 days. You can provide either one.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="bankAccountDetails" className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4" />
+                    Bank Account Details
+                  </Label>
+                  <Input
+                    id="bankAccountDetails"
+                    value={formData.bankAccountDetails}
+                    onChange={(e) => setFormData({ ...formData, bankAccountDetails: e.target.value })}
+                    placeholder="Bank name, Account number, IFSC, Account holder name"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    e.g. HDFC Bank, A/c 1234567890, IFSC HDFC0001234, John Doe
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="upiId" className="flex items-center gap-2">
+                    <CreditCard className="h-4 w-4" />
+                    UPI ID
+                  </Label>
+                  <Input
+                    id="upiId"
+                    value={formData.upiId}
+                    onChange={(e) => setFormData({ ...formData, upiId: e.target.value })}
+                    placeholder="yourname@upi or 9876543210@paytm"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Provide UPI ID if you prefer UPI over bank transfer
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
           )}
 
           <div className="pt-4">

@@ -52,6 +52,7 @@ export interface DoctorProfile {
   workingHours?: WorkingHours
   services?: string[]
   profileImage?: string
+  subscriptionPlan?: string
 }
 
 export interface WorkingHours {

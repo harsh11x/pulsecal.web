@@ -67,13 +67,23 @@ export default function PrivacyPolicyPage() {
                 <FileText className="h-6 w-6 text-primary" />
                 3. How We Use Your Information
               </h2>
-              <ul className="ml-6 list-disc space-y-2 text-muted-foreground">
+              <ul className="ml-6 list-disc space-y-2 text-muted-foreground mb-6">
                 <li>To provide and maintain our healthcare management services</li>
                 <li>To process appointments and manage patient records</li>
                 <li>To send appointment reminders and notifications</li>
                 <li>To improve our platform and develop new features</li>
                 <li>To comply with legal obligations and HIPAA requirements</li>
               </ul>
+
+              <div className="bg-muted/30 p-4 rounded-lg border border-border">
+                <h3 className="text-xl font-semibold mb-2">Use of Clinic Data</h3>
+                <p className="text-muted-foreground leading-relaxed mb-2">
+                  We reserve the right to use anonymized and aggregated clinic data to improve, enhance, and optimize our platform services. This may include analyzing operational data, appointment trends, service performance, and system usage patterns to enhance user experience, platform efficiency, and healthcare service delivery.
+                </p>
+                <p className="text-muted-foreground leading-relaxed">
+                  We do not sell or misuse confidential clinic data. Any data usage will comply with applicable data protection and privacy regulations.
+                </p>
+              </div>
             </section>
 
             <section>
