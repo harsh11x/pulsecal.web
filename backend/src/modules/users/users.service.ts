@@ -176,17 +176,37 @@ export const getProfile = async (userId: string) => {
       else {
         try {
           const clinic = await prisma.clinic.findUnique({ where: { id: user.clinicId }, select: { ownerId: true } });
-          if (!clinic?.ownerId || clinic.ownerId === userId) {
-            canManageSubscription = true;
+
+          if (clinic?.ownerId) {
+            canManageSubscription = clinic.ownerId === userId;
           } else {
-            const doctorCount = await prisma.user.count({ where: { clinicId: user.clinicId, role: 'DOCTOR' } });
-            if (doctorCount === 1) {
-              canManageSubscription = true;
-              await prisma.clinic.update({ where: { id: user.clinicId }, data: { ownerId: userId } });
+            // No owner set. Identify the owner by earliest creation time (assumed HEAD doctor).
+            // This handles legacy clinics where ownerId might not be set.
+            const doctors = await prisma.user.findMany({
+              where: { clinicId: user.clinicId, role: 'DOCTOR' },
+              orderBy: { createdAt: 'asc' },
+              take: 1
+            });
+
+            if (doctors.length > 0) {
+              const owner = doctors[0];
+              // Set the owner for future checks
+              await prisma.clinic.update({
+                where: { id: user.clinicId },
+                data: { ownerId: owner.id }
+              });
+
+              canManageSubscription = owner.id === userId;
+              logger.info({ userId, clinicId: user.clinicId, newOwnerId: owner.id }, 'Clinic owner auto-assigned based on earliest creation date');
+            } else {
+              // Should theoretically not happen if the current user is a doctor in this clinic
+              canManageSubscription = false;
             }
           }
         } catch (e: any) {
-          if (e?.message?.includes('ownerId') && e?.message?.includes('does not exist')) canManageSubscription = true;
+          logger.error({ error: e.message, userId }, 'Error checking clinic ownership');
+          // Start safe: deny access if error occurs
+          canManageSubscription = false;
         }
       }
     }
