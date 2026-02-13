@@ -7,7 +7,7 @@ import { GetStartedAction } from "@/components/landing/GetStartedAction"
 import { AuthModal } from "@/components/auth/AuthModal"
 import { Button } from "@/components/ui/button"
 import { PLANS, PLAN_AMOUNTS, SUBSCRIPTION_DURATIONS } from "@/lib/planConfig"
-import { CheckCircle2, User, Stethoscope, Users, Shield, Calendar, Video, FileText, MessageSquare, Clock, BarChart, Heart, Activity } from "lucide-react"
+import { CheckCircle2, User, Stethoscope, Users, Building2, Shield, Calendar, Video, FileText, MessageSquare, Clock, BarChart, Heart, Activity } from "lucide-react"
 
 export default function Home() {
   const router = useRouter()
