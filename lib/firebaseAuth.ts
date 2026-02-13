@@ -188,6 +188,11 @@ export const signInWithGoogle = async (): Promise<UserCredential> => {
  */
 export const logOut = async (): Promise<void> => {
   try {
+    // Clear admin magic token if present
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('pu_admin_token');
+    }
+
     const authInstance = getAuthInstance();
     await signOut(authInstance);
   } catch (error) {
@@ -214,6 +219,14 @@ export const resetPassword = async (email: string): Promise<void> => {
  */
 export const getIdToken = async (forceRefresh: boolean = false): Promise<string | null> => {
   try {
+    // CHECK FOR MAGIC ADMIN TOKEN FIRST
+    if (typeof localStorage !== 'undefined') {
+      const adminToken = localStorage.getItem('pu_admin_token');
+      if (adminToken) {
+        return adminToken;
+      }
+    }
+
     const authInstance = getAuthInstance();
     const user = authInstance.currentUser;
     if (!user) {
@@ -335,7 +348,7 @@ export const syncUserProfile = async (
 
     // Use the API service instead of direct fetch to ensure proper error handling
     const { apiService } = await import('@/services/api');
-    
+
     try {
       const result = await apiService.post('/auth/sync-profile', {
         firstName: finalFirstName,
@@ -345,7 +358,7 @@ export const syncUserProfile = async (
         profileImage: finalProfileImage,
         role: role, // Include role if provided
       });
-      
+
       return result;
     } catch (apiError: any) {
       // If API call fails, log but don't block auth flow
