@@ -13,6 +13,11 @@ export default function Home() {
   const router = useRouter()
   // Auth state
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+  const [authMode, setAuthMode] = useState<"signin" | "signup">("signin")
+  const [selectedRole, setSelectedRole] = useState<"doctor" | "patient" | "receptionist" | null>(null)
+
+  // Mobile menu state
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   // Pricing state
   const [billingInterval, setBillingInterval] = useState<1 | 3 | 6 | 12>(1)
@@ -57,12 +62,55 @@ export default function Home() {
               />
             </div>
             <div className="-mr-2 flex md:hidden">
-              <button className="inline-flex items-center justify-center p-2 rounded-md text-slate-500 hover:text-medical-blue focus:outline-none" type="button">
-                <span className="material-symbols-outlined">menu</span>
+              <button
+                className="inline-flex items-center justify-center p-2 rounded-md text-slate-500 hover:text-medical-blue focus:outline-none"
+                type="button"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              >
+                <span className="material-symbols-outlined">{isMobileMenuOpen ? 'close' : 'menu'}</span>
               </button>
             </div>
           </div>
         </div>
+
+        {/* Mobile Menu */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden border-t border-slate-200 bg-white/95 backdrop-blur p-4 animate-in slide-in-from-top-2">
+            <div className="flex flex-col gap-4">
+              <a href="#solutions" className="text-sm font-medium text-slate-600 hover:text-medical-blue py-2" onClick={() => setIsMobileMenuOpen(false)}>Solutions</a>
+              <a href="#features" className="text-sm font-medium text-slate-600 hover:text-medical-blue py-2" onClick={() => setIsMobileMenuOpen(false)}>Features</a>
+              <a href="#pricing" className="text-sm font-medium text-slate-600 hover:text-medical-blue py-2" onClick={() => setIsMobileMenuOpen(false)}>Pricing</a>
+              <a href="#about" className="text-sm font-medium text-slate-600 hover:text-medical-blue py-2" onClick={() => setIsMobileMenuOpen(false)}>About</a>
+
+              <div className="flex flex-col gap-2 border-t border-slate-100 pt-4">
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-2 border-slate-200 text-slate-700"
+                  onClick={() => { handleAuth("doctor"); setIsMobileMenuOpen(false); }}
+                >
+                  <Stethoscope className="h-4 w-4" />
+                  Doctor Login / Signup
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-2 border-slate-200 text-slate-700"
+                  onClick={() => { handleAuth("patient"); setIsMobileMenuOpen(false); }}
+                >
+                  <User className="h-4 w-4" />
+                  Patient Login / Signup
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-2 border-slate-200 text-slate-700"
+                  onClick={() => { handleAuth("receptionist"); setIsMobileMenuOpen(false); }}
+                >
+                  <Building2 className="h-4 w-4" />
+                  Receptionist Login / Signup
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* Hero Section */}
@@ -541,11 +589,11 @@ export default function Home() {
         </div>
       </footer>
 
-      {/* Auth Modal */}
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
-        defaultTab="signin"
+        defaultTab={authMode}
+        selectedRole={selectedRole}
       />
     </div>
   )
