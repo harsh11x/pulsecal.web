@@ -30,6 +30,12 @@ export default function Home() {
     }
   }, [router])
 
+  const handleAuth = (role: "doctor" | "patient" | "receptionist") => {
+    setSelectedRole(role)
+    setAuthMode("signin")
+    setIsAuthModalOpen(true)
+  }
+
   return (
     <div className="bg-slate-base text-slate-800 antialiased selection:bg-medical-blue selection:text-white font-sans">
 
@@ -49,17 +55,34 @@ export default function Home() {
                 <a className="text-sm font-medium text-corporate-gray hover:text-medical-blue transition-colors cursor-pointer" href="#about">About</a>
               </div>
             </div>
-            <div className="hidden md:flex gap-4 items-center">
-              <button
-                onClick={() => setIsAuthModalOpen(true)}
-                className="text-sm font-medium text-navy-deep hover:text-medical-blue transition-colors"
+            <div className="hidden md:flex gap-3 items-center">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleAuth("doctor")}
+                className="gap-2 border-slate-200 text-slate-700 hover:text-medical-blue hover:border-medical-blue transition-all"
               >
-                Log In
-              </button>
-              <GetStartedAction
-                variant="default"
-                className="bg-medical-blue hover:bg-blue-700 px-5 py-2.5 rounded-lg text-sm font-semibold text-white shadow-subtle transition-colors h-auto"
-              />
+                <Stethoscope className="h-4 w-4" />
+                Doctor
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleAuth("patient")}
+                className="gap-2 border-slate-200 text-slate-700 hover:text-medical-blue hover:border-medical-blue transition-all"
+              >
+                <User className="h-4 w-4" />
+                Patient
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleAuth("receptionist")}
+                className="gap-2 border-slate-200 text-slate-700 hover:text-medical-blue hover:border-medical-blue transition-all"
+              >
+                <Building2 className="h-4 w-4" />
+                Receptionist
+              </Button>
             </div>
             <div className="-mr-2 flex md:hidden">
               <button
