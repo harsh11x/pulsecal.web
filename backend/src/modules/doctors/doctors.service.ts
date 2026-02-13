@@ -437,22 +437,18 @@ export const getDoctorSlots = async (doctorId: string, daysParam: number = 10) =
       scheduledAt: { gte: start, lt: end },
       status: { notIn: ['CANCELLED', 'NO_SHOW'] },
     },
-    select: { scheduledAt: true },
+    select: {
+      scheduledAt: true,
+      duration: true, // Fetch duration for accurate blocking
+    },
   });
 
-  // Normalize to ISO string for comparison (DB may store with different ms)
-  const bookedStrings = new Set(
-    existingAppointments.map((a) => {
-      const d = new Date(a.scheduledAt);
-      d.setSeconds(0, 0);
-      return d.toISOString();
-    })
-  );
-
   const workingHours = (doctor.workingHours as any) || {};
+  // Get configured slot duration or default to 30 mins
+  const configuredSlotDuration = workingHours.defaultSettings?.slotDuration || 30;
   const defaultStart = 9;
   const defaultEnd = 18;
-  const slotDuration = 30;
+
   const result: { date: string; dayName: string; slots: { time: string; available: boolean }[]; isFullyBooked: boolean }[] = [];
 
   for (let d = 0; d < daysParam; d++) {
@@ -477,7 +473,7 @@ export const getDoctorSlots = async (doctorId: string, daysParam: number = 10) =
 
       // For today: start from "now" rounded up to next slot so we always have future slots
       if (d === 0 && slotStart < now) {
-        const msPerSlot = slotDuration * 60 * 1000;
+        const msPerSlot = configuredSlotDuration * 60 * 1000;
         slotStart = new Date(Math.ceil(now.getTime() / msPerSlot) * msPerSlot);
         slotStart.setSeconds(0, 0);
         if (slotStart >= slotEnd) slotStart = new Date(currentDay);
@@ -486,14 +482,23 @@ export const getDoctorSlots = async (doctorId: string, daysParam: number = 10) =
       let current = new Date(slotStart);
       while (current < slotEnd) {
         if (current >= now) {
-          const dNorm = new Date(current);
-          dNorm.setSeconds(0, 0);
-          const timeString = dNorm.toISOString();
-          const isBooked = bookedStrings.has(timeString);
+          const currentSlotStart = new Date(current);
+          const currentSlotEnd = new Date(current.getTime() + configuredSlotDuration * 60000);
+
+          // Check for collision with any existing appointment
+          const isBooked = existingAppointments.some(apt => {
+            const aptStart = new Date(apt.scheduledAt);
+            const aptDuration = apt.duration || 30; // Default to 30 if null
+            const aptEnd = new Date(aptStart.getTime() + aptDuration * 60000);
+
+            // Range collision detection: (StartA < EndB) and (EndA > StartB)
+            return currentSlotStart < aptEnd && currentSlotEnd > aptStart;
+          });
+
           if (!isBooked) hasAvailable = true;
-          daySlots.push({ time: timeString, available: !isBooked });
+          daySlots.push({ time: currentSlotStart.toISOString(), available: !isBooked });
         }
-        current.setMinutes(current.getMinutes() + slotDuration);
+        current.setMinutes(current.getMinutes() + configuredSlotDuration);
       }
     }
 
@@ -520,7 +525,7 @@ export const getDoctorSlots = async (doctorId: string, daysParam: number = 10) =
       const slotEnd = new Date(currentDay);
       slotEnd.setHours(fallbackEnd, 0, 0, 0);
       if (d === 0 && slotStart < now) {
-        const msPerSlot = slotDuration * 60 * 1000;
+        const msPerSlot = configuredSlotDuration * 60 * 1000;
         slotStart = new Date(Math.ceil(now.getTime() / msPerSlot) * msPerSlot);
         slotStart.setSeconds(0, 0);
       }
@@ -528,10 +533,19 @@ export const getDoctorSlots = async (doctorId: string, daysParam: number = 10) =
       let cur = new Date(slotStart);
       while (cur < slotEnd && cur >= now) {
         cur.setSeconds(0, 0);
-        const timeString = cur.toISOString();
-        const isBooked = bookedStrings.has(timeString);
-        daySlots.push({ time: timeString, available: !isBooked });
-        cur.setMinutes(cur.getMinutes() + slotDuration);
+        const currentSlotStart = new Date(cur);
+        const currentSlotEnd = new Date(cur.getTime() + configuredSlotDuration * 60000);
+
+        // Check for collision with any existing appointment in fallback mode too
+        const isBooked = existingAppointments.some(apt => {
+          const aptStart = new Date(apt.scheduledAt);
+          const aptDuration = apt.duration || 30;
+          const aptEnd = new Date(aptStart.getTime() + aptDuration * 60000);
+          return currentSlotStart < aptEnd && currentSlotEnd > aptStart;
+        });
+
+        daySlots.push({ time: cur.toISOString(), available: !isBooked });
+        cur.setMinutes(cur.getMinutes() + configuredSlotDuration);
       }
       if (daySlots.length > 0) {
         result.push({

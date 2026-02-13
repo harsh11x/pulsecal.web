@@ -4,9 +4,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import SecuritySettings from "@/components/dashboard/settings/SecuritySettings"
 import AccountSettings from "@/components/dashboard/settings/AccountSettings"
 import NotificationSettings from "@/components/dashboard/settings/NotificationSettings"
-import { Settings, Shield, Bell, User } from "lucide-react"
+import ClinicManager from "@/components/dashboard/ClinicManager"
+import { Settings, Shield, Bell, User, Building2 } from "lucide-react"
+import { useAppSelector } from "@/app/hooks"
 
 export default function SettingsPage() {
+    const user = useAppSelector((state) => state.auth.user)
+    // Only admins or head doctors (who can manage subscription) can edit clinic
+    const canEditClinic = user?.role === "admin" || (user?.role === "doctor" && (user as any)?.canManageSubscription !== false)
     return (
         <div className="space-y-6">
             <div className="flex items-center gap-2">
@@ -18,7 +23,7 @@ export default function SettingsPage() {
             </div>
 
             <Tabs defaultValue="account" className="space-y-4">
-                <TabsList className="grid w-full grid-cols-3 lg:w-[400px]">
+                <TabsList className="grid w-full grid-cols-4 lg:w-[500px]">
                     <TabsTrigger value="account" className="gap-2">
                         <User className="h-4 w-4" />
                         Account
@@ -31,6 +36,12 @@ export default function SettingsPage() {
                         <Bell className="h-4 w-4" />
                         Notifications
                     </TabsTrigger>
+                    {canEditClinic && (
+                        <TabsTrigger value="clinic" className="gap-2">
+                            <Building2 className="h-4 w-4" />
+                            Clinic
+                        </TabsTrigger>
+                    )}
                 </TabsList>
 
                 <TabsContent value="account">
@@ -44,6 +55,18 @@ export default function SettingsPage() {
                 <TabsContent value="notifications">
                     <NotificationSettings />
                 </TabsContent>
+
+                {canEditClinic && (
+                    <TabsContent value="clinic">
+                        <div className="space-y-6">
+                            <div>
+                                <h2 className="text-xl font-semibold">Clinic Information</h2>
+                                <p className="text-muted-foreground">Manage your clinic's public details</p>
+                            </div>
+                            <ClinicManager clinicId={user?.clinicId || ""} />
+                        </div>
+                    </TabsContent>
+                )}
             </Tabs>
         </div>
     )

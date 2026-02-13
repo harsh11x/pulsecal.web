@@ -134,21 +134,38 @@ export const getQueueStatus = async (clinicId?: string) => {
     },
     select: {
       patientId: true,
+      doctorId: true,
       scheduledAt: true,
     },
   });
 
-  // Map appointment times to a lookup object
+  // Map appointment times to a lookup object using composite key
   const appointmentTimeMap = new Map<string, string>();
   queueAppointments.forEach(apt => {
-    appointmentTimeMap.set(apt.patientId, apt.scheduledAt.toISOString());
+    // Key by patient_doctor to handle multiple appointments for different doctors
+    const key = `${apt.patientId}_${apt.doctorId}`;
+    appointmentTimeMap.set(key, apt.scheduledAt.toISOString());
   });
 
   // Attach appointmentTime to queue entries
-  const queueEntriesWithTime = queueEntries.map(entry => ({
-    ...entry,
-    appointmentTime: appointmentTimeMap.get(entry.patientId) || undefined,
-  }));
+  const queueEntriesWithTime = queueEntries.map(entry => {
+    const key = `${entry.patientId}_${entry.doctorId}`;
+    // Fallback to searching just by patientId if doctorId is missing (unlikely)
+    // or if exact match not found (e.g. mismatched doctor assignment?)
+    let time = appointmentTimeMap.get(key);
+
+    // If exact patient-doctor match fails, try finding ANY appointment for this patient 
+    // (fallback for edge cases where doctorId might be null in queue but present in appointment or vice versa)
+    if (!time) {
+      const fallbackApt = queueAppointments.find(apt => apt.patientId === entry.patientId);
+      if (fallbackApt) time = fallbackApt.scheduledAt.toISOString();
+    }
+
+    return {
+      ...entry,
+      appointmentTime: time,
+    };
+  });
 
   // 2. Fetch Scheduled Appointments for Today (that are NOT in queue)
   const appointmentWhere: any = {
