@@ -190,269 +190,271 @@ export const getDoctorAnalytics = async (
 
     const now = new Date();
     let startDate: Date;
-    let endDate: Date = now;
+    // Set endDate to the end of today (23:59:59.999) instead of just 'now'
+    // This ensure appointments scheduled for later today are included in metrics
+    let endDate: Date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
-  if (period === 'custom' && customStartDate && customEndDate) {
-    startDate = new Date(customStartDate);
-    endDate = new Date(customEndDate);
-  } else {
-    switch (period) {
-      case 'day':
-        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        break;
-      case 'week':
-        startDate = new Date(now);
-        startDate.setDate(now.getDate() - 7);
-        break;
-      case 'month':
-        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-        break;
-      case '3months':
-        startDate = new Date(now);
-        startDate.setMonth(now.getMonth() - 3);
-        break;
-      case 'year':
-        startDate = new Date(now.getFullYear(), 0, 1);
-        break;
-      default:
-        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (period === 'custom' && customStartDate && customEndDate) {
+      startDate = new Date(customStartDate);
+      endDate = new Date(customEndDate);
+    } else {
+      switch (period) {
+        case 'day':
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          break;
+        case 'week':
+          startDate = new Date(now);
+          startDate.setDate(now.getDate() - 7);
+          break;
+        case 'month':
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          break;
+        case '3months':
+          startDate = new Date(now);
+          startDate.setMonth(now.getMonth() - 3);
+          break;
+        case 'year':
+          startDate = new Date(now.getFullYear(), 0, 1);
+          break;
+        default:
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      }
     }
-  }
 
-  // Get appointments for the selected period
-  const appointments = await prisma.appointment.findMany({
-    where: {
-      doctorId,
-      scheduledAt: {
-        gte: startDate,
-        lte: endDate
-      },
-      deletedAt: null,
-    },
-    include: {
-      patient: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-        },
-      },
-    },
-  });
-
-  // Calculate metrics - exclude CANCELLED from appointment counts
-  const nonCancelledStatuses = ['SCHEDULED', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'NO_SHOW', 'RESCHEDULED'];
-  const todayAppointments = appointments.filter(apt => {
-    const aptDate = new Date(apt.scheduledAt);
-    return aptDate.toDateString() === now.toDateString() && nonCancelledStatuses.includes(apt.status);
-  }).length;
-
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  
-  // Parallelize secondary queries
-  const weekStart = new Date(now);
-  weekStart.setDate(weekStart.getDate() - 7);
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const todayEnd = new Date(todayStart);
-  todayEnd.setDate(todayEnd.getDate() + 1);
-  const yesterdayStart = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
-
-  const [
-    yesterdayAppointments,
-    weekAppointments,
-    monthAppointments,
-    yesterdayStats,
-    allConsultationPayments
-  ] = await Promise.all([
-    // Yesterday's appointment count (exclude CANCELLED)
-    prisma.appointment.count({
+    // Get appointments for the selected period
+    const appointments = await prisma.appointment.findMany({
       where: {
         doctorId,
         scheduledAt: {
-          gte: yesterdayStart,
-          lt: todayStart,
+          gte: startDate,
+          lte: endDate
         },
         deletedAt: null,
-        status: { not: 'CANCELLED' },
       },
-    }),
-    // Week appointments (include scheduledAt for chart breakdown)
-    prisma.appointment.findMany({
-        where: { doctorId, scheduledAt: { gte: weekStart, lte: now }, deletedAt: null },
-        select: { id: true, status: true, scheduledAt: true }
-    }),
-    // Month appointments
-    prisma.appointment.findMany({
-        where: { doctorId, scheduledAt: { gte: monthStart, lte: now }, deletedAt: null },
-        select: { id: true, status: true }
-    }),
-    // Yesterday stats (completed count, cancellation count)
-    prisma.appointment.findMany({
+      include: {
+        patient: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    // Calculate metrics - exclude CANCELLED from appointment counts
+    const nonCancelledStatuses = ['SCHEDULED', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'NO_SHOW', 'RESCHEDULED'];
+    const todayAppointments = appointments.filter(apt => {
+      const aptDate = new Date(apt.scheduledAt);
+      return aptDate.toDateString() === now.toDateString() && nonCancelledStatuses.includes(apt.status);
+    }).length;
+
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    // Parallelize secondary queries
+    const weekStart = new Date(now);
+    weekStart.setDate(weekStart.getDate() - 7);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayEnd = new Date(todayStart);
+    todayEnd.setDate(todayEnd.getDate() + 1);
+    const yesterdayStart = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
+
+    const [
+      yesterdayAppointments,
+      weekAppointments,
+      monthAppointments,
+      yesterdayStats,
+      allConsultationPayments
+    ] = await Promise.all([
+      // Yesterday's appointment count (exclude CANCELLED)
+      prisma.appointment.count({
         where: {
-            doctorId,
-            scheduledAt: { gte: yesterdayStart, lt: todayStart },
-            deletedAt: null
+          doctorId,
+          scheduledAt: {
+            gte: yesterdayStart,
+            lt: todayStart,
+          },
+          deletedAt: null,
+          status: { not: 'CANCELLED' },
+        },
+      }),
+      // Week appointments (include scheduledAt for chart breakdown)
+      prisma.appointment.findMany({
+        where: { doctorId, scheduledAt: { gte: weekStart, lte: endDate }, deletedAt: null },
+        select: { id: true, status: true, scheduledAt: true }
+      }),
+      // Month appointments
+      prisma.appointment.findMany({
+        where: { doctorId, scheduledAt: { gte: monthStart, lte: endDate }, deletedAt: null },
+        select: { id: true, status: true }
+      }),
+      // Yesterday stats (completed count, cancellation count)
+      prisma.appointment.findMany({
+        where: {
+          doctorId,
+          scheduledAt: { gte: yesterdayStart, lt: todayStart },
+          deletedAt: null
         },
         select: { status: true }
-    }),
-    // All COMPLETED payments for this doctor (exclude subscription in JS to avoid Prisma nullable filter issues)
-    prisma.payment.findMany({
-      where: {
-        doctorId,
-        status: 'COMPLETED',
-        deletedAt: null,
-      },
-      select: { amount: true, paidAt: true, createdAt: true, description: true }
-    })
-  ]);
+      }),
+      // All COMPLETED payments for this doctor (exclude subscription in JS to avoid Prisma nullable filter issues)
+      prisma.payment.findMany({
+        where: {
+          doctorId,
+          status: 'COMPLETED',
+          deletedAt: null,
+        },
+        select: { amount: true, paidAt: true, createdAt: true, description: true }
+      })
+    ]);
 
 
-  const todayCompletedCount = appointments.filter(apt => {
-    const aptDate = new Date(apt.scheduledAt);
-    return aptDate.toDateString() === now.toDateString() && apt.status === 'COMPLETED';
-  }).length;
+    const todayCompletedCount = appointments.filter(apt => {
+      const aptDate = new Date(apt.scheduledAt);
+      return aptDate.toDateString() === now.toDateString() && apt.status === 'COMPLETED';
+    }).length;
 
-  const yesterdayCompletedCount = yesterdayStats.filter(a => a.status === 'COMPLETED').length;
-  const yesterdayCancellations = yesterdayStats.filter(a => a.status === 'CANCELLED').length;
+    const yesterdayCompletedCount = yesterdayStats.filter(a => a.status === 'COMPLETED').length;
+    const yesterdayCancellations = yesterdayStats.filter(a => a.status === 'CANCELLED').length;
 
-  const weekCompletedCount = weekAppointments.filter(apt => apt.status === 'COMPLETED').length;
-  const monthCompletedCount = monthAppointments.filter(apt => apt.status === 'COMPLETED').length;
-  const weekCancellations = weekAppointments.filter(apt => apt.status === 'CANCELLED').length;
-  const monthCancellations = monthAppointments.filter(apt => apt.status === 'CANCELLED').length;
+    const weekCompletedCount = weekAppointments.filter(apt => apt.status === 'COMPLETED').length;
+    const monthCompletedCount = monthAppointments.filter(apt => apt.status === 'COMPLETED').length;
+    const weekCancellations = weekAppointments.filter(apt => apt.status === 'CANCELLED').length;
+    const monthCancellations = monthAppointments.filter(apt => apt.status === 'CANCELLED').length;
 
-  const getPaidDate = (p: { paidAt: Date | null; createdAt: Date }) => p.paidAt ? new Date(p.paidAt) : new Date(p.createdAt);
-  const payments = allConsultationPayments.filter((p: { description?: string | null }) => !isSubscriptionPayment(p));
+    const getPaidDate = (p: { paidAt: Date | null; createdAt: Date }) => p.paidAt ? new Date(p.paidAt) : new Date(p.createdAt);
+    const payments = allConsultationPayments.filter((p: { description?: string | null }) => !isSubscriptionPayment(p));
 
-  const todayRevenue = payments
-    .filter(p => {
-      const d = getPaidDate(p);
-      return d >= todayStart && d < todayEnd;
-    })
-    .reduce((sum, p) => sum + Number(p.amount), 0);
+    const todayRevenue = payments
+      .filter(p => {
+        const d = getPaidDate(p);
+        return d >= todayStart && d < todayEnd;
+      })
+      .reduce((sum, p) => sum + Number(p.amount), 0);
 
-  const yesterdayRevenue = payments
-    .filter(p => {
-      const d = getPaidDate(p);
-      return d >= yesterdayStart && d < todayStart;
-    })
-    .reduce((sum, p) => sum + Number(p.amount), 0);
+    const yesterdayRevenue = payments
+      .filter(p => {
+        const d = getPaidDate(p);
+        return d >= yesterdayStart && d < todayStart;
+      })
+      .reduce((sum, p) => sum + Number(p.amount), 0);
 
-  const weekRevenue = payments
-    .filter(p => {
-      const d = getPaidDate(p);
-      return d >= weekStart && d <= now;
-    })
-    .reduce((sum, p) => sum + Number(p.amount), 0);
+    const weekRevenue = payments
+      .filter(p => {
+        const d = getPaidDate(p);
+        return d >= weekStart && d <= now;
+      })
+      .reduce((sum, p) => sum + Number(p.amount), 0);
 
-  const monthRevenue = payments
-    .filter(p => {
-      const d = getPaidDate(p);
-      return d >= monthStart && d <= now;
-    })
-    .reduce((sum, p) => sum + Number(p.amount), 0);
+    const monthRevenue = payments
+      .filter(p => {
+        const d = getPaidDate(p);
+        return d >= monthStart && d <= now;
+      })
+      .reduce((sum, p) => sum + Number(p.amount), 0);
 
-  const yearStart = new Date(now.getFullYear(), 0, 1);
-  const yearRevenue = payments
-    .filter(p => {
-      const d = getPaidDate(p);
-      return d >= yearStart && d <= now;
-    })
-    .reduce((sum, p) => sum + Number(p.amount), 0);
+    const yearStart = new Date(now.getFullYear(), 0, 1);
+    const yearRevenue = payments
+      .filter(p => {
+        const d = getPaidDate(p);
+        return d >= yearStart && d <= now;
+      })
+      .reduce((sum, p) => sum + Number(p.amount), 0);
 
-  // Cancellation rate - use month-wide data for meaningful metric
-  const monthTotal = monthAppointments.length;
-  const monthCancelled = monthCancellations;
-  const cancellationRate = monthTotal > 0
-    ? (monthCancelled / monthTotal) * 100
-    : 0;
+    // Cancellation rate - use month-wide data for meaningful metric
+    const monthTotal = monthAppointments.length;
+    const monthCancelled = monthCancellations;
+    const cancellationRate = monthTotal > 0
+      ? (monthCancelled / monthTotal) * 100
+      : 0;
 
-  // Get reviews
-  const { totalReviews, averageRating, recentReviews } = await getDoctorReviews(doctorId);
+    // Get reviews
+    const { totalReviews, averageRating, recentReviews } = await getDoctorReviews(doctorId);
 
-  // Revenue trends by day/week/month - use 'week' for better dashboard defaults
-  const trendPeriod = period === 'day' ? 'week' : period;
-  const revenueTrends = await getRevenueTrends(doctorId, trendPeriod, period === 'day' ? new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) : startDate);
+    // Revenue trends by day/week/month - use 'week' for better dashboard defaults
+    const trendPeriod = period === 'day' ? 'week' : period;
+    const revenueTrends = await getRevenueTrends(doctorId, trendPeriod, period === 'day' ? new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) : startDate);
 
-  // Patient growth - use month for meaningful data (growth only supports month/3months/year)
-  const growthPeriod = ['day', 'week'].includes(period) ? 'month' : period;
-  const patientGrowth = await getPatientGrowth(doctorId, growthPeriod, new Date(now.getFullYear(), now.getMonth() - 2, 1));
+    // Patient growth - use month for meaningful data (growth only supports month/3months/year)
+    const growthPeriod = ['day', 'week'].includes(period) ? 'month' : period;
+    const patientGrowth = await getPatientGrowth(doctorId, growthPeriod, new Date(now.getFullYear(), now.getMonth() - 2, 1));
 
-  // Build revenueData with appointment counts per day (for charts)
-  const appointmentsByDay = new Map<string, number>();
-  weekAppointments.forEach((apt: { scheduledAt: Date }) => {
-    const d = new Date(apt.scheduledAt).toISOString().split('T')[0];
-    appointmentsByDay.set(d, (appointmentsByDay.get(d) || 0) + 1);
-  });
+    // Build revenueData with appointment counts per day (for charts)
+    const appointmentsByDay = new Map<string, number>();
+    weekAppointments.forEach((apt: { scheduledAt: Date }) => {
+      const d = new Date(apt.scheduledAt).toISOString().split('T')[0];
+      appointmentsByDay.set(d, (appointmentsByDay.get(d) || 0) + 1);
+    });
 
-  const revenueDataFormatted = revenueTrends.map(t => {
-    const d = new Date(t.date);
-    const dateKey = d.toISOString().split('T')[0];
-    const displayDate = period === 'day'
-      ? d.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true })
-      : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    return {
-      date: displayDate,
-      dateKey,
-      revenue: t.revenue,
-      appointments: appointmentsByDay.get(dateKey) || 0,
-    };
-  });
-
-  const patientGrowthFormatted = patientGrowth.map(g => {
-    const d = new Date(g.date);
-    return {
-      month: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
-      patients: g.totalPatients,
-      newPatients: g.newPatients,
-    };
-  });
-
-  return {
-    today: {
-      appointments: todayAppointments,
-      revenue: Number(todayRevenue.toFixed(2)),
-      patients: todayCompletedCount,
-      cancellations: appointments.filter(apt => apt.status === 'CANCELLED' && new Date(apt.scheduledAt).toDateString() === now.toDateString()).length,
-    },
-    yesterday: {
-      appointments: yesterdayAppointments,
-      revenue: Number(yesterdayRevenue.toFixed(2)),
-      patients: yesterdayCompletedCount,
-      cancellations: yesterdayCancellations,
-    },
-    thisWeek: {
-      appointments: weekAppointments.length,
-      revenue: Number(weekRevenue.toFixed(2)),
-      patients: weekCompletedCount,
-      cancellations: weekCancellations,
-    },
-    thisMonth: {
-      appointments: monthAppointments.length,
-      revenue: Number(monthRevenue.toFixed(2)),
-      patients: monthCompletedCount,
-      cancellations: monthCancellations,
-    },
-    thisYear: period === 'year' ? (() => {
-      const yearAppointments = appointments.filter(apt => apt.scheduledAt >= yearStart && apt.scheduledAt <= now);
+    const revenueDataFormatted = revenueTrends.map(t => {
+      const d = new Date(t.date);
+      const dateKey = d.toISOString().split('T')[0];
+      const displayDate = period === 'day'
+        ? d.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true })
+        : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       return {
-        appointments: yearAppointments.length,
-        revenue: Number(yearRevenue.toFixed(2)),
-        patients: yearAppointments.filter(apt => apt.status === 'COMPLETED').length,
-        cancellations: yearAppointments.filter(apt => apt.status === 'CANCELLED').length,
+        date: displayDate,
+        dateKey,
+        revenue: t.revenue,
+        appointments: appointmentsByDay.get(dateKey) || 0,
       };
-    })() : undefined,
-    revenueData: revenueDataFormatted,
-    patientGrowth: patientGrowthFormatted,
-    cancellationRate: Number(cancellationRate.toFixed(2)),
-    reviews: {
-      total: totalReviews,
-      averageRating: Number(averageRating.toFixed(1)),
-      recent: recentReviews
-    }
-  };
+    });
+
+    const patientGrowthFormatted = patientGrowth.map(g => {
+      const d = new Date(g.date);
+      return {
+        month: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+        patients: g.totalPatients,
+        newPatients: g.newPatients,
+      };
+    });
+
+    return {
+      today: {
+        appointments: todayAppointments,
+        revenue: Number(todayRevenue.toFixed(2)),
+        patients: todayCompletedCount,
+        cancellations: appointments.filter(apt => apt.status === 'CANCELLED' && new Date(apt.scheduledAt).toDateString() === now.toDateString()).length,
+      },
+      yesterday: {
+        appointments: yesterdayAppointments,
+        revenue: Number(yesterdayRevenue.toFixed(2)),
+        patients: yesterdayCompletedCount,
+        cancellations: yesterdayCancellations,
+      },
+      thisWeek: {
+        appointments: weekAppointments.length,
+        revenue: Number(weekRevenue.toFixed(2)),
+        patients: weekCompletedCount,
+        cancellations: weekCancellations,
+      },
+      thisMonth: {
+        appointments: monthAppointments.length,
+        revenue: Number(monthRevenue.toFixed(2)),
+        patients: monthCompletedCount,
+        cancellations: monthCancellations,
+      },
+      thisYear: period === 'year' ? (() => {
+        const yearAppointments = appointments.filter(apt => apt.scheduledAt >= yearStart && apt.scheduledAt <= now);
+        return {
+          appointments: yearAppointments.length,
+          revenue: Number(yearRevenue.toFixed(2)),
+          patients: yearAppointments.filter(apt => apt.status === 'COMPLETED').length,
+          cancellations: yearAppointments.filter(apt => apt.status === 'CANCELLED').length,
+        };
+      })() : undefined,
+      revenueData: revenueDataFormatted,
+      patientGrowth: patientGrowthFormatted,
+      cancellationRate: Number(cancellationRate.toFixed(2)),
+      reviews: {
+        total: totalReviews,
+        averageRating: Number(averageRating.toFixed(1)),
+        recent: recentReviews
+      }
+    };
   } catch (error: any) {
     console.error('Error in getDoctorAnalytics:', error.message, error.stack);
     throw error;
@@ -490,18 +492,18 @@ export const getFinancialReports = async (
 
   const dailyBreakdown = type === 'daily'
     ? revenueData.map((r: any) => ({
-        date: new Date(r.date).toISOString().split('T')[0],
-        revenue: r.revenue || 0,
-        appointments: 0,
-      }))
+      date: new Date(r.date).toISOString().split('T')[0],
+      revenue: r.revenue || 0,
+      appointments: 0,
+    }))
     : undefined;
 
   const monthlyBreakdown = (type === 'monthly' || type === 'yearly')
     ? revenueData.map((r: any) => ({
-        month: new Date(r.date).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
-        revenue: r.revenue || 0,
-        appointments: 0,
-      }))
+      month: new Date(r.date).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+      revenue: r.revenue || 0,
+      appointments: 0,
+    }))
     : undefined;
 
   return {

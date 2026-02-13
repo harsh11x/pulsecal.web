@@ -157,7 +157,7 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
       // Fetch analytics and appointments in parallel so one failure doesn't block the other
       const [analyticsRes, appointmentsRes] = await Promise.allSettled([
         apiService.get("/doctors/analytics?period=week"),
-        apiService.get("/appointments?date=today"),
+        apiService.get("/appointments?date=today&limit=100"),
       ])
 
       const analyticsFulfilled = analyticsRes.status === "fulfilled"
