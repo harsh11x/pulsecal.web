@@ -7,7 +7,7 @@ import { GetStartedAction } from "@/components/landing/GetStartedAction"
 import { AuthModal } from "@/components/auth/AuthModal"
 import { Button } from "@/components/ui/button"
 import { PLANS, PLAN_AMOUNTS, SUBSCRIPTION_DURATIONS } from "@/lib/planConfig"
-import { CheckCircle2, User, Stethoscope, Users, Building2, Shield, Calendar, Video, FileText, MessageSquare, Clock, BarChart, Heart, Activity } from "lucide-react"
+import { CheckCircle2, User, Stethoscope, Users, Building2, Shield, Calendar, Video, FileText, MessageSquare, Clock, BarChart, Heart, Activity, Instagram, Linkedin } from "lucide-react"
 
 export default function Home() {
   const router = useRouter()
@@ -153,11 +153,11 @@ export default function Home() {
               New: Integrated Telehealth Module
             </div>
             <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-navy-deep mb-6 leading-tight animate-in fade-in slide-in-from-bottom-6 duration-700 text-balance">
-              Orchestrating Care with <br />
-              <span className="text-gradient">Precision & Empathy.</span>
+              Simple, Connected <br />
+              <span className="text-gradient">Healthcare for Everyone.</span>
             </h1>
             <p className="mt-4 max-w-2xl mx-auto text-lg md:text-xl text-corporate-gray leading-relaxed mb-10 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100 text-balance">
-              PulseCal unifies the healthcare journey. A seamless, secure operating system connecting patients, practitioners, and administrative staff in real-time.
+              PulseCal connects patients, doctors, and staff in one easy-to-use platform. Manage appointments, records, and billing with ease.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center animate-in fade-in slide-in-from-bottom-10 duration-700 delay-200">
               <GetStartedAction
@@ -351,8 +351,8 @@ export default function Home() {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="mb-16 md:text-center max-w-3xl mx-auto">
-            <h2 className="text-3xl md:text-5xl font-bold text-navy-deep mb-4 tracking-tight">Unified Care Management</h2>
-            <p className="text-corporate-gray text-lg md:text-xl">Designed for the complexities of modern healthcare. Three distinct experiences, one cohesive platform.</p>
+            <h2 className="text-3xl md:text-5xl font-bold text-navy-deep mb-4 tracking-tight">All Your Needs in One Place</h2>
+            <p className="text-corporate-gray text-lg md:text-xl">Everything you need to manage healthcare, whether you are a doctor, a patient, or front desk staff.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -435,8 +435,8 @@ export default function Home() {
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                   Security First
                 </div>
-                <h3 className="text-3xl md:text-4xl font-bold text-white mb-4">Enterprise-Grade Security & Compliance</h3>
-                <p className="text-slate-300 text-lg mb-8 leading-relaxed">Built to exceed HIPAA, GDPR, and SOC2 standards. Your patient data is encrypted at rest and in transit with bank-grade protocols.</p>
+                <h3 className="text-3xl md:text-4xl font-bold text-white mb-4">Safe, Secure, and Private</h3>
+                <p className="text-slate-300 text-lg mb-8 leading-relaxed">Your data is safe with us. We use top-tier security to keep your information private and protected.</p>
                 <div className="flex flex-wrap gap-3">
                   {["HIPAA Compliant", "SOC2 Type II", "256-bit Encryption", "GDPR Ready", "Audit Logs"].map(tag => (
                     <span key={tag} className="px-4 py-1.5 bg-white/10 hover:bg-white/20 rounded-full text-sm text-white border border-white/10 backdrop-blur-sm transition-colors cursor-default">{tag}</span>
@@ -459,7 +459,7 @@ export default function Home() {
         <div className="mx-auto max-w-7xl relative z-10">
           <div className="mb-20 text-center max-w-3xl mx-auto">
             <h2 className="mb-6 text-4xl font-bold tracking-tight text-navy-deep lg:text-5xl">
-              Why healthcare providers choose <span className="text-medical-blue">PulseCal</span>
+              Why Choose <span className="text-medical-blue">PulseCal?</span>
             </h2>
           </div>
 
@@ -489,7 +489,7 @@ export default function Home() {
         <div className="mx-auto max-w-7xl relative z-10">
           <div className="mb-16 text-center">
             <h2 className="mb-6 text-4xl font-bold tracking-tight text-navy-deep lg:text-6xl">
-              Simple, transparent pricing
+              Fair and Simple Pricing
             </h2>
             <p className="mx-auto max-w-2xl text-pretty text-xl text-corporate-gray leading-relaxed mb-10">
               Choose the plan that fits your practice. No hidden fees.
@@ -601,10 +601,10 @@ export default function Home() {
       <section className="bg-white px-4 py-20">
         <div className="mx-auto max-w-4xl text-center">
           <h2 className="mb-6 text-balance text-4xl font-bold tracking-tight text-navy-deep lg:text-5xl">
-            Modernize your practice today.
+            Get Started Today.
           </h2>
           <p className="mb-8 text-pretty text-xl text-corporate-gray leading-relaxed">
-            Join over 850 healthcare organizations delivering better outcomes with PulseCal.
+            Join hundreds of healthcare providers helping patients every day.
           </p>
           <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
             <GetStartedAction
@@ -627,6 +627,14 @@ export default function Home() {
               <p className="text-slate-500 text-sm max-w-xs mb-6 leading-relaxed">
                 The complete operating system for modern healthcare providers. Streamlining operations so you can focus on care.
               </p>
+              <div className="flex gap-4 mt-6">
+                <a href="https://www.instagram.com/pulsecalofficial?igsh=MWVyZG5xMjJybnVhZw%3D%3D&utm_source=qr" target="_blank" rel="noopener noreferrer" className="bg-white p-2 rounded-full shadow-sm hover:shadow-md hover:scale-110 transition-all text-pink-600">
+                  <Instagram className="w-5 h-5" />
+                </a>
+                <a href="https://www.linkedin.com/company/pulsecal" target="_blank" rel="noopener noreferrer" className="bg-white p-2 rounded-full shadow-sm hover:shadow-md hover:scale-110 transition-all text-blue-700">
+                  <Linkedin className="w-5 h-5" />
+                </a>
+              </div>
             </div>
             <div>
               <h4 className="text-navy-deep font-semibold mb-4">Product</h4>
