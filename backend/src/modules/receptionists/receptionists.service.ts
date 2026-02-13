@@ -118,6 +118,38 @@ export const getQueueStatus = async (clinicId?: string) => {
     },
   });
 
+  // Fetch appointments for these queue entries to get the time
+  // This fixes the issue where checked-in patients don't show time on dashboard
+  const patientIdsInQueue = queueEntries.map(q => q.patientId);
+  const queueAppointments = await prisma.appointment.findMany({
+    where: {
+      patientId: { in: patientIdsInQueue },
+      scheduledAt: {
+        gte: startOfDay,
+        lte: endOfDay,
+      },
+      status: {
+        in: ['CHECKED_IN', 'IN_PROGRESS', 'COMPLETED', 'CONFIRMED'], // Statuses relevant to queue
+      },
+    },
+    select: {
+      patientId: true,
+      scheduledAt: true,
+    },
+  });
+
+  // Map appointment times to a lookup object
+  const appointmentTimeMap = new Map<string, string>();
+  queueAppointments.forEach(apt => {
+    appointmentTimeMap.set(apt.patientId, apt.scheduledAt.toISOString());
+  });
+
+  // Attach appointmentTime to queue entries
+  const queueEntriesWithTime = queueEntries.map(entry => ({
+    ...entry,
+    appointmentTime: appointmentTimeMap.get(entry.patientId) || undefined,
+  }));
+
   // 2. Fetch Scheduled Appointments for Today (that are NOT in queue)
   const appointmentWhere: any = {
     scheduledAt: {
@@ -187,7 +219,7 @@ export const getQueueStatus = async (clinicId?: string) => {
 
   // Combine: Real Queue First, then Scheduled "Virtual" Queue
   // We map virtual entries to match QueueEntry type (mostly)
-  return [...queueEntries, ...virtualQueueEntries];
+  return [...queueEntriesWithTime, ...virtualQueueEntries];
 };
 
 /**
