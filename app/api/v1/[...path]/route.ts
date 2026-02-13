@@ -15,7 +15,7 @@ async function handleProxy(request: NextRequest, pathArray: string[]) {
             ? base.replace(/\/+$/, '')
             : `${base}/api/v1`;
     const targetUrl = `${baseWithApi}/${path}${searchParams}`;
-    
+
     try {
         // Forward headers (don’t force JSON; allow multipart, etc.)
         const headers: HeadersInit = {};
@@ -52,15 +52,23 @@ async function handleProxy(request: NextRequest, pathArray: string[]) {
                 'X-Proxy-Target': targetUrl,
             },
         });
-        
+
     } catch (error: any) {
         console.error('[API Proxy Error]', error.message);
+        console.error('[API Proxy Details]', {
+            path,
+            targetUrl,
+            errorName: error.name,
+            cause: error.cause
+        });
+
         return NextResponse.json(
-            { 
-                success: false, 
+            {
+                success: false,
                 message: `Backend connection failed: ${error.message}`,
                 path,
                 targetUrl,
+                timestamp: new Date().toISOString()
             },
             { status: 502 }
         );
