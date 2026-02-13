@@ -181,7 +181,7 @@ export const getQueueStatus = async (clinicId?: string) => {
       createdAt: apt.createdAt,
       updatedAt: apt.updatedAt,
       patient: apt.patient,
-      appointmentTime: new Date(apt.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      appointmentTime: apt.scheduledAt.toISOString(),
       isVirtual: true // Marker for debugging/frontend if needed (though not in type)
     }));
 

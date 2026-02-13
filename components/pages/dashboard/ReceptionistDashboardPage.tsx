@@ -447,7 +447,19 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
                                 <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs text-muted-foreground">
                                   <span className="flex items-center gap-1">
                                     <Clock className="h-3 w-3 flex-shrink-0" />
-                                    {entry.appointmentTime}
+                                    {(() => {
+                                      try {
+                                        // Handle both ISO strings (from backend fix) and pre-formatted strings (legacy/queue entries)
+                                        // If it's a valid date string, format it locally. If not, display as is.
+                                        const date = new Date(entry.appointmentTime!)
+                                        if (!isNaN(date.getTime())) {
+                                          return format(date, "h:mm a")
+                                        }
+                                        return entry.appointmentTime
+                                      } catch (e) {
+                                        return entry.appointmentTime
+                                      }
+                                    })()}
                                   </span>
                                   {entry.phone && (
                                     <span className="flex items-center gap-1 truncate">
