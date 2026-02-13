@@ -127,8 +127,10 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
 
   const fetchDashboardData = async () => {
     try {
+      const localDate = format(new Date(), "yyyy-MM-dd")
+
       // Fetch receptionist stats (clinic-scoped) - single source for counts
-      const statsResponse: any = await apiService.get("/receptionists/stats")
+      const statsResponse: any = await apiService.get(`/receptionists/stats?date=${localDate}`)
       if (statsResponse?.stats) {
         const s = statsResponse.stats
         setTodayStats({
@@ -158,7 +160,7 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
       setQueue(mapped)
 
       // Fetch today's appointments (clinic-scoped by backend)
-      const todayResponse: any = await apiService.get("/appointments?date=today")
+      const todayResponse: any = await apiService.get(`/appointments?date=${localDate}`)
       const todayApts = todayResponse?.appointments ?? todayResponse
       setTodayAppointments(Array.isArray(todayApts) ? todayApts : [])
 

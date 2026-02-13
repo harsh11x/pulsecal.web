@@ -38,34 +38,34 @@ export const updateScheduleController = async (
 
     // Update workingHours
     const currentWorkingHours = (profile.workingHours as any) || {};
-    
+
     // Determine day of week from date
     const dateObj = new Date(date);
     const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     const dayName = days[dateObj.getDay()];
 
     const updatedData = {
-        ...currentWorkingHours,
-        [dayName]: {
-            start: workingHours.start,
-            end: workingHours.end,
-            isOpen: true
-        },
-        exceptions: {
-            ...(currentWorkingHours.exceptions || {}),
-            [date]: blockedSlots || []
-        },
-        defaultSettings: {
-            workingHours,
-            slotDuration: slotDuration || 30
-        }
+      ...currentWorkingHours,
+      [dayName]: {
+        start: workingHours.start,
+        end: workingHours.end,
+        isOpen: true
+      },
+      exceptions: {
+        ...(currentWorkingHours.exceptions || {}),
+        [date]: blockedSlots || []
+      },
+      defaultSettings: {
+        workingHours,
+        slotDuration: slotDuration || 30
+      }
     };
 
     await prisma.doctorProfile.update({
-        where: { userId },
-        data: {
-            workingHours: updatedData
-        }
+      where: { userId },
+      data: {
+        workingHours: updatedData
+      }
     });
 
     logger.info({ userId }, 'Schedule updated successfully');
@@ -154,7 +154,7 @@ export const getDoctorAvailabilityController = async (
     }
     const { date } = req.query;
     const dateObj = date ? new Date(date as string) : new Date();
-    
+
     logger.info({ doctorId, date }, 'Fetching doctor availability');
     const availability = await getDoctorAvailability(doctorId, dateObj);
     sendSuccess(res, availability, 'Availability retrieved successfully');
@@ -250,19 +250,20 @@ export const getDoctorAnalyticsController = async (
     const doctorProfile = await prisma.doctorProfile.findUnique({
       where: { userId: doctorId }
     });
-    
+
     if (!doctorProfile) {
       logger.info({ doctorId }, 'No doctor profile yet, returning empty analytics');
       return sendSuccess(res, emptyAnalytics, 'Analytics retrieved successfully');
     }
-    
+
     const { period, startDate, endDate } = req.query;
 
     const analytics = await getDoctorAnalytics(
       doctorId,
       (period as any) || 'day',
       startDate ? new Date(startDate as string) : undefined,
-      endDate ? new Date(endDate as string) : undefined
+      endDate ? new Date(endDate as string) : undefined,
+      req.query.date as string
     );
 
     logger.info({ doctorId }, 'Analytics retrieved successfully');

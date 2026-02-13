@@ -4,17 +4,18 @@ import { AppError } from '../../middlewares/error.middleware';
 /**
  * Get receptionist dashboard stats - only for their clinic
  */
-export const getReceptionistStats = async (_receptionistId: string, clinicId?: string | null) => {
-  const now = new Date();
-  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const endOfDay = new Date(now);
-  endOfDay.setHours(23, 59, 59, 999);
+export const getReceptionistStats = async (_receptionistId: string, clinicId?: string | null, date?: string | Date) => {
+  const filterDate = date ? (typeof date === 'string' ? new Date(date) : date) : new Date();
+  const startOfDay = new Date(filterDate);
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(startOfDay);
+  endOfDay.setDate(endOfDay.getDate() + 1);
 
   // Only appointments for doctors in this receptionist's clinic
   const where: any = {
     scheduledAt: {
       gte: startOfDay,
-      lte: endOfDay,
+      lt: endOfDay,
     },
     deletedAt: null,
   };

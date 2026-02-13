@@ -181,7 +181,8 @@ export const getDoctorAnalytics = async (
   doctorId: string,
   period: 'day' | 'week' | 'month' | '3months' | 'year' | 'custom' = 'day',
   customStartDate?: Date,
-  customEndDate?: Date
+  customEndDate?: Date,
+  targetDate?: string // New parameter for 'day' period
 ) => {
   try {
     if (!doctorId || typeof doctorId !== 'string') {
@@ -189,10 +190,12 @@ export const getDoctorAnalytics = async (
     }
 
     const now = new Date();
+    // Use targetDate if provided (for 'day' period), otherwise default to current server 'now'
+    const referenceDate = targetDate ? new Date(targetDate) : now;
+
     let startDate: Date;
-    // Set endDate to the end of today (23:59:59.999) instead of just 'now'
-    // This ensure appointments scheduled for later today are included in metrics
-    let endDate: Date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    // Set endDate to the end of referenceDate (23:59:59.999)
+    let endDate: Date = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate(), 23, 59, 59, 999);
 
     if (period === 'custom' && customStartDate && customEndDate) {
       startDate = new Date(customStartDate);
@@ -200,14 +203,14 @@ export const getDoctorAnalytics = async (
     } else {
       switch (period) {
         case 'day':
-          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          startDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate());
           break;
         case 'week':
-          startDate = new Date(now);
-          startDate.setDate(now.getDate() - 7);
+          startDate = new Date(referenceDate);
+          startDate.setDate(referenceDate.getDate() - 7);
           break;
         case 'month':
-          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          startDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1);
           break;
         case '3months':
           startDate = new Date(now);
