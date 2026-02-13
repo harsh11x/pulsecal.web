@@ -33,9 +33,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             <div className="flex-shrink-0 flex items-center gap-2 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-              <div className="w-8 h-8 rounded bg-medical-blue flex items-center justify-center text-white">
-                <span className="material-symbols-outlined text-[20px] font-bold">+</span>
-              </div>
+              <img src="/logo.png" alt="PulseCal Logo" className="h-10 w-10 object-contain" />
               <span className="text-xl font-bold text-navy-deep tracking-tight">PulseCal</span>
             </div>
             <div className="hidden md:block">
@@ -114,9 +112,7 @@ export default function Home() {
                 {/* Sidebar Mockup */}
                 <div className="w-64 bg-white border-r border-slate-200 flex-shrink-0 flex flex-col pt-6 px-4 pb-6 hidden md:flex">
                   <div className="flex items-center gap-3 mb-8 px-2">
-                    <div className="w-8 h-8 rounded bg-medical-blue flex items-center justify-center text-white">
-                      <span className="font-bold text-lg">+</span>
-                    </div>
+                    <img src="/logo.png" alt="PulseCal Logo" className="h-8 w-8 object-contain" />
                     <span className="font-bold text-navy-deep">PulseCal</span>
                   </div>
                   <div className="space-y-1">
@@ -499,9 +495,7 @@ export default function Home() {
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 mb-12">
             <div className="col-span-2 lg:col-span-2">
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-6 h-6 rounded bg-medical-blue flex items-center justify-center text-white">
-                  <span className="text-[16px] font-bold">+</span>
-                </div>
+                <img src="/logo.png" alt="PulseCal Logo" className="h-6 w-6 object-contain" />
                 <span className="text-lg font-bold text-navy-deep">PulseCal</span>
               </div>
               <p className="text-slate-500 text-sm max-w-xs mb-6 leading-relaxed">
