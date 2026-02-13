@@ -137,129 +137,146 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-24 bg-white overflow-hidden">
-        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-[600px] h-[600px] rounded-full bg-medical-light opacity-50 blur-3xl pointer-events-none"></div>
-        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-[400px] h-[400px] rounded-full bg-slate-100 opacity-80 blur-3xl pointer-events-none"></div>
+      <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-24 bg-slate-base overflow-hidden">
+        {/* Animated Background Blobs */}
+        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-[600px] h-[600px] rounded-full bg-medical-light opacity-50 blur-3xl animate-blob"></div>
+        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-[400px] h-[400px] rounded-full bg-blue-100 opacity-60 blur-3xl animate-blob animation-delay-2000"></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-purple-50 opacity-40 blur-3xl animate-blob animation-delay-4000"></div>
+
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center max-w-4xl mx-auto mb-16">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-xs font-semibold text-medical-blue mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <span className="w-1.5 h-1.5 rounded-full bg-medical-blue animate-pulse"></span>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/50 backdrop-blur-sm border border-blue-100 text-xs font-semibold text-medical-blue mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500 shadow-sm hover:shadow-md transition-all cursor-default">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-medical-blue opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-medical-blue"></span>
+              </span>
               New: Integrated Telehealth Module
             </div>
-            <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-navy-deep mb-6 leading-[1.15] animate-in fade-in slide-in-from-bottom-6 duration-700">
+            <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-navy-deep mb-6 leading-tight animate-in fade-in slide-in-from-bottom-6 duration-700 text-balance">
               Orchestrating Care with <br />
-              <span className="bg-gradient-to-r from-medical-blue to-blue-600 bg-clip-text text-transparent">Precision & Empathy.</span>
+              <span className="text-gradient">Precision & Empathy.</span>
             </h1>
-            <p className="mt-4 max-w-2xl mx-auto text-lg text-corporate-gray leading-relaxed mb-10 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
+            <p className="mt-4 max-w-2xl mx-auto text-lg md:text-xl text-corporate-gray leading-relaxed mb-10 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100 text-balance">
               PulseCal unifies the healthcare journey. A seamless, secure operating system connecting patients, practitioners, and administrative staff in real-time.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center animate-in fade-in slide-in-from-bottom-10 duration-700 delay-200">
               <GetStartedAction
-                className="bg-medical-blue hover:bg-blue-700 px-8 py-3.5 rounded-lg text-base font-medium text-white shadow-card transition-all flex items-center justify-center gap-2 h-auto"
+                className="bg-medical-blue hover:bg-blue-700 hover:scale-105 active:scale-95 px-8 py-4 rounded-xl text-base font-bold text-white shadow-lg shadow-medical-blue/25 transition-all flex items-center justify-center gap-2 h-auto"
               />
-              <a className="px-8 py-3.5 rounded-lg text-base font-medium text-navy-deep bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer" href="#how-it-works">
-                <span className="material-symbols-outlined text-medical-blue text-xl">play_circle</span>
+              <a className="px-8 py-4 rounded-xl text-base font-bold text-navy-deep bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 hover:shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer group" href="#how-it-works">
+                <span className="material-symbols-outlined text-medical-blue text-xl group-hover:scale-110 transition-transform">play_circle</span>
                 See How It Works
               </a>
             </div>
           </div>
 
-          {/* Dashboard Preview */}
-          <div className="relative max-w-6xl mx-auto mt-8 animate-in fade-in zoom-in duration-1000">
-            <div className="absolute -inset-2 bg-gradient-to-b from-blue-100/50 to-white rounded-2xl blur-lg opacity-60"></div>
-            <div className="relative bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xl ring-1 ring-black/5">
-              <div className="h-10 bg-slate-50 border-b border-slate-200 flex items-center px-4 gap-2">
+          {/* Dashboard Preview - 3D Floating Effect */}
+          <div className="relative max-w-6xl mx-auto mt-8 animate-in fade-in zoom-in duration-1000 perspective-1000">
+            {/* Glow behind */}
+            <div className="absolute -inset-4 bg-gradient-to-tr from-medical-blue/20 to-purple-500/20 rounded-[2rem] blur-2xl opacity-70 animate-pulse-slow"></div>
+
+            <div className="relative bg-white/90 backdrop-blur-sm border border-white/50 rounded-2xl overflow-hidden shadow-2xl ring-1 ring-black/5 transform-style-3d animate-float hover:rotate-x-2 transition-transform duration-500">
+              <div className="h-10 bg-white/80 border-b border-slate-200/60 flex items-center px-4 gap-2 backdrop-blur-md">
                 <div className="flex gap-1.5">
                   <div className="w-2.5 h-2.5 rounded-full bg-slate-300"></div>
                   <div className="w-2.5 h-2.5 rounded-full bg-slate-300"></div>
                   <div className="w-2.5 h-2.5 rounded-full bg-slate-300"></div>
                 </div>
                 <div className="flex-1 text-center">
-                  <div className="inline-block px-3 py-1 bg-white border border-slate-200 rounded text-[10px] text-slate-400 font-mono">app.pulsecal.health/dashboard</div>
+                  <div className="inline-block px-3 py-1 bg-slate-50/50 border border-slate-200/50 rounded text-[10px] text-slate-400 font-mono">app.pulsecal.health/dashboard</div>
                 </div>
               </div>
 
-              <div className="aspect-[16/9] w-full bg-slate-50 relative flex overflow-hidden">
+              <div className="aspect-[16/9] w-full bg-slate-50/50 relative flex overflow-hidden">
                 {/* Sidebar Mockup */}
-                <div className="w-64 bg-white border-r border-slate-200 flex-shrink-0 flex flex-col pt-6 px-4 pb-6 hidden md:flex">
+                <div className="w-64 bg-white/80 backdrop-blur-sm border-r border-slate-200/60 flex-shrink-0 flex flex-col pt-6 px-4 pb-6 hidden md:flex z-10">
                   <div className="flex items-center gap-3 mb-8 px-2">
                     <img src="/logo.png" alt="PulseCal Logo" className="h-8 w-8 object-contain" />
-                    <span className="font-bold text-navy-deep">PulseCal</span>
+                    <span className="font-bold text-navy-deep text-lg">PulseCal</span>
                   </div>
                   <div className="space-y-1">
-                    <div className="flex items-center gap-3 px-3 py-2 bg-blue-50 text-medical-blue rounded-md text-sm font-medium">
+                    <div className="flex items-center gap-3 px-3 py-2.5 bg-blue-50/80 text-medical-blue rounded-lg text-sm font-semibold shadow-sm">
                       <span className="material-symbols-outlined text-[20px]">dashboard</span>
                       Overview
                     </div>
-                    <div className="flex items-center gap-3 px-3 py-2 text-slate-600 hover:bg-slate-50 rounded-md text-sm font-medium">
-                      <span className="material-symbols-outlined text-[20px]">calendar_month</span>
-                      Appointments
-                    </div>
-                    <div className="flex items-center gap-3 px-3 py-2 text-slate-600 hover:bg-slate-50 rounded-md text-sm font-medium">
-                      <span className="material-symbols-outlined text-[20px]">people</span>
-                      Patients
-                    </div>
-                    <div className="flex items-center gap-3 px-3 py-2 text-slate-600 hover:bg-slate-50 rounded-md text-sm font-medium">
-                      <span className="material-symbols-outlined text-[20px]">description</span>
-                      Records
+                    {["Appointments", "Patients", "Records", "Settings"].map((item, i) => (
+                      <div key={item} className="flex items-center gap-3 px-3 py-2.5 text-slate-500 hover:bg-slate-50 hover:text-slate-800 rounded-lg text-sm font-medium transition-colors cursor-pointer">
+                        <span className="material-symbols-outlined text-[20px]">{["calendar_month", "people", "description", "settings"][i]}</span>
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-auto">
+                    <div className="p-3 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border border-indigo-100">
+                      <div className="text-xs font-semibold text-indigo-900 mb-1">Pro Plan</div>
+                      <div className="text-[10px] text-indigo-700/80 mb-2">Your team is growing fast!</div>
+                      <button className="text-[10px] bg-white text-indigo-600 px-2 py-1 rounded border border-indigo-100 w-full font-medium hover:bg-indigo-50 transition-colors">Upgrade</button>
                     </div>
                   </div>
                 </div>
 
                 {/* Main Content Mockup */}
-                <div className="flex-1 p-8 overflow-hidden">
+                <div className="flex-1 p-8 overflow-hidden relative">
                   <div className="flex justify-between items-center mb-8">
                     <div>
                       <h2 className="text-2xl font-bold text-navy-deep">Dr. Sarah Jenning</h2>
-                      <p className="text-sm text-slate-500">Cardiology Dept • Today's Schedule</p>
+                      <p className="text-sm text-slate-500 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                        Cardiology Dept • Today's Schedule
+                      </p>
                     </div>
-                    <div className="flex gap-3">
-                      <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs">SJ</div>
+                    <div className="flex items-center gap-4">
+                      <button className="p-2 text-slate-400 hover:text-slate-600 transition-colors relative">
+                        <span className="material-symbols-outlined">notifications</span>
+                        <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+                      </button>
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-md ring-2 ring-white">SJ</div>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-12 gap-6">
                     {/* Stat Cards */}
-                    <div className="col-span-4 bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
-                      <div className="text-sm text-slate-500 mb-1">Total Patients</div>
-                      <div className="text-2xl font-bold text-navy-deep">1,248</div>
-                      <div className="text-xs text-green-600 mt-2 flex items-center gap-1">
-                        <span className="text-[14px]">↑</span> +12% this month
+                    {[
+                      { label: "Total Patients", val: "1,248", change: "+12%", trend: "up", color: "green" },
+                      { label: "Today's Appts", val: "42", change: "8 Pending", trend: "neutral", color: "blue" },
+                      { label: "Avg. Wait Time", val: "14m", change: "-2m", trend: "down", color: "green" }
+                    ].map((stat, i) => (
+                      <div key={i} className="col-span-4 bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow group">
+                        <div className="text-sm text-slate-500 mb-1">{stat.label}</div>
+                        <div className="text-2xl font-bold text-navy-deep group-hover:text-medical-blue transition-colors">{stat.val}</div>
+                        <div className={`text-xs mt-2 flex items-center gap-1 ${stat.trend === 'down' || stat.trend === 'up' ? 'text-green-600' : 'text-slate-400'}`}>
+                          {stat.trend === 'up' && "↑"} {stat.trend === 'down' && "↓"} {stat.change}
+                        </div>
                       </div>
-                    </div>
-                    <div className="col-span-4 bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
-                      <div className="text-sm text-slate-500 mb-1">Appointments</div>
-                      <div className="text-2xl font-bold text-navy-deep">42</div>
-                      <div className="text-xs text-slate-400 mt-2">8 Pending confirmation</div>
-                    </div>
-                    <div className="col-span-4 bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
-                      <div className="text-sm text-slate-500 mb-1">Avg. Wait Time</div>
-                      <div className="text-2xl font-bold text-navy-deep">14m</div>
-                      <div className="text-xs text-green-600 mt-2 flex items-center gap-1">
-                        <span className="text-[14px]">↓</span> -2m vs last week
-                      </div>
-                    </div>
+                    ))}
 
                     {/* Schedule List */}
-                    <div className="col-span-8 bg-white border border-slate-200 rounded-lg shadow-sm p-6">
-                      <h3 className="font-semibold text-navy-deep mb-4">Upcoming Consultations</h3>
-                      <div className="space-y-4">
+                    <div className="col-span-8 bg-white border border-slate-100 rounded-2xl shadow-sm p-6 relative overflow-hidden">
+                      <div className="absolute top-0 right-0 p-6 opacity-5">
+                        <Calendar className="w-24 h-24" />
+                      </div>
+                      <h3 className="font-semibold text-navy-deep mb-4 flex items-center gap-2">
+                        Upcoming Consultations
+                        <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold">Today</span>
+                      </h3>
+                      <div className="space-y-3">
                         {[
                           { name: "James Miller", time: "09:30 AM", status: "Confirmed", type: "Routine Checkup", color: "green", initial: "JM", initialColor: "blue" },
                           { name: "Amanda Lee", time: "10:15 AM", status: "Pending", type: "Follow-up", color: "yellow", initial: "AL", initialColor: "orange" },
                           { name: "Robert King", time: "11:00 AM", status: "Virtual", type: "Video Consult", color: "blue", initial: "RK", initialColor: "purple" }
                         ].map((patient, i) => (
-                          <div key={i} className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-md transition-colors border border-transparent hover:border-slate-100">
+                          <div key={i} className="flex items-center justify-between p-3 hover:bg-slate-50/80 rounded-xl transition-all border border-transparent hover:border-slate-100 cursor-pointer group">
                             <div className="flex items-center gap-4">
-                              <div className={`w-10 h-10 rounded-full bg-${patient.initialColor}-100 flex items-center justify-center text-${patient.initialColor}-700 font-semibold text-sm`}>
+                              <div className={`w-10 h-10 rounded-full bg-${patient.initialColor}-50 flex items-center justify-center text-${patient.initialColor}-600 font-bold text-sm ring-2 ring-white shadow-sm group-hover:scale-110 transition-transform`}>
                                 {patient.initial}
                               </div>
                               <div>
-                                <div className="text-sm font-medium text-navy-deep">{patient.name}</div>
+                                <div className="text-sm font-semibold text-navy-deep group-hover:text-medical-blue transition-colors">{patient.name}</div>
                                 <div className="text-xs text-slate-500">{patient.type} • {patient.time}</div>
                               </div>
                             </div>
-                            <span className={`px-2 py-1 bg-${patient.color}-50 text-${patient.color}-700 text-xs font-medium rounded`}>
+                            <span className={`px-2.5 py-1 bg-${patient.color}-50 text-${patient.color}-700 text-[10px] font-bold uppercase tracking-wider rounded-md border border-${patient.color}-100`}>
                               {patient.status}
                             </span>
                           </div>
@@ -269,17 +286,23 @@ export default function Home() {
 
                     {/* Notification/CTA Area */}
                     <div className="col-span-4 space-y-4">
-                      <div className="bg-gradient-to-br from-medical-blue to-blue-600 rounded-lg p-5 text-white shadow-md">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="font-medium">Notifications</div>
-                          <span className="w-2 h-2 bg-red-400 rounded-full"></span>
-                        </div>
-                        <div className="space-y-3">
-                          <div className="bg-white/10 rounded p-2 text-xs backdrop-blur-sm">
-                            Lab results ready for <strong>Patient #8842</strong>
+                      <div className="bg-gradient-to-br from-medical-blue to-blue-600 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden group hover:shadow-xl transition-all">
+                        <div className="absolute top-0 right-0 -mr-6 -mt-6 w-24 h-24 bg-white/10 rounded-full blur-xl group-hover:bg-white/20 transition-all"></div>
+                        <div className="flex items-start justify-between mb-4 relative z-10">
+                          <div className="font-bold flex items-center gap-2">
+                            <Activity className="w-4 h-4" />
+                            Activity
                           </div>
-                          <div className="bg-white/10 rounded p-2 text-xs backdrop-blur-sm">
+                          <span className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></span>
+                        </div>
+                        <div className="space-y-3 relative z-10">
+                          <div className="bg-white/10 rounded-lg p-3 text-xs backdrop-blur-md border border-white/10 hover:bg-white/20 transition-colors cursor-pointer">
+                            Lab results ready for <strong>Patient #8842</strong>
+                            <div className="text-[10px] text-blue-100 mt-1">2 mins ago</div>
+                          </div>
+                          <div className="bg-white/10 rounded-lg p-3 text-xs backdrop-blur-md border border-white/10 hover:bg-white/20 transition-colors cursor-pointer">
                             New referral from Dr. Chen
+                            <div className="text-[10px] text-blue-100 mt-1">1 hour ago</div>
                           </div>
                         </div>
                       </div>
@@ -292,17 +315,31 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Trusted By Section */}
-      <div className="border-y border-slate-200 bg-white py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="text-center text-sm font-semibold text-slate-500 mb-8">TRUSTED BY LEADING HEALTHCARE PROVIDERS</p>
-          <div className="flex flex-wrap justify-center items-center gap-12 md:gap-20 opacity-70 grayscale hover:grayscale-0 transition-all duration-500">
-            {["MEDLIFE", "HEARTCARE", "MINDWELL", "DENTALLIANCE", "KIDSHOSPITAL"].map((brand) => (
-              <div key={brand} className="flex items-center gap-2 text-navy-deep font-bold text-xl">
-                <div className="w-6 h-6 bg-slate-300 rounded-full opacity-50"></div> {brand}
+      {/* Trusted By Section - Marquee */}
+      <div className="border-y border-slate-200 bg-white py-10 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
+          <p className="text-center text-xs font-bold tracking-widest text-slate-400 uppercase">Trusted by leading healthcare providers</p>
+        </div>
+
+        <div className="relative flex overflow-x-hidden group">
+          <div className="flex animate-marquee whitespace-nowrap pause-on-hover">
+            {[...Array(2)].map((_, i) => (
+              <div key={i} className="flex gap-16 md:gap-24 mx-8 md:mx-12 opacity-40 grayscale hover:grayscale-0 transition-all duration-500">
+                {["MEDLIFE", "HEARTCARE", "MINDWELL", "DENTALLIANCE", "KIDSHOSPITAL", "PHYSIOPLUS", "DERMACLINIC"].map((brand) => (
+                  <div key={`${i}-${brand}`} className="flex items-center gap-2 text-navy-deep font-bold text-xl hover:text-medical-blue hover:scale-105 transition-all cursor-default">
+                    <div className="w-8 h-8 bg-slate-200 rounded-lg flex items-center justify-center text-xs text-slate-500">
+                      {brand[0]}
+                    </div>
+                    {brand}
+                  </div>
+                ))}
               </div>
             ))}
           </div>
+
+          {/* Fade edges */}
+          <div className="absolute top-0 left-0 w-20 h-full bg-gradient-to-r from-white to-transparent z-10"></div>
+          <div className="absolute top-0 right-0 w-20 h-full bg-gradient-to-l from-white to-transparent z-10"></div>
         </div>
       </div>
 
