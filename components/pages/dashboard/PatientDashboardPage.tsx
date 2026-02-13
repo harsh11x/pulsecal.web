@@ -249,259 +249,374 @@ export default function PatientDashboardPage({ user }: PatientDashboardPageProps
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8">
-      {/* Header */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-navy-deep">Good Morning, {user?.firstName}</h1>
-          <p className="text-corporate-gray mt-1">Here&apos;s your health overview for today.</p>
+    <div className="space-y-4 sm:space-y-6 overflow-x-hidden">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold">Welcome back, {user?.firstName}!</h1>
+          <p className="text-muted-foreground text-sm sm:text-base">Here&apos;s what&apos;s happening with your health</p>
         </div>
-        <div className="flex gap-3">
-          <Button variant="outline" className="bg-white border-slate-200 text-navy-deep hover:bg-slate-50 shadow-sm gap-2">
-            <Activity className="h-4 w-4" />
-            Download Records
-          </Button>
-          <Button className="bg-medical-blue hover:bg-blue-700 text-white shadow-md gap-2" asChild>
-            <Link href="/appointments/create">
-              <Plus className="h-5 w-5" />
-              Book New Appointment
-            </Link>
-          </Button>
-        </div>
-      </header>
+        <Button asChild size="default" className="w-full sm:w-auto">
+          <Link href="/appointments/create">
+            <Plus className="mr-2 h-4 w-4" />
+            Book Appointment
+          </Link>
+        </Button>
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main Content Area (2/3) */}
-        <div className="lg:col-span-2 space-y-8">
+      {/* Stats Cards */}
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        {stats.map((stat) => (
+          <StatsCard
+            key={stat.title}
+            title={stat.title}
+            value={stat.value}
+            icon={stat.icon}
+            trend={stat.trend}
+            color={stat.color}
+            description={stat.description}
+          />
+        ))}
+      </div>
 
-          {/* Featured Appointment Card */}
-          <section className="bg-white rounded-2xl border border-slate-200 shadow-card overflow-hidden dashboard-card">
-            {upcomingAppointments.length > 0 ? (
-              <>
-                <div className="bg-gradient-to-r from-medical-blue to-blue-600 p-6 text-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      {/* Main Content Tabs */}
+      <Tabs defaultValue="appointments" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-1 p-1 h-auto">
+          <TabsTrigger value="appointments" className="text-xs sm:text-sm px-2">Appointments</TabsTrigger>
+          <TabsTrigger value="nearby" className="text-xs sm:text-sm px-2">Nearby</TabsTrigger>
+          <TabsTrigger value="prescriptions" className="text-xs sm:text-sm px-2">Prescriptions</TabsTrigger>
+          <TabsTrigger value="doctors" className="text-xs sm:text-sm px-2">Find Doctors</TabsTrigger>
+        </TabsList>
+
+        {/* Nearby Clinics & Doctors Tab */}
+        <TabsContent value="nearby" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                Nearby (10 km)
+              </CardTitle>
+              <CardDescription>
+                Clinics and doctors in your area. Enable location to see results.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {!userLocation ? (
+                <p className="text-center py-8 text-muted-foreground">
+                  Enable location access to see nearby clinics and doctors.
+                </p>
+              ) : (
+                <>
                   <div>
-                    <div className="flex items-center gap-2 mb-1 opacity-90">
-                      <Calendar className="h-4 w-4" />
-                      <span className="text-xs font-semibold uppercase tracking-wider">Next Appointment</span>
-                    </div>
-                    <h2 className="text-2xl font-bold">{upcomingAppointments[0].reason || "Consultation"}</h2>
-                    <p className="text-blue-100 text-sm mt-1">
-                      with Dr. {upcomingAppointments[0].doctor?.firstName} {upcomingAppointments[0].doctor?.lastName} • {upcomingAppointments[0].doctor?.specialization || "General"}
-                    </p>
+                    <h3 className="font-semibold mb-3 flex items-center gap-2">
+                      <Building2 className="h-4 w-4" />
+                      Clinics
+                    </h3>
+                    {nearbyClinics.length === 0 ? (
+                      <p className="text-muted-foreground text-sm py-4">No clinics found nearby.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {nearbyClinics.map((c: any) => (
+                          <Card key={c.id} className="hover:shadow-md transition-shadow">
+                            <CardContent className="p-3 sm:p-4">
+                              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+                                <div>
+                                  <Link href={`/clinic/${c.id}`} className="font-semibold hover:underline">
+                                    {c.name}
+                                  </Link>
+                                  <p className="text-sm text-muted-foreground">{c.address}, {c.city}</p>
+                                  {c.distance != null && (
+                                    <p className="text-xs text-muted-foreground">{c.distance} km away</p>
+                                  )}
+                                </div>
+                                <Button asChild size="sm" variant="outline" className="w-full sm:w-auto">
+                                  <Link href={`/clinic/${c.id}`}>View doctors</Link>
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div className="bg-white/10 backdrop-blur-md rounded-lg p-3 text-center min-w-[100px] border border-white/20">
-                    <div className="text-xs uppercase opacity-80 mb-1">On</div>
-                    <div className="text-xl font-bold font-mono">
-                      {new Date(upcomingAppointments[0].scheduledAt).getDate()}
-                      <span className="text-sm font-normal ml-1">
-                        {format(new Date(upcomingAppointments[0].scheduledAt), "MMM")}
-                      </span>
-                    </div>
+                  <div>
+                    <h3 className="font-semibold mb-3 flex items-center gap-2">
+                      <Stethoscope className="h-4 w-4" />
+                      Doctors
+                    </h3>
+                    {nearbyDoctors.length === 0 ? (
+                      <p className="text-muted-foreground text-sm py-4">No doctors found nearby.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {nearbyDoctors.map((d: any) => {
+                          const docId = d.user?.id ?? d.id
+                          return (
+                            <Card key={docId} className="hover:shadow-md transition-shadow">
+                              <CardContent className="p-4">
+                                <div className="flex justify-between items-center">
+                                  <div>
+                                    <p className="font-semibold">
+                                      Dr. {d.user?.firstName ?? d.firstName} {d.user?.lastName ?? d.lastName}
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">{d.specialization} · {d.clinicName || "Clinic"}</p>
+                                    {d.distance != null && (
+                                      <p className="text-xs text-muted-foreground">{d.distance} km away</p>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-medium flex items-center gap-0.5">
+                                      <IndianRupee className="h-3 w-3" />
+                                      {Number(d.consultationFee || 0)}
+                                    </span>
+                                    <Button asChild size="sm">
+                                      <Link href={`/doctors/${docId}/book`}>Book</Link>
+                                    </Button>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
+                  <Button asChild variant="outline" className="w-full">
+                    <Link href="/appointments/create">
+                      <Search className="mr-2 h-4 w-4" />
+                      Search by symptom (fever, cough, etc.)
+                    </Link>
+                  </Button>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Upcoming Appointments Tab */}
+        <TabsContent value="appointments" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Upcoming Appointments</CardTitle>
+                  <CardDescription>Your scheduled visits with doctors</CardDescription>
                 </div>
-                <div className="p-6 flex flex-col sm:flex-row gap-6 justify-between items-center">
-                  <div className="flex gap-6 w-full">
-                    <div className="flex gap-3 items-center">
-                      <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-medical-blue">
-                        <Clock className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <div className="text-xs text-slate-500 font-medium uppercase">Time</div>
-                        <div className="text-sm font-bold text-navy-deep">{format(new Date(upcomingAppointments[0].scheduledAt), "h:mm a")}</div>
-                      </div>
-                    </div>
-                    <div className="flex gap-3 items-center">
-                      <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-medical-blue">
-                        <MapPin className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <div className="text-xs text-slate-500 font-medium uppercase">Location</div>
-                        <div className="text-sm font-bold text-navy-deep">{upcomingAppointments[0].clinic?.name || "Main Clinic"}</div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex gap-3 w-full sm:w-auto">
-                    <Button variant="outline" className="flex-1 sm:flex-none text-red-600 bg-red-50 hover:bg-red-100 border-none">Reschedule</Button>
-                    <Button variant="ghost" className="flex-1 sm:flex-none text-medical-blue bg-blue-50 hover:bg-blue-100 border-none">Details</Button>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="p-8 text-center bg-slate-50">
-                <Calendar className="h-12 w-12 mx-auto text-slate-300 mb-3" />
-                <h3 className="text-lg font-medium text-navy-deep">No Upcoming Appointments</h3>
-                <p className="text-slate-500 mb-4">You have no appointments scheduled.</p>
-                <Button asChild>
-                  <Link href="/appointments/create">Book Now</Link>
+                <Button asChild variant="outline" size="sm">
+                  <Link href="/appointments/list">View All</Link>
                 </Button>
               </div>
-            )}
-          </section>
-
-          {/* Quick Actions Grid */}
-          <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Link href="/health/medical-records" className="block">
-              <div className="dashboard-card bg-white p-6 rounded-2xl border border-slate-200 shadow-sm cursor-pointer group h-full">
-                <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                  <FileText className="h-6 w-6" />
+            </CardHeader>
+            <CardContent>
+              {upcomingAppointments.length === 0 ? (
+                <div className="text-center py-12">
+                  <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground mb-4">No upcoming appointments</p>
+                  <Button asChild>
+                    <Link href="/appointments/create">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Book Your First Appointment
+                    </Link>
+                  </Button>
                 </div>
-                <h3 className="text-lg font-bold text-navy-deep mb-2">Medical Records</h3>
-                <p className="text-sm text-slate-500 mb-4">Access your lab results, imaging, and visit summaries.</p>
-                <div className="flex items-center text-sm font-semibold text-indigo-600 group-hover:text-indigo-700 mt-auto">
-                  View Latest Results
+              ) : (
+                <div className="space-y-3">
+                  {upcomingAppointments.map((apt) => (
+                    <Card key={apt.id} className="hover:shadow-md transition-shadow">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                <User className="h-5 w-5 text-primary" />
+                              </div>
+                              <div>
+                                <p className="font-semibold">
+                                  Dr. {apt.doctor ? `${apt.doctor.firstName} ${apt.doctor.lastName}` : "N/A"}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {apt.doctor?.specialization || "General Physician"}
+                                </p>
+                              </div>
+                              {getStatusBadge(apt.status)}
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground mt-3">
+                              <div className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {safeFormatDate(apt.scheduledAt)}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {safeFormatTime(apt.scheduledAt)}
+                              </div>
+                              {apt.clinic && (
+                                <div className="col-span-2 flex items-center gap-1">
+                                  <MapPin className="h-3 w-3" />
+                                  {apt.clinic.name}, {apt.clinic.city}
+                                </div>
+                              )}
+                              {apt.reason && (
+                                <div className="col-span-2">Reason: {apt.reason}</div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <Button variant="outline" size="sm" asChild>
+                              <Link href={`/appointments/${apt.id}`}>View Details</Link>
+                            </Button>
+                            {apt.status === "SCHEDULED" && (
+                              <Button variant="ghost" size="sm" asChild>
+                                <Link href={`/appointments/${apt.id}/reschedule`}>Reschedule</Link>
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
-              </div>
-            </Link>
+              )}
+            </CardContent>
+          </Card>
 
-            <Link href="/health/prescriptions" className="block">
-              <div className="dashboard-card bg-white p-6 rounded-2xl border border-slate-200 shadow-sm cursor-pointer group h-full">
-                <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                  <Stethoscope className="h-6 w-6" />
-                </div>
-                <h3 className="text-lg font-bold text-navy-deep mb-2">Prescriptions</h3>
-                <p className="text-sm text-slate-500 mb-4">Request renewals and view active medications.</p>
-                <div className="flex items-center text-sm font-semibold text-emerald-600 group-hover:text-emerald-700 mt-auto">
-                  {activePrescriptions.length} Active Rx
-                </div>
-              </div>
-            </Link>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Quick Actions</CardTitle>
+                <CardDescription>Manage your healthcare</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Button asChild className="w-full justify-start">
+                  <Link href="/appointments/create">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    Book New Appointment
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="w-full justify-start">
+                  <Link href="/appointments/list">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    View All Appointments
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="w-full justify-start">
+                  <Link href="/health/medical-records">
+                    <FileText className="mr-2 h-4 w-4" />
+                    Medical Records
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="w-full justify-start">
+                  <Link href="/health/prescriptions">
+                    <Stethoscope className="mr-2 h-4 w-4" />
+                    My Prescriptions
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
 
-            <Link href="/chat" className="block">
-              <div className="dashboard-card bg-white p-6 rounded-2xl border border-slate-200 shadow-sm cursor-pointer group h-full">
-                <div className="w-12 h-12 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center mb-4 group-hover:bg-orange-600 group-hover:text-white transition-colors">
-                  <Activity className="h-6 w-6" />
-                </div>
-                <h3 className="text-lg font-bold text-navy-deep mb-2">Message Doctor</h3>
-                <p className="text-sm text-slate-500 mb-4">Secure communication with your care team.</p>
-                <div className="flex items-center text-sm font-semibold text-orange-600 group-hover:text-orange-700 mt-auto">
-                  Start New Thread
-                </div>
-              </div>
-            </Link>
-          </section>
-
-          {/* Health Trends (Mock Visual) */}
-          <section className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h3 className="text-lg font-bold text-navy-deep">Health Trends</h3>
-                <p className="text-sm text-slate-500">Blood Pressure Monitoring (Last 30 Days)</p>
-              </div>
-              <select className="text-sm border-slate-200 rounded-lg text-slate-600 focus:border-medical-blue focus:ring-medical-blue py-1.5 px-3 bg-slate-50">
-                <option>Blood Pressure</option>
-                <option>Heart Rate</option>
-                <option>Weight</option>
-              </select>
-            </div>
-            {/* Simple CSS-based bar chart representation */}
-            <div className="relative h-64 w-full flex items-end gap-2 md:gap-4 pb-8 border-b border-slate-100">
-              <div className="absolute left-0 top-0 bottom-8 w-8 flex flex-col justify-between text-xs text-slate-400">
-                <span>140</span><span>120</span><span>100</span><span>80</span><span>60</span>
-              </div>
-              <div className="flex-1 flex items-end justify-between ml-10 h-full relative z-10 w-full">
-                {/* Grid Lines */}
-                <div className="absolute w-full h-full pointer-events-none flex flex-col justify-between z-0">
-                  {[...Array(5)].map((_, i) => <div key={i} className="w-full border-t border-slate-100 border-dashed"></div>)}
-                </div>
-                {/* Bars */}
-                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => {
-                  const h1 = [60, 65, 58, 62, 68, 60, 63][i];
-                  const h2 = [40, 42, 38, 40, 45, 41, 39][i];
-                  return (
-                    <div key={day} className="group relative flex flex-col items-center justify-end h-full w-full z-10">
-                      <div style={{ height: `${h1}%` }} className="w-3 md:w-6 bg-blue-200 rounded-t-sm group-hover:bg-medical-blue transition-colors"></div>
-                      <div style={{ height: `${h2}%`, marginTop: `-${h2}%` }} className="w-3 md:w-6 bg-slate-200 rounded-t-sm group-hover:bg-slate-300 transition-colors"></div>
-                      <span className="text-[10px] text-slate-400 mt-2 absolute -bottom-6">{day}</span>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </section>
-
-          {/* Original Tabs Content (Preserved but lower priority) */}
-          <Tabs defaultValue="nearby" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="nearby">Nearby Clinics</TabsTrigger>
-              <TabsTrigger value="history">History</TabsTrigger>
-            </TabsList>
-            <TabsContent value="nearby">
-              <DoctorDiscoveryMap />
-            </TabsContent>
-          </Tabs>
-
-        </div>
-
-        {/* Sidebar Content (1/3) */}
-        <aside className="space-y-6">
-          {/* Physician Profile Card */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center border-2 border-white shadow-sm overflow-hidden">
-                {upcomingAppointments[0]?.doctor?.firstName ? (
-                  <div className="w-full h-full bg-medical-blue text-white flex items-center justify-center text-xl font-bold">
-                    {upcomingAppointments[0].doctor.firstName[0]}
-                  </div>
-                ) : (
-                  <User className="h-8 w-8 text-slate-400" />
-                )}
-              </div>
-              <div>
-                <div className="text-sm text-slate-500">Primary Care Physician</div>
-                <div className="font-bold text-navy-deep">
-                  {upcomingAppointments[0]?.doctor
-                    ? `Dr. ${upcomingAppointments[0].doctor.firstName} ${upcomingAppointments[0].doctor.lastName}`
-                    : "No Primary Doctor"}
-                </div>
-              </div>
-            </div>
-            <div className="space-y-3 pt-4 border-t border-slate-100">
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-500">Insurance</span>
-                <span className="font-medium text-navy-deep">BlueCross Gold</span>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-500">Member ID</span>
-                <span className="font-medium text-navy-deep">#89200192</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Alerts & Tasks */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <h3 className="font-bold text-navy-deep mb-4 flex items-center gap-2">
-              Alerts & Tasks
-              <span className="bg-red-100 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded-full">New</span>
-            </h3>
-            <div className="space-y-3">
-              <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 hover:border-slate-300 transition-colors cursor-pointer">
-                <div className="flex gap-3">
-                  <div className="mt-0.5 text-orange-500">
-                    <Activity className="h-4 w-4" />
-                  </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Health Tips</CardTitle>
+                <CardDescription>Daily wellness reminders</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
+                  <Activity className="h-5 w-5 text-blue-600 mt-0.5" />
                   <div>
-                    <p className="text-sm font-semibold text-navy-deep">Complete Pre-visit Form</p>
-                    <p className="text-xs text-slate-500 mt-1">Required before appointment</p>
+                    <p className="font-medium text-sm">Stay Hydrated</p>
+                    <p className="text-xs text-muted-foreground">Drink at least 8 glasses of water daily</p>
                   </div>
                 </div>
-              </div>
-            </div>
+                <div className="flex items-start gap-3 p-3 bg-green-50 dark:bg-green-950 rounded-lg">
+                  <Heart className="h-5 w-5 text-green-600 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-sm">Regular Exercise</p>
+                    <p className="text-xs text-muted-foreground">30 minutes of activity keeps you healthy</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-3 bg-purple-50 dark:bg-purple-950 rounded-lg">
+                  <Stethoscope className="h-5 w-5 text-purple-600 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-sm">Regular Checkups</p>
+                    <p className="text-xs text-muted-foreground">Schedule annual health screenings</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
+        </TabsContent>
 
-          {/* Telehealth Banner */}
-          <div className="bg-gradient-to-br from-slate-800 to-navy-deep p-6 rounded-2xl shadow-lg text-white relative overflow-hidden">
-            <div className="absolute top-0 right-0 -mr-6 -mt-6 w-32 h-32 bg-medical-blue opacity-20 rounded-full blur-2xl"></div>
-            <div className="relative z-10">
-              <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center mb-4 backdrop-blur-sm">
-                <Heart className="h-6 w-6" />
+        {/* Active Prescriptions Tab */}
+        <TabsContent value="prescriptions" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Active Prescriptions</CardTitle>
+                  <CardDescription>Your current medications</CardDescription>
+                </div>
+                <Button asChild variant="outline" size="sm">
+                  <Link href="/health/prescriptions">View All</Link>
+                </Button>
               </div>
-              <h3 className="font-bold text-lg mb-2">Telehealth is here</h3>
-              <p className="text-sm text-slate-300 mb-4">Connect with specialists from the comfort of your home.</p>
-              <Button variant="secondary" className="w-full bg-white text-navy-deep hover:bg-slate-100 border-none">Learn More</Button>
-            </div>
-          </div>
-        </aside>
-      </div>
+            </CardHeader>
+            <CardContent>
+              {activePrescriptions.length === 0 ? (
+                <div className="text-center py-12">
+                  <Stethoscope className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">No active prescriptions</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {activePrescriptions.map((prescription) => (
+                    <Card key={prescription.id} className="hover:shadow-sm transition-shadow">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Stethoscope className="h-4 w-4 text-primary" />
+                              <p className="font-semibold">{prescription.medication || prescription.medicationName || "Prescription"}</p>
+                              <Badge variant="default" className="text-xs">Active</Badge>
+                            </div>
+                            {prescription.dosage && (
+                              <p className="text-sm text-muted-foreground">Dosage: {prescription.dosage}</p>
+                            )}
+                            {prescription.frequency && (
+                              <p className="text-sm text-muted-foreground">Frequency: {prescription.frequency}</p>
+                            )}
+                            {prescription.doctor && (
+                              <p className="text-xs text-muted-foreground mt-2">
+                                Prescribed by Dr. {prescription.doctor.firstName} {prescription.doctor.lastName}
+                              </p>
+                            )}
+                          </div>
+                          <Button variant="outline" size="sm" asChild>
+                            <Link href={`/health/prescriptions/${prescription.id}`}>View</Link>
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Find Doctors Tab */}
+        <TabsContent value="doctors" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Find Doctors Near You</CardTitle>
+              <CardDescription>Discover and book appointments with doctors in your area</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[600px] rounded-lg overflow-hidden border">
+                <ErrorBoundary>
+                  <DoctorDiscoveryMap />
+                </ErrorBoundary>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

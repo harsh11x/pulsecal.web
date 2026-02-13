@@ -7,7 +7,7 @@ import { GetStartedAction } from "@/components/landing/GetStartedAction"
 import { AuthModal } from "@/components/auth/AuthModal"
 import { Button } from "@/components/ui/button"
 import { PLANS, PLAN_AMOUNTS, SUBSCRIPTION_DURATIONS } from "@/lib/planConfig"
-import { CheckCircle2, User, Stethoscope, Users, Building2, Shield, Calendar, Video, FileText, MessageSquare, Clock, BarChart, Heart, Activity, Instagram, Linkedin } from "lucide-react"
+import { CheckCircle2, User, Stethoscope, Users, Building2, Shield, Calendar, Video, FileText, MessageSquare, Clock, BarChart, Heart, Activity } from "lucide-react"
 
 export default function Home() {
   const router = useRouter()
@@ -137,146 +137,129 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-24 bg-slate-base overflow-hidden">
-        {/* Animated Background Blobs */}
-        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-[600px] h-[600px] rounded-full bg-medical-light opacity-50 blur-3xl animate-blob"></div>
-        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-[400px] h-[400px] rounded-full bg-blue-100 opacity-60 blur-3xl animate-blob animation-delay-2000"></div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-purple-50 opacity-40 blur-3xl animate-blob animation-delay-4000"></div>
-
+      <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-24 bg-white overflow-hidden">
+        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-[600px] h-[600px] rounded-full bg-medical-light opacity-50 blur-3xl pointer-events-none"></div>
+        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-[400px] h-[400px] rounded-full bg-slate-100 opacity-80 blur-3xl pointer-events-none"></div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center max-w-4xl mx-auto mb-16">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/50 backdrop-blur-sm border border-blue-100 text-xs font-semibold text-medical-blue mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500 shadow-sm hover:shadow-md transition-all cursor-default">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-medical-blue opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-medical-blue"></span>
-              </span>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-xs font-semibold text-medical-blue mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <span className="w-1.5 h-1.5 rounded-full bg-medical-blue animate-pulse"></span>
               New: Integrated Telehealth Module
             </div>
-            <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-navy-deep mb-6 leading-tight animate-in fade-in slide-in-from-bottom-6 duration-700 text-balance">
-              Simple, Connected <br />
-              <span className="text-gradient">Healthcare for Everyone.</span>
+            <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-navy-deep mb-6 leading-[1.15] animate-in fade-in slide-in-from-bottom-6 duration-700">
+              Orchestrating Care with <br />
+              <span className="bg-gradient-to-r from-medical-blue to-blue-600 bg-clip-text text-transparent">Precision & Empathy.</span>
             </h1>
-            <p className="mt-4 max-w-2xl mx-auto text-lg md:text-xl text-corporate-gray leading-relaxed mb-10 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100 text-balance">
-              PulseCal connects patients, doctors, and staff in one easy-to-use platform. Manage appointments, records, and billing with ease.
+            <p className="mt-4 max-w-2xl mx-auto text-lg text-corporate-gray leading-relaxed mb-10 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
+              PulseCal unifies the healthcare journey. A seamless, secure operating system connecting patients, practitioners, and administrative staff in real-time.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center animate-in fade-in slide-in-from-bottom-10 duration-700 delay-200">
               <GetStartedAction
-                className="bg-medical-blue hover:bg-blue-700 hover:scale-105 active:scale-95 px-8 py-4 rounded-xl text-base font-bold text-white shadow-lg shadow-medical-blue/25 transition-all flex items-center justify-center gap-2 h-auto"
+                className="bg-medical-blue hover:bg-blue-700 px-8 py-3.5 rounded-lg text-base font-medium text-white shadow-card transition-all flex items-center justify-center gap-2 h-auto"
               />
-              <a className="px-8 py-4 rounded-xl text-base font-bold text-navy-deep bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 hover:shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer group" href="#how-it-works">
-                <span className="material-symbols-outlined text-medical-blue text-xl group-hover:scale-110 transition-transform">play_circle</span>
+              <a className="px-8 py-3.5 rounded-lg text-base font-medium text-navy-deep bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer" href="#how-it-works">
+                <span className="material-symbols-outlined text-medical-blue text-xl">play_circle</span>
                 See How It Works
               </a>
             </div>
           </div>
 
-          {/* Dashboard Preview - 3D Floating Effect */}
-          <div className="relative max-w-6xl mx-auto mt-8 animate-in fade-in zoom-in duration-1000 perspective-1000">
-            {/* Glow behind */}
-            <div className="absolute -inset-4 bg-gradient-to-tr from-medical-blue/20 to-purple-500/20 rounded-[2rem] blur-2xl opacity-70 animate-pulse-slow"></div>
-
-            <div className="relative bg-white/90 backdrop-blur-sm border border-white/50 rounded-2xl overflow-hidden shadow-2xl ring-1 ring-black/5 transform-style-3d animate-float hover:rotate-x-2 transition-transform duration-500">
-              <div className="h-10 bg-white/80 border-b border-slate-200/60 flex items-center px-4 gap-2 backdrop-blur-md">
+          {/* Dashboard Preview */}
+          <div className="relative max-w-6xl mx-auto mt-8 animate-in fade-in zoom-in duration-1000">
+            <div className="absolute -inset-2 bg-gradient-to-b from-blue-100/50 to-white rounded-2xl blur-lg opacity-60"></div>
+            <div className="relative bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xl ring-1 ring-black/5">
+              <div className="h-10 bg-slate-50 border-b border-slate-200 flex items-center px-4 gap-2">
                 <div className="flex gap-1.5">
                   <div className="w-2.5 h-2.5 rounded-full bg-slate-300"></div>
                   <div className="w-2.5 h-2.5 rounded-full bg-slate-300"></div>
                   <div className="w-2.5 h-2.5 rounded-full bg-slate-300"></div>
                 </div>
                 <div className="flex-1 text-center">
-                  <div className="inline-block px-3 py-1 bg-slate-50/50 border border-slate-200/50 rounded text-[10px] text-slate-400 font-mono">app.pulsecal.health/dashboard</div>
+                  <div className="inline-block px-3 py-1 bg-white border border-slate-200 rounded text-[10px] text-slate-400 font-mono">app.pulsecal.health/dashboard</div>
                 </div>
               </div>
 
-              <div className="aspect-[16/9] w-full bg-slate-50/50 relative flex overflow-hidden">
+              <div className="aspect-[16/9] w-full bg-slate-50 relative flex overflow-hidden">
                 {/* Sidebar Mockup */}
-                <div className="w-64 bg-white/80 backdrop-blur-sm border-r border-slate-200/60 flex-shrink-0 flex flex-col pt-6 px-4 pb-6 hidden md:flex z-10">
+                <div className="w-64 bg-white border-r border-slate-200 flex-shrink-0 flex flex-col pt-6 px-4 pb-6 hidden md:flex">
                   <div className="flex items-center gap-3 mb-8 px-2">
                     <img src="/logo.png" alt="PulseCal Logo" className="h-8 w-8 object-contain" />
-                    <span className="font-bold text-navy-deep text-lg">PulseCal</span>
+                    <span className="font-bold text-navy-deep">PulseCal</span>
                   </div>
                   <div className="space-y-1">
-                    <div className="flex items-center gap-3 px-3 py-2.5 bg-blue-50/80 text-medical-blue rounded-lg text-sm font-semibold shadow-sm">
+                    <div className="flex items-center gap-3 px-3 py-2 bg-blue-50 text-medical-blue rounded-md text-sm font-medium">
                       <span className="material-symbols-outlined text-[20px]">dashboard</span>
                       Overview
                     </div>
-                    {["Appointments", "Patients", "Records", "Settings"].map((item, i) => (
-                      <div key={item} className="flex items-center gap-3 px-3 py-2.5 text-slate-500 hover:bg-slate-50 hover:text-slate-800 rounded-lg text-sm font-medium transition-colors cursor-pointer">
-                        <span className="material-symbols-outlined text-[20px]">{["calendar_month", "people", "description", "settings"][i]}</span>
-                        {item}
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-auto">
-                    <div className="p-3 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border border-indigo-100">
-                      <div className="text-xs font-semibold text-indigo-900 mb-1">Pro Plan</div>
-                      <div className="text-[10px] text-indigo-700/80 mb-2">Your team is growing fast!</div>
-                      <button className="text-[10px] bg-white text-indigo-600 px-2 py-1 rounded border border-indigo-100 w-full font-medium hover:bg-indigo-50 transition-colors">Upgrade</button>
+                    <div className="flex items-center gap-3 px-3 py-2 text-slate-600 hover:bg-slate-50 rounded-md text-sm font-medium">
+                      <span className="material-symbols-outlined text-[20px]">calendar_month</span>
+                      Appointments
+                    </div>
+                    <div className="flex items-center gap-3 px-3 py-2 text-slate-600 hover:bg-slate-50 rounded-md text-sm font-medium">
+                      <span className="material-symbols-outlined text-[20px]">people</span>
+                      Patients
+                    </div>
+                    <div className="flex items-center gap-3 px-3 py-2 text-slate-600 hover:bg-slate-50 rounded-md text-sm font-medium">
+                      <span className="material-symbols-outlined text-[20px]">description</span>
+                      Records
                     </div>
                   </div>
                 </div>
 
                 {/* Main Content Mockup */}
-                <div className="flex-1 p-8 overflow-hidden relative">
+                <div className="flex-1 p-8 overflow-hidden">
                   <div className="flex justify-between items-center mb-8">
                     <div>
                       <h2 className="text-2xl font-bold text-navy-deep">Dr. Sarah Jenning</h2>
-                      <p className="text-sm text-slate-500 flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                        Cardiology Dept • Today's Schedule
-                      </p>
+                      <p className="text-sm text-slate-500">Cardiology Dept • Today's Schedule</p>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <button className="p-2 text-slate-400 hover:text-slate-600 transition-colors relative">
-                        <span className="material-symbols-outlined">notifications</span>
-                        <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-                      </button>
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-md ring-2 ring-white">SJ</div>
+                    <div className="flex gap-3">
+                      <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs">SJ</div>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-12 gap-6">
                     {/* Stat Cards */}
-                    {[
-                      { label: "Total Patients", val: "1,248", change: "+12%", trend: "up", color: "green" },
-                      { label: "Today's Appts", val: "42", change: "8 Pending", trend: "neutral", color: "blue" },
-                      { label: "Avg. Wait Time", val: "14m", change: "-2m", trend: "down", color: "green" }
-                    ].map((stat, i) => (
-                      <div key={i} className="col-span-4 bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow group">
-                        <div className="text-sm text-slate-500 mb-1">{stat.label}</div>
-                        <div className="text-2xl font-bold text-navy-deep group-hover:text-medical-blue transition-colors">{stat.val}</div>
-                        <div className={`text-xs mt-2 flex items-center gap-1 ${stat.trend === 'down' || stat.trend === 'up' ? 'text-green-600' : 'text-slate-400'}`}>
-                          {stat.trend === 'up' && "↑"} {stat.trend === 'down' && "↓"} {stat.change}
-                        </div>
+                    <div className="col-span-4 bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
+                      <div className="text-sm text-slate-500 mb-1">Total Patients</div>
+                      <div className="text-2xl font-bold text-navy-deep">1,248</div>
+                      <div className="text-xs text-green-600 mt-2 flex items-center gap-1">
+                        <span className="text-[14px]">↑</span> +12% this month
                       </div>
-                    ))}
+                    </div>
+                    <div className="col-span-4 bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
+                      <div className="text-sm text-slate-500 mb-1">Appointments</div>
+                      <div className="text-2xl font-bold text-navy-deep">42</div>
+                      <div className="text-xs text-slate-400 mt-2">8 Pending confirmation</div>
+                    </div>
+                    <div className="col-span-4 bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
+                      <div className="text-sm text-slate-500 mb-1">Avg. Wait Time</div>
+                      <div className="text-2xl font-bold text-navy-deep">14m</div>
+                      <div className="text-xs text-green-600 mt-2 flex items-center gap-1">
+                        <span className="text-[14px]">↓</span> -2m vs last week
+                      </div>
+                    </div>
 
                     {/* Schedule List */}
-                    <div className="col-span-8 bg-white border border-slate-100 rounded-2xl shadow-sm p-6 relative overflow-hidden">
-                      <div className="absolute top-0 right-0 p-6 opacity-5">
-                        <Calendar className="w-24 h-24" />
-                      </div>
-                      <h3 className="font-semibold text-navy-deep mb-4 flex items-center gap-2">
-                        Upcoming Consultations
-                        <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold">Today</span>
-                      </h3>
-                      <div className="space-y-3">
+                    <div className="col-span-8 bg-white border border-slate-200 rounded-lg shadow-sm p-6">
+                      <h3 className="font-semibold text-navy-deep mb-4">Upcoming Consultations</h3>
+                      <div className="space-y-4">
                         {[
                           { name: "James Miller", time: "09:30 AM", status: "Confirmed", type: "Routine Checkup", color: "green", initial: "JM", initialColor: "blue" },
                           { name: "Amanda Lee", time: "10:15 AM", status: "Pending", type: "Follow-up", color: "yellow", initial: "AL", initialColor: "orange" },
                           { name: "Robert King", time: "11:00 AM", status: "Virtual", type: "Video Consult", color: "blue", initial: "RK", initialColor: "purple" }
                         ].map((patient, i) => (
-                          <div key={i} className="flex items-center justify-between p-3 hover:bg-slate-50/80 rounded-xl transition-all border border-transparent hover:border-slate-100 cursor-pointer group">
+                          <div key={i} className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-md transition-colors border border-transparent hover:border-slate-100">
                             <div className="flex items-center gap-4">
-                              <div className={`w-10 h-10 rounded-full bg-${patient.initialColor}-50 flex items-center justify-center text-${patient.initialColor}-600 font-bold text-sm ring-2 ring-white shadow-sm group-hover:scale-110 transition-transform`}>
+                              <div className={`w-10 h-10 rounded-full bg-${patient.initialColor}-100 flex items-center justify-center text-${patient.initialColor}-700 font-semibold text-sm`}>
                                 {patient.initial}
                               </div>
                               <div>
-                                <div className="text-sm font-semibold text-navy-deep group-hover:text-medical-blue transition-colors">{patient.name}</div>
+                                <div className="text-sm font-medium text-navy-deep">{patient.name}</div>
                                 <div className="text-xs text-slate-500">{patient.type} • {patient.time}</div>
                               </div>
                             </div>
-                            <span className={`px-2.5 py-1 bg-${patient.color}-50 text-${patient.color}-700 text-[10px] font-bold uppercase tracking-wider rounded-md border border-${patient.color}-100`}>
+                            <span className={`px-2 py-1 bg-${patient.color}-50 text-${patient.color}-700 text-xs font-medium rounded`}>
                               {patient.status}
                             </span>
                           </div>
@@ -286,23 +269,17 @@ export default function Home() {
 
                     {/* Notification/CTA Area */}
                     <div className="col-span-4 space-y-4">
-                      <div className="bg-gradient-to-br from-medical-blue to-blue-600 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden group hover:shadow-xl transition-all">
-                        <div className="absolute top-0 right-0 -mr-6 -mt-6 w-24 h-24 bg-white/10 rounded-full blur-xl group-hover:bg-white/20 transition-all"></div>
-                        <div className="flex items-start justify-between mb-4 relative z-10">
-                          <div className="font-bold flex items-center gap-2">
-                            <Activity className="w-4 h-4" />
-                            Activity
-                          </div>
-                          <span className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></span>
+                      <div className="bg-gradient-to-br from-medical-blue to-blue-600 rounded-lg p-5 text-white shadow-md">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="font-medium">Notifications</div>
+                          <span className="w-2 h-2 bg-red-400 rounded-full"></span>
                         </div>
-                        <div className="space-y-3 relative z-10">
-                          <div className="bg-white/10 rounded-lg p-3 text-xs backdrop-blur-md border border-white/10 hover:bg-white/20 transition-colors cursor-pointer">
+                        <div className="space-y-3">
+                          <div className="bg-white/10 rounded p-2 text-xs backdrop-blur-sm">
                             Lab results ready for <strong>Patient #8842</strong>
-                            <div className="text-[10px] text-blue-100 mt-1">2 mins ago</div>
                           </div>
-                          <div className="bg-white/10 rounded-lg p-3 text-xs backdrop-blur-md border border-white/10 hover:bg-white/20 transition-colors cursor-pointer">
+                          <div className="bg-white/10 rounded p-2 text-xs backdrop-blur-sm">
                             New referral from Dr. Chen
-                            <div className="text-[10px] text-blue-100 mt-1">1 hour ago</div>
                           </div>
                         </div>
                       </div>
@@ -315,62 +292,42 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Trusted By Section - Marquee */}
-      <div className="border-y border-slate-200 bg-white py-10 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
-          <p className="text-center text-xs font-bold tracking-widest text-slate-400 uppercase">Trusted by leading healthcare providers</p>
-        </div>
-
-        <div className="relative flex overflow-x-hidden group">
-          <div className="flex animate-marquee whitespace-nowrap pause-on-hover">
-            {[...Array(2)].map((_, i) => (
-              <div key={i} className="flex gap-16 md:gap-24 mx-8 md:mx-12 opacity-40 grayscale hover:grayscale-0 transition-all duration-500">
-                {["MEDLIFE", "HEARTCARE", "MINDWELL", "DENTALLIANCE", "KIDSHOSPITAL", "PHYSIOPLUS", "DERMACLINIC"].map((brand) => (
-                  <div key={`${i}-${brand}`} className="flex items-center gap-2 text-navy-deep font-bold text-xl hover:text-medical-blue hover:scale-105 transition-all cursor-default">
-                    <div className="w-8 h-8 bg-slate-200 rounded-lg flex items-center justify-center text-xs text-slate-500">
-                      {brand[0]}
-                    </div>
-                    {brand}
-                  </div>
-                ))}
+      {/* Trusted By Section */}
+      <div className="border-y border-slate-200 bg-white py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <p className="text-center text-sm font-semibold text-slate-500 mb-8">TRUSTED BY LEADING HEALTHCARE PROVIDERS</p>
+          <div className="flex flex-wrap justify-center items-center gap-12 md:gap-20 opacity-70 grayscale hover:grayscale-0 transition-all duration-500">
+            {["MEDLIFE", "HEARTCARE", "MINDWELL", "DENTALLIANCE", "KIDSHOSPITAL"].map((brand) => (
+              <div key={brand} className="flex items-center gap-2 text-navy-deep font-bold text-xl">
+                <div className="w-6 h-6 bg-slate-300 rounded-full opacity-50"></div> {brand}
               </div>
             ))}
           </div>
-
-          {/* Fade edges */}
-          <div className="absolute top-0 left-0 w-20 h-full bg-gradient-to-r from-white to-transparent z-10"></div>
-          <div className="absolute top-0 right-0 w-20 h-full bg-gradient-to-l from-white to-transparent z-10"></div>
         </div>
       </div>
 
       {/* Solutions / Roles Section */}
-      <section className="py-24 bg-slate-base relative overflow-hidden" id="solutions">
-        {/* Decorative elements */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-100 rounded-full blur-3xl opacity-30 pointer-events-none"></div>
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-100 rounded-full blur-3xl opacity-30 pointer-events-none"></div>
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+      <section className="py-24 bg-slate-50 relative" id="solutions">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-16 md:text-center max-w-3xl mx-auto">
-            <h2 className="text-3xl md:text-5xl font-bold text-navy-deep mb-4 tracking-tight">All Your Needs in One Place</h2>
-            <p className="text-corporate-gray text-lg md:text-xl">Everything you need to manage healthcare, whether you are a doctor, a patient, or front desk staff.</p>
+            <h2 className="text-3xl md:text-4xl font-bold text-navy-deep mb-4">Unified Care Management</h2>
+            <p className="text-corporate-gray text-lg">Designed for the complexities of modern healthcare. Three distinct experiences, one cohesive platform.</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* For Providers */}
-            <div className="glass-card rounded-2xl p-8 flex flex-col justify-between group">
+            <div className="bento-card bg-white border border-slate-200 rounded-2xl p-8 shadow-card flex flex-col justify-between hover:shadow-lg transition-shadow">
               <div>
-                <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center text-medical-blue mb-8 group-hover:scale-110 group-hover:bg-medical-blue group-hover:text-white transition-all duration-300">
-                  <Stethoscope className="h-7 w-7" />
+                <div className="w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center text-medical-blue mb-6">
+                  <Stethoscope className="h-6 w-6" />
                 </div>
-                <h3 className="text-2xl font-bold text-navy-deep mb-3">For Providers</h3>
-                <p className="text-slate-500 mb-8 leading-relaxed">Streamlined charting, AI-assisted diagnosis coding, and schedule management that respects your time.</p>
-                <ul className="space-y-4 mb-6">
+                <h3 className="text-2xl font-bold text-navy-deep mb-2">For Providers</h3>
+                <p className="text-slate-500 mb-6 leading-relaxed">Streamlined charting, AI-assisted diagnosis coding, and schedule management that respects your time.</p>
+                <ul className="space-y-3 mb-6">
                   {["Real-time EHR integration", "Smart SOAP notes", "Telehealth built-in"].map((item, i) => (
                     <li key={i} className="flex items-start gap-3">
-                      <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center mt-0.5 shrink-0">
-                        <CheckCircle2 className="text-green-600 text-xs w-3.5 h-3.5" />
-                      </div>
-                      <span className="text-sm font-medium text-slate-700">{item}</span>
+                      <CheckCircle2 className="text-green-500 text-lg mt-0.5 h-5 w-5" />
+                      <span className="text-sm text-slate-600">{item}</span>
                     </li>
                   ))}
                 </ul>
@@ -378,21 +335,19 @@ export default function Home() {
             </div>
 
             {/* For Patients */}
-            <div className="glass-card rounded-2xl p-8 flex flex-col justify-between relative overflow-hidden group border-medical-blue/20 ring-1 ring-medical-blue/10">
-              <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-green-50 to-green-100 rounded-bl-full -mr-10 -mt-10 z-0 opacity-50 group-hover:scale-110 transition-transform duration-700"></div>
+            <div className="bento-card bg-white border border-slate-200 rounded-2xl p-8 shadow-card flex flex-col justify-between relative overflow-hidden hover:shadow-lg transition-shadow">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-green-50 rounded-bl-full -mr-8 -mt-8 z-0"></div>
               <div className="relative z-10">
-                <div className="w-14 h-14 rounded-2xl bg-green-50 flex items-center justify-center text-green-600 mb-8 group-hover:scale-110 group-hover:bg-green-600 group-hover:text-white transition-all duration-300">
-                  <User className="h-7 w-7" />
+                <div className="w-12 h-12 rounded-lg bg-green-50 flex items-center justify-center text-green-600 mb-6">
+                  <User className="h-6 w-6" />
                 </div>
-                <h3 className="text-2xl font-bold text-navy-deep mb-3">For Patients</h3>
-                <p className="text-slate-500 mb-8 leading-relaxed">Empower patients with a portal they will actually use. Easy booking, record access, and payments.</p>
-                <ul className="space-y-4 mb-6">
+                <h3 className="text-2xl font-bold text-navy-deep mb-2">For Patients</h3>
+                <p className="text-slate-500 mb-6 leading-relaxed">Empower patients with a portal they will actually use. Easy booking, record access, and payments.</p>
+                <ul className="space-y-3 mb-6">
                   {["24/7 Online Booking", "Secure Messaging", "Prescription Refills"].map((item, i) => (
                     <li key={i} className="flex items-start gap-3">
-                      <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center mt-0.5 shrink-0">
-                        <CheckCircle2 className="text-green-600 text-xs w-3.5 h-3.5" />
-                      </div>
-                      <span className="text-sm font-medium text-slate-700">{item}</span>
+                      <CheckCircle2 className="text-green-500 text-lg mt-0.5 h-5 w-5" />
+                      <span className="text-sm text-slate-600">{item}</span>
                     </li>
                   ))}
                 </ul>
@@ -400,20 +355,18 @@ export default function Home() {
             </div>
 
             {/* For Administration */}
-            <div className="glass-card rounded-2xl p-8 flex flex-col justify-between group">
+            <div className="bento-card bg-white border border-slate-200 rounded-2xl p-8 shadow-card flex flex-col justify-between hover:shadow-lg transition-shadow">
               <div>
-                <div className="w-14 h-14 rounded-2xl bg-purple-50 flex items-center justify-center text-purple-600 mb-8 group-hover:scale-110 group-hover:bg-purple-600 group-hover:text-white transition-all duration-300">
-                  <Shield className="h-7 w-7" />
+                <div className="w-12 h-12 rounded-lg bg-purple-50 flex items-center justify-center text-purple-600 mb-6">
+                  <Shield className="h-6 w-6" />
                 </div>
-                <h3 className="text-2xl font-bold text-navy-deep mb-3">For Administration</h3>
-                <p className="text-slate-500 mb-8 leading-relaxed">Operational excellence. Reduce no-shows, optimize billing, and manage staff resources effortlessly.</p>
-                <ul className="space-y-4 mb-6">
+                <h3 className="text-2xl font-bold text-navy-deep mb-2">For Administration</h3>
+                <p className="text-slate-500 mb-6 leading-relaxed">Operational excellence. Reduce no-shows, optimize billing, and manage staff resources effortlessly.</p>
+                <ul className="space-y-3 mb-6">
                   {["Insurance Eligibility", "Automated Reminders", "Resource Analytics"].map((item, i) => (
                     <li key={i} className="flex items-start gap-3">
-                      <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center mt-0.5 shrink-0">
-                        <CheckCircle2 className="text-green-600 text-xs w-3.5 h-3.5" />
-                      </div>
-                      <span className="text-sm font-medium text-slate-700">{item}</span>
+                      <CheckCircle2 className="text-green-500 text-lg mt-0.5 h-5 w-5" />
+                      <span className="text-sm text-slate-600">{item}</span>
                     </li>
                   ))}
                 </ul>
@@ -421,31 +374,20 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="mt-8 rounded-3xl p-8 md:p-12 shadow-2xl relative overflow-hidden group">
-            {/* Dark gradient background */}
-            <div className="absolute inset-0 bg-navy-deep"></div>
-            <div className="absolute inset-0 bg-gradient-to-r from-medical-blue/30 to-purple-600/30 opacity-50"></div>
-            <div className="absolute -right-20 -bottom-20 w-80 h-80 bg-medical-blue/30 rounded-full blur-3xl animate-pulse-slow"></div>
-
-            <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1px)", backgroundSize: "30px 30px" }}></div>
-
+          <div className="mt-6 bento-card bg-navy-deep rounded-2xl p-8 md:p-12 shadow-xl relative overflow-hidden">
+            <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(#475569 1px, transparent 1px)", backgroundSize: "24px 24px" }}></div>
             <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-10">
               <div className="max-w-xl">
-                <div className="flex items-center gap-2 mb-4 text-emerald-400 font-bold tracking-wide text-xs uppercase">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                  Security First
-                </div>
-                <h3 className="text-3xl md:text-4xl font-bold text-white mb-4">Safe, Secure, and Private</h3>
-                <p className="text-slate-300 text-lg mb-8 leading-relaxed">Your data is safe with us. We use top-tier security to keep your information private and protected.</p>
-                <div className="flex flex-wrap gap-3">
-                  {["HIPAA Compliant", "SOC2 Type II", "256-bit Encryption", "GDPR Ready", "Audit Logs"].map(tag => (
-                    <span key={tag} className="px-4 py-1.5 bg-white/10 hover:bg-white/20 rounded-full text-sm text-white border border-white/10 backdrop-blur-sm transition-colors cursor-default">{tag}</span>
+                <h3 className="text-3xl font-bold text-white mb-4">Enterprise-Grade Security & Compliance</h3>
+                <p className="text-slate-300 text-lg mb-6">Built to HIPAA, GDPR, and SOC2 standards. Your patient data is encrypted at rest and in transit.</p>
+                <div className="flex flex-wrap gap-4">
+                  {["HIPAA Compliant", "SOC2 Type II", "256-bit Encryption"].map(tag => (
+                    <span key={tag} className="px-3 py-1 bg-white/10 rounded-full text-sm text-white border border-white/20">{tag}</span>
                   ))}
                 </div>
               </div>
-              <div className="flex-shrink-0 relative">
-                <div className="absolute inset-0 bg-medical-blue/50 blur-2xl rounded-full"></div>
-                <Shield className="relative h-40 w-40 text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.5)] transform group-hover:scale-105 transition-transform duration-500" />
+              <div className="flex-shrink-0">
+                <Shield className="h-32 w-32 text-medical-blue opacity-50" />
               </div>
             </div>
           </div>
@@ -453,63 +395,71 @@ export default function Home() {
       </section>
 
       {/* Benefits Section */}
-      <section id="features" className="border-b border-slate-200 bg-white px-4 py-24 relative overflow-hidden">
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-[500px] bg-slate-50 skew-y-3 z-0"></div>
-
-        <div className="mx-auto max-w-7xl relative z-10">
-          <div className="mb-20 text-center max-w-3xl mx-auto">
-            <h2 className="mb-6 text-4xl font-bold tracking-tight text-navy-deep lg:text-5xl">
-              Why Choose <span className="text-medical-blue">PulseCal?</span>
+      <section id="features" className="border-b border-slate-200 bg-muted/20 px-4 py-20">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-16 text-center">
+            <h2 className="mb-4 text-4xl font-bold tracking-tight text-navy-deep lg:text-5xl">
+              Why healthcare providers choose PulseCal
             </h2>
           </div>
 
-          <div className="grid gap-10 lg:grid-cols-3">
-            {[
-              { icon: Stethoscope, val: "98%", label: "Patient Satisfaction", desc: "Patients love the convenience", color: "green" },
-              { icon: Clock, val: "5 hrs", label: "Saved Weekly", desc: "Automated workflows free up staff", color: "blue" },
-              { icon: Activity, val: "40%", label: "Revenue Increase", desc: "Reduced no-shows and better scheduling", color: "purple" }
-            ].map((stat, i) => (
-              <div key={i} className="flex flex-col items-center text-center p-8 rounded-3xl bg-white border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 group">
-                <div className={`mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-${stat.color}-50 group-hover:scale-110 transition-transform duration-300`}>
-                  <stat.icon className={`h-10 w-10 text-${stat.color}-600`} />
-                </div>
-                <h3 className="mb-2 text-5xl font-bold text-navy-deep tracking-tight">{stat.val}</h3>
-                <p className="text-xl font-bold text-navy-deep mb-2">{stat.label}</p>
-                <p className="text-slate-500">{stat.desc}</p>
+          <div className="grid gap-8 lg:grid-cols-3">
+            <div className="flex flex-col items-center text-center p-6 rounded-2xl hover:bg-white transition-colors">
+              <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-green-100 animate-bounce delay-100">
+                <Stethoscope className="h-10 w-10 text-green-600" />
               </div>
-            ))}
+              <h3 className="mb-2 text-3xl font-bold text-navy-deep">98%</h3>
+              <p className="text-lg font-medium text-navy-deep">Patient Satisfaction</p>
+              <p className="mt-2 text-slate-500">Patients love the convenience</p>
+            </div>
+
+            <div className="flex flex-col items-center text-center p-6 rounded-2xl hover:bg-white transition-colors">
+              <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-blue-100 animate-bounce delay-200">
+                <Clock className="h-10 w-10 text-medical-blue" />
+              </div>
+              <h3 className="mb-2 text-3xl font-bold text-navy-deep">5 hours</h3>
+              <p className="text-lg font-medium text-navy-deep">Saved per day</p>
+              <p className="mt-2 text-slate-500">Automated workflows free up staff</p>
+            </div>
+
+            <div className="flex flex-col items-center text-center p-6 rounded-2xl hover:bg-white transition-colors">
+              <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-purple-100 animate-bounce delay-300">
+                <Activity className="h-10 w-10 text-purple-600" />
+              </div>
+              <h3 className="mb-2 text-3xl font-bold text-navy-deep">40%</h3>
+              <p className="text-lg font-medium text-navy-deep">Revenue Increase</p>
+              <p className="mt-2 text-slate-500">Reduced no-shows and better scheduling</p>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Pricing Section (Re-integrated) */}
-      <section id="pricing" className="border-b border-slate-200 bg-slate-base px-4 py-24 relative overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] bg-white opacity-50 rounded-full blur-3xl pointer-events-none"></div>
-
-        <div className="mx-auto max-w-7xl relative z-10">
-          <div className="mb-16 text-center">
-            <h2 className="mb-6 text-4xl font-bold tracking-tight text-navy-deep lg:text-6xl">
-              Fair and Simple Pricing
+      <section id="pricing" className="border-b border-slate-200 bg-slate-base px-4 py-20 relative">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-12 text-center">
+            <h2 className="mb-4 text-4xl font-bold tracking-tight text-navy-deep lg:text-5xl">
+              Simple, transparent pricing
             </h2>
-            <p className="mx-auto max-w-2xl text-pretty text-xl text-corporate-gray leading-relaxed mb-10">
-              Choose the plan that fits your practice. No hidden fees.
+            <p className="mx-auto max-w-2xl text-pretty text-xl text-corporate-gray leading-relaxed mb-8">
+              Choose the plan that fits your practice.
             </p>
 
-            <div className="flex flex-wrap items-center justify-center gap-2 mb-8 bg-white/80 backdrop-blur-sm p-1.5 rounded-full w-fit mx-auto border border-slate-200 shadow-lg">
+            <div className="flex flex-wrap items-center justify-center gap-2 mb-8 bg-white p-1.5 rounded-full w-fit mx-auto border border-slate-200 shadow-sm">
               {SUBSCRIPTION_DURATIONS.map((duration) => (
                 <button
                   key={duration.value}
                   onClick={() => setBillingInterval(duration.value)}
-                  className={`relative px-6 py-2.5 rounded-full text-sm font-bold transition-all duration-300 ${billingInterval === duration.value
-                    ? "bg-medical-blue text-white shadow-md transform scale-105"
-                    : "text-slate-500 hover:text-navy-deep hover:bg-slate-100"
+                  className={`relative px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${billingInterval === duration.value
+                    ? "bg-medical-blue text-white shadow-sm"
+                    : "text-slate-500 hover:text-navy-deep"
                     }`}
                 >
                   {duration.label}
                   {duration.discount > 0 && (
-                    <span className={`absolute -top-3 -right-2 text-[10px] bg-green-500 text-white px-2 py-0.5 rounded-full shadow-sm font-bold animate-bounce ${billingInterval === duration.value ? "opacity-100" : "opacity-0"
+                    <span className={`absolute -top-2 -right-2 text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full border border-green-200 font-bold ${billingInterval === duration.value ? "opacity-100" : "opacity-0"
                       }`}>
-                      SAVE {duration.discount}%
+                      -{duration.discount}%
                     </span>
                   )}
                 </button>
@@ -517,7 +467,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto">
+          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
             {PLANS.map((plan, index) => {
               const baseAmount = PLAN_AMOUNTS[plan.id]
               let multiplier: number = billingInterval
@@ -539,55 +489,50 @@ export default function Home() {
               return (
                 <div
                   key={plan.id}
-                  className={`relative rounded-3xl p-8 transition-all duration-500 flex flex-col ${plan.recommended
-                    ? "glass-card border-medical-blue/30 shadow-2xl scale-110 z-10"
-                    : "bg-white border border-slate-200 hover:border-medical-blue/30 hover:shadow-xl hover:-translate-y-2"
+                  className={`relative rounded-2xl border-2 p-8 transition-all duration-300 bg-white ${plan.recommended
+                    ? "border-medical-blue shadow-xl scale-105 z-10"
+                    : "border-slate-200 hover:border-medical-blue/50 hover:shadow-lg hover:-translate-y-1"
                     }`}
                 >
                   {plan.recommended && (
-                    <div className="absolute -top-5 left-1/2 -translate-x-1/2">
-                      <span className="rounded-full bg-gradient-to-r from-medical-blue to-blue-600 px-6 py-2 text-sm font-bold text-white shadow-lg flex items-center gap-2">
-                        <Heart className="w-4 h-4 fill-current" /> Most Popular
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                      <span className="rounded-full bg-medical-blue px-4 py-1 text-xs font-semibold text-white shadow-md">
+                        Most Popular
                       </span>
                     </div>
                   )}
                   {billingInterval > 1 && (
-                    <div className="absolute top-6 right-6">
+                    <div className="absolute top-4 right-4">
                       <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700 border border-green-200">
-                        {billingInterval === 12 ? "12 Months" : `${billingInterval} Months`}
+                        {billingInterval === 12 ? "12 Months Autopay" : `${billingInterval} Months`}
                       </span>
                     </div>
                   )}
-                  <div className="mb-8">
-                    <h3 className="mb-3 text-2xl font-bold text-navy-deep">{plan.name}</h3>
-                    <p className="text-sm text-slate-500 leading-snug">{plan.description}</p>
-                  </div>
                   <div className="mb-6">
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-4xl font-bold text-navy-deep tracking-tight">{priceDisplay}</span>
-                      <span className="text-slate-500 font-medium text-sm">/ {SUBSCRIPTION_DURATIONS.find(d => d.value === billingInterval)?.label.toLowerCase().replace("months", "mo") || "month"}</span>
-                    </div>
-                    {savings ? (
-                      <div className="text-sm text-green-600 font-bold mt-2 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                        {savings}
-                      </div>
-                    ) : (
-                      <div className="h-7"></div>
-                    )}
+                    <h3 className="mb-2 text-2xl font-bold text-navy-deep">{plan.name}</h3>
+                    <p className="text-sm text-slate-500">{plan.description}</p>
                   </div>
+                  <div className="mb-2">
+                    <span className="text-4xl font-bold text-navy-deep">{priceDisplay}</span>
+                    <span className="text-slate-500"> / {SUBSCRIPTION_DURATIONS.find(d => d.value === billingInterval)?.label.toLowerCase().replace("months", "mo") || "month"}</span>
+                  </div>
+                  {savings && (
+                    <div className="mb-6 text-sm text-green-600 font-semibold animate-pulse">
+                      {savings}
+                    </div>
+                  )}
+                  {!savings && <div className="mb-6 h-5"></div>}
 
-                  <ul className="mb-8 space-y-4 flex-1">
+                  <ul className="mb-8 space-y-3">
                     {plan.features.map((feature, idx) => (
                       <li key={idx} className="flex items-start gap-3">
-                        <CheckCircle2 className={`mt-0.5 h-5 w-5 shrink-0 ${plan.recommended ? 'text-medical-blue' : 'text-slate-400'}`} />
-                        <span className="text-sm text-slate-700 font-medium">{feature}</span>
+                        <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-green-500" />
+                        <span className="text-sm text-slate-600">{feature}</span>
                       </li>
                     ))}
                   </ul>
-
                   <GetStartedAction
-                    className={`w-full py-6 rounded-xl text-base font-bold transition-all ${plan.recommended ? "bg-medical-blue hover:bg-blue-700 text-white shadow-lg hover:shadow-medical-blue/30" : "border-2 border-slate-200 text-slate-700 hover:border-medical-blue hover:text-medical-blue bg-transparent"}`}
+                    className={`w-full ${plan.recommended ? "bg-medical-blue hover:bg-blue-700 text-white" : "border-2 border-medical-blue text-medical-blue hover:bg-blue-50 bg-transparent"}`}
                     variant={plan.recommended ? "default" : "outline"}
                   />
                 </div>
@@ -601,10 +546,10 @@ export default function Home() {
       <section className="bg-white px-4 py-20">
         <div className="mx-auto max-w-4xl text-center">
           <h2 className="mb-6 text-balance text-4xl font-bold tracking-tight text-navy-deep lg:text-5xl">
-            Get Started Today.
+            Modernize your practice today.
           </h2>
           <p className="mb-8 text-pretty text-xl text-corporate-gray leading-relaxed">
-            Join hundreds of healthcare providers helping patients every day.
+            Join over 850 healthcare organizations delivering better outcomes with PulseCal.
           </p>
           <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
             <GetStartedAction
@@ -627,14 +572,6 @@ export default function Home() {
               <p className="text-slate-500 text-sm max-w-xs mb-6 leading-relaxed">
                 The complete operating system for modern healthcare providers. Streamlining operations so you can focus on care.
               </p>
-              <div className="flex gap-4 mt-6">
-                <a href="https://www.instagram.com/pulsecalofficial?igsh=MWVyZG5xMjJybnVhZw%3D%3D&utm_source=qr" target="_blank" rel="noopener noreferrer" className="bg-white p-2 rounded-full shadow-sm hover:shadow-md hover:scale-110 transition-all text-pink-600">
-                  <Instagram className="w-5 h-5" />
-                </a>
-                <a href="https://www.linkedin.com/company/pulsecal" target="_blank" rel="noopener noreferrer" className="bg-white p-2 rounded-full shadow-sm hover:shadow-md hover:scale-110 transition-all text-blue-700">
-                  <Linkedin className="w-5 h-5" />
-                </a>
-              </div>
             </div>
             <div>
               <h4 className="text-navy-deep font-semibold mb-4">Product</h4>
