@@ -129,7 +129,7 @@ export const getQueueStatus = async (clinicId?: string) => {
         lte: endOfDay,
       },
       status: {
-        in: ['CHECKED_IN', 'IN_PROGRESS', 'COMPLETED', 'CONFIRMED'], // Statuses relevant to queue
+        in: ['CHECKED_IN', 'IN_PROGRESS', 'COMPLETED', 'CONFIRMED', 'SCHEDULED'], // Statuses relevant to queue
       },
     },
     select: {

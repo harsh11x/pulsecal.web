@@ -423,7 +423,7 @@ export const checkInAppointment = async (appointmentId: string) => {
   const updated = await prisma.appointment.update({
     where: { id: appointmentId },
     data: {
-      status: 'CONFIRMED',
+      status: 'CHECKED_IN',
       checkInTime: new Date(),
     },
     include: {
