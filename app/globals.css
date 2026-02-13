@@ -5,7 +5,14 @@
 
 :root {
   /* Healthcare Primary Colors */
-  --medical-blue: #3498db;
+  --medical-blue: #0052cc;
+  --medical-light: #eef4ff;
+  --medical-dark: #0a2540;
+  --slate-base: #f8fafc;
+  --navy-deep: #0f172a;
+  --corporate-gray: #475569;
+
+  /* Legacy Colors (Keep for backward compatibility if needed) */
   --dark-slate: #2c3e50;
   --success-green: #27ae60;
   --warning-orange: #f39c12;
@@ -131,53 +138,65 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* New Medical Theme Colors */
+  --color-medical-blue: var(--medical-blue);
+  --color-medical-light: var(--medical-light);
+  --color-medical-dark: var(--medical-dark);
+  --color-slate-base: var(--slate-base);
+  --color-navy-deep: var(--navy-deep);
+  --color-corporate-gray: var(--corporate-gray);
 }
+
 
 @layer base {
   * {
     @apply border-border outline-ring/50 transition-all duration-300 ease-in-out;
   }
+
   html {
     scroll-behavior: smooth;
   }
+
   body {
     @apply bg-background text-foreground;
   }
-  
+
   /* Custom scrollbar */
   ::-webkit-scrollbar {
     width: 10px;
     height: 10px;
   }
-  
+
   ::-webkit-scrollbar-track {
     @apply bg-muted;
   }
-  
+
   ::-webkit-scrollbar-thumb {
     @apply bg-primary/30 rounded-full;
   }
-  
+
   ::-webkit-scrollbar-thumb:hover {
     @apply bg-primary/50;
   }
-  
+
   /* Smooth animations */
   @keyframes fadeIn {
     from {
       opacity: 0;
       transform: translateY(20px);
     }
+
     to {
       opacity: 1;
       transform: translateY(0);
     }
   }
-  
+
   .animate-fade-in {
     animation: fadeIn 0.6s ease-out;
   }
-  
+
   /* Gradient text */
   .gradient-text {
     @apply bg-gradient-to-r from-primary via-primary/80 to-accent bg-clip-text text-transparent;
