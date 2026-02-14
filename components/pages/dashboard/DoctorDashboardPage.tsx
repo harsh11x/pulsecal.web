@@ -305,6 +305,9 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
     },
   ]
 
+  // Determine if the user has management permissions (Head Doctor/Owner)
+  const canManage = (user as any)?.canManageSubscription === true
+
   return (
     <div className="space-y-4 sm:space-y-6 overflow-x-hidden">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -313,12 +316,14 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
           <p className="text-muted-foreground text-sm sm:text-base">Welcome back, Dr. {user?.lastName}</p>
         </div>
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-          <Button asChild variant="outline">
-            <Link href="/dashboard/settings">
-              <Settings className="mr-2 h-4 w-4" />
-              Settings
-            </Link>
-          </Button>
+          {canManage && (
+            <Button asChild variant="outline">
+              <Link href="/dashboard/settings">
+                <Settings className="mr-2 h-4 w-4" />
+                Settings
+              </Link>
+            </Button>
+          )}
           <Button asChild>
             <Link href="/profile">
               Update Profile
@@ -347,9 +352,9 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
           <TabsTrigger value="overview" className="text-xs sm:text-sm">Overview</TabsTrigger>
           <TabsTrigger value="schedule" className="text-xs sm:text-sm">Schedule</TabsTrigger>
           <TabsTrigger value="services" className="text-xs sm:text-sm">Services</TabsTrigger>
-          <TabsTrigger value="clinic" className="text-xs sm:text-sm">Clinic</TabsTrigger>
+          {canManage && <TabsTrigger value="clinic" className="text-xs sm:text-sm">Clinic</TabsTrigger>}
           <TabsTrigger value="analytics" className="text-xs sm:text-sm">Analytics</TabsTrigger>
-          <TabsTrigger value="reports" className="text-xs sm:text-sm">Reports</TabsTrigger>
+          {canManage && <TabsTrigger value="reports" className="text-xs sm:text-sm">Reports</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -412,18 +417,22 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
                     Manage Schedule & Availability
                   </Link>
                 </Button>
-                <Button asChild variant="outline" className="w-full justify-start">
-                  <Link href="/dashboard/staff">
-                    <Users className="mr-2 h-4 w-4" />
-                    Manage Clinic Staff
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" className="w-full justify-start">
-                  <Link href="/dashboard/reports">
-                    <FileText className="mr-2 h-4 w-4" />
-                    View Financial Reports
-                  </Link>
-                </Button>
+                {canManage && (
+                  <Button asChild variant="outline" className="w-full justify-start">
+                    <Link href="/dashboard/staff">
+                      <Users className="mr-2 h-4 w-4" />
+                      Manage Clinic Staff
+                    </Link>
+                  </Button>
+                )}
+                {canManage && (
+                  <Button asChild variant="outline" className="w-full justify-start">
+                    <Link href="/dashboard/reports">
+                      <FileText className="mr-2 h-4 w-4" />
+                      View Financial Reports
+                    </Link>
+                  </Button>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -491,17 +500,21 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
           <DoctorServicesManager userId={user.id} />
         </TabsContent>
 
-        <TabsContent value="clinic">
-          <ClinicManager clinicId={user.clinicId} />
-        </TabsContent>
+        {canManage && (
+          <TabsContent value="clinic">
+            <ClinicManager clinicId={user.clinicId} />
+          </TabsContent>
+        )}
 
         <TabsContent value="analytics">
           <DoctorAnalytics data={stats} />
         </TabsContent>
 
-        <TabsContent value="reports">
-          <DoctorFinancialReports />
-        </TabsContent>
+        {canManage && (
+          <TabsContent value="reports">
+            <DoctorFinancialReports />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   )

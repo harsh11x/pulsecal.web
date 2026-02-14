@@ -156,7 +156,7 @@ export function Sidebar({ className }: SidebarProps) {
     }
 
     // Hide Subscription link for non-owner doctors (joining doctors)
-    if ((item.href === "/subscription" || item.href === "/dashboard/staff") && userRole === "doctor" && (user as any)?.canManageSubscription === false) {
+    if ((item.href === "/subscription" || item.href === "/dashboard/staff") && userRole === "doctor" && (user as any)?.canManageSubscription !== true) {
       return false
     }
 
