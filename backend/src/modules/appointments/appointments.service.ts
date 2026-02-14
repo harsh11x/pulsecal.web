@@ -150,7 +150,7 @@ export const getAppointments = async (req: {
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    where.scheduledAt = { gte: today, lte: tomorrow };
+    where.scheduledAt = { gte: today, lt: tomorrow };
   } else if (req.query.startDate || req.query.endDate) {
     where.scheduledAt = {};
     if (req.query.startDate) {
