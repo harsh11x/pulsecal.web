@@ -53,6 +53,7 @@ export default function ProfilePage() {
   }
 
   const isDoctor = user?.role === "doctor"
+  const canManage = (user as any)?.canManageSubscription === true
   const existingAddress = isDoctor ? ((user as any)?.doctorProfile?.clinicAddress || "") : ""
   const parsed = parseAddress(existingAddress)
   const dp = (user as any)?.doctorProfile
@@ -94,7 +95,9 @@ export default function ProfilePage() {
         phone: formData.phone,
       }
       if (isDoctor) {
-        payload.clinicAddress = fullClinicAddress
+        if (canManage) {
+          payload.clinicAddress = fullClinicAddress
+        }
         payload.bankAccountDetails = formData.bankAccountDetails?.trim() || null
         payload.upiId = formData.upiId?.trim() || null
       }
@@ -298,7 +301,11 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {isDoctor && (
+          const canManage = (user as any)?.canManageSubscription === true
+
+          // ... (inside the return JSX) ...
+
+          {isDoctor && canManage && (
             <div className="space-y-4 pt-4 border-t">
               <h3 className="text-lg font-semibold">Clinic Address</h3>
 
