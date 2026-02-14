@@ -53,7 +53,7 @@ export function DoctorProfileModal({ doctor, isOpen, onClose, userLocation }: Do
 
   const handleBookAppointment = () => {
     // Navigate to booking page with doctor ID
-    window.location.href = `/doctors/${doctor.id}/book`
+    window.location.href = `/appointments/book?doctorId=${doctor.id}`
   }
 
   return (

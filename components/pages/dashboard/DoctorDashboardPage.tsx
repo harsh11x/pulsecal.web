@@ -154,12 +154,10 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
       if (showLoader) setLoading(true)
       else setRefreshing(true)
 
-      const localDate = format(new Date(), "yyyy-MM-dd")
-
       // Fetch analytics and appointments in parallel so one failure doesn't block the other
       const [analyticsRes, appointmentsRes] = await Promise.allSettled([
-        apiService.get(`/doctors/analytics?period=week&date=${localDate}`),
-        apiService.get(`/appointments?date=${localDate}&limit=100`),
+        apiService.get("/doctors/analytics?period=week"),
+        apiService.get("/appointments?date=today"),
       ])
 
       const analyticsFulfilled = analyticsRes.status === "fulfilled"

@@ -181,8 +181,7 @@ export const getDoctorAnalytics = async (
   doctorId: string,
   period: 'day' | 'week' | 'month' | '3months' | 'year' | 'custom' = 'day',
   customStartDate?: Date,
-  customEndDate?: Date,
-  targetDate?: string // New parameter for 'day' period
+  customEndDate?: Date
 ) => {
   try {
     if (!doctorId || typeof doctorId !== 'string') {
@@ -190,12 +189,8 @@ export const getDoctorAnalytics = async (
     }
 
     const now = new Date();
-    // Use targetDate if provided (for 'day' period), otherwise default to current server 'now'
-    const referenceDate = targetDate ? new Date(targetDate) : now;
-
     let startDate: Date;
-    // Set endDate to the end of referenceDate (23:59:59.999)
-    let endDate: Date = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate(), 23, 59, 59, 999);
+    let endDate: Date = now;
 
     if (period === 'custom' && customStartDate && customEndDate) {
       startDate = new Date(customStartDate);
@@ -203,14 +198,14 @@ export const getDoctorAnalytics = async (
     } else {
       switch (period) {
         case 'day':
-          startDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate());
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
           break;
         case 'week':
-          startDate = new Date(referenceDate);
-          startDate.setDate(referenceDate.getDate() - 7);
+          startDate = new Date(now);
+          startDate.setDate(now.getDate() - 7);
           break;
         case 'month':
-          startDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1);
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
           break;
         case '3months':
           startDate = new Date(now);
@@ -286,12 +281,12 @@ export const getDoctorAnalytics = async (
       }),
       // Week appointments (include scheduledAt for chart breakdown)
       prisma.appointment.findMany({
-        where: { doctorId, scheduledAt: { gte: weekStart, lte: endDate }, deletedAt: null },
+        where: { doctorId, scheduledAt: { gte: weekStart, lte: now }, deletedAt: null },
         select: { id: true, status: true, scheduledAt: true }
       }),
       // Month appointments
       prisma.appointment.findMany({
-        where: { doctorId, scheduledAt: { gte: monthStart, lte: endDate }, deletedAt: null },
+        where: { doctorId, scheduledAt: { gte: monthStart, lte: now }, deletedAt: null },
         select: { id: true, status: true }
       }),
       // Yesterday stats (completed count, cancellation count)

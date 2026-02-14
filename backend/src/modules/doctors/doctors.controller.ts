@@ -262,8 +262,7 @@ export const getDoctorAnalyticsController = async (
       doctorId,
       (period as any) || 'day',
       startDate ? new Date(startDate as string) : undefined,
-      endDate ? new Date(endDate as string) : undefined,
-      req.query.date as string
+      endDate ? new Date(endDate as string) : undefined
     );
 
     logger.info({ doctorId }, 'Analytics retrieved successfully');

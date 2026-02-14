@@ -142,7 +142,7 @@ export default function TermsPage() {
               <h2 className="text-2xl font-semibold mb-4">9. Contact Us</h2>
               <div className="rounded-lg border border-border bg-card p-6">
                 <p className="font-semibold text-foreground">PulseCal Legal Team</p>
-                <p className="text-muted-foreground">Email: Pulsecal.help@gmail.com</p>
+                <p className="text-muted-foreground">Email: legal@pulsecal.com</p>
               </div>
             </section>
           </div>

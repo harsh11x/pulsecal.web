@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AuthForm } from "@/components/auth/AuthForm"
@@ -9,16 +9,10 @@ interface AuthModalProps {
     isOpen: boolean
     onClose: () => void
     defaultTab?: "signin" | "signup"
-    selectedRole?: "doctor" | "patient" | "receptionist" | null
 }
 
-export function AuthModal({ isOpen, onClose, defaultTab = "signin", selectedRole }: AuthModalProps) {
+export function AuthModal({ isOpen, onClose, defaultTab = "signin" }: AuthModalProps) {
     const [activeTab, setActiveTab] = useState(defaultTab)
-
-    // Reset tab when modal opens/changes
-    useEffect(() => {
-        setActiveTab(defaultTab)
-    }, [defaultTab, isOpen])
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
@@ -26,7 +20,6 @@ export function AuthModal({ isOpen, onClose, defaultTab = "signin", selectedRole
                 <DialogHeader>
                     <DialogTitle className="text-center text-2xl font-bold">
                         Welcome to PulseCal
-                        {selectedRole && <span className="block text-sm font-normal text-muted-foreground mt-1 capitalize">For {selectedRole}s</span>}
                     </DialogTitle>
                 </DialogHeader>
 
@@ -37,11 +30,11 @@ export function AuthModal({ isOpen, onClose, defaultTab = "signin", selectedRole
                     </TabsList>
 
                     <TabsContent value="signin" className="mt-6">
-                        <AuthForm mode="signin" onSuccess={onClose} selectedRole={selectedRole} />
+                        <AuthForm mode="signin" onSuccess={onClose} />
                     </TabsContent>
 
                     <TabsContent value="signup" className="mt-6">
-                        <AuthForm mode="signup" onSuccess={onClose} selectedRole={selectedRole} />
+                        <AuthForm mode="signup" onSuccess={onClose} />
                     </TabsContent>
                 </Tabs>
             </DialogContent>

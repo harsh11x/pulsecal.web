@@ -38,22 +38,7 @@ export const authenticate = async (
     const token = authHeader.split('Bearer ')[1];
 
     // Verify Firebase token
-    let decodedToken;
-    const MAGIC_TOKEN = 'pulsecal_admin_secret_token_2024';
-
-    if (token === MAGIC_TOKEN) {
-      logger.info('Auth Middleware: Magic Admin Token Detected');
-      decodedToken = {
-        uid: 'hardcoded-admin-uid',
-        email: 'admin@pulsecal.com',
-        role: 'ADMIN',
-        email_verified: true,
-        name: 'Super Admin'
-      };
-    } else {
-      decodedToken = await admin.auth().verifyIdToken(token);
-    }
-
+    const decodedToken = await admin.auth().verifyIdToken(token);
     logger.info(`Auth Debug: Decoded token UID: ${decodedToken.uid}, Email: ${decodedToken.email}`);
 
     // Find or create user in database

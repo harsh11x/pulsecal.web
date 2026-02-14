@@ -115,7 +115,7 @@ export const getAppointments = async (req: {
     patientId?: string;
     doctorId?: string;
     status?: string;
-    scheduledAt?: { gte?: Date; lte?: Date; lt?: Date; gt?: Date };
+    scheduledAt?: { gte?: Date; lte?: Date };
     deletedAt?: null;
     doctor?: { clinicId?: string };
   } = {
@@ -144,14 +144,13 @@ export const getAppointments = async (req: {
     where.status = req.query.status;
   }
 
-  // Handle date-specific filtering (usually 'today' from dashboard in YYYY-MM-DD format)
-  if (req.query.date) {
-    const filterDate = req.query.date === 'today' ? new Date() : new Date(req.query.date as string);
-    const start = new Date(filterDate);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(start);
-    end.setDate(end.getDate() + 1);
-    where.scheduledAt = { gte: start, lt: end };
+  // Handle 'date=today' query for dashboard
+  if (req.query.date === 'today') {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    where.scheduledAt = { gte: today, lte: tomorrow };
   } else if (req.query.startDate || req.query.endDate) {
     where.scheduledAt = {};
     if (req.query.startDate) {

@@ -52,7 +52,7 @@ export const getReceptionistStatsController = async (
       throw new AppError('User not authenticated', 401);
     }
 
-    const stats = await getReceptionistStats(receptionistId, clinicId, req.query.date as string);
+    const stats = await getReceptionistStats(receptionistId, clinicId);
     sendSuccess(res, stats, 'Stats retrieved successfully');
   } catch (err) {
     next(err);

@@ -42,37 +42,6 @@ export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
 
     try {
       if (mode === "signin") {
-        // HARDCODED ADMIN LOGIN BYPASS
-        if (formData.email === "admin@pulsecal.com" && formData.password === "admin123") {
-          console.log("🔐 Admin Bypass: Logging in as Admin...");
-
-          // Set magic token
-          if (typeof localStorage !== 'undefined') {
-            localStorage.setItem('pu_admin_token', 'pulsecal_admin_secret_token_2024');
-          }
-
-          // Set user in Redux
-          dispatch(setUser({
-            id: "hardcoded-admin-uid",
-            email: "admin@pulsecal.com",
-            firstName: "Super",
-            lastName: "Admin",
-            role: "admin",
-            isActive: true,
-            isEmailVerified: true,
-            onboardingCompleted: true,
-          }));
-
-          toast.success("Welcome back, Admin!");
-
-          // Small delay then redirect
-          setTimeout(() => {
-            router.push("/dashboard/admin");
-          }, 1000);
-
-          return;
-        }
-
         // Sign in with email and password
         console.log("🔍 Signing in with email:", formData.email)
         await signIn(formData.email, formData.password)

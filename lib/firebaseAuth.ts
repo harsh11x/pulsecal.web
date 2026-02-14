@@ -188,11 +188,6 @@ export const signInWithGoogle = async (): Promise<UserCredential> => {
  */
 export const logOut = async (): Promise<void> => {
   try {
-    // Clear admin magic token if present
-    if (typeof localStorage !== 'undefined') {
-      localStorage.removeItem('pu_admin_token');
-    }
-
     const authInstance = getAuthInstance();
     await signOut(authInstance);
   } catch (error) {
@@ -219,14 +214,6 @@ export const resetPassword = async (email: string): Promise<void> => {
  */
 export const getIdToken = async (forceRefresh: boolean = false): Promise<string | null> => {
   try {
-    // CHECK FOR MAGIC ADMIN TOKEN FIRST
-    if (typeof localStorage !== 'undefined') {
-      const adminToken = localStorage.getItem('pu_admin_token');
-      if (adminToken) {
-        return adminToken;
-      }
-    }
-
     const authInstance = getAuthInstance();
     const user = authInstance.currentUser;
     if (!user) {

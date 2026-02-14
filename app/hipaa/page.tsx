@@ -142,7 +142,7 @@ export default function HIPAAPage() {
               </p>
               <div className="rounded-lg border border-border bg-card p-6">
                 <p className="font-semibold text-foreground">PulseCal Compliance Team</p>
-                <p className="text-muted-foreground">Email: Pulsecal.help@gmail.com</p>
+                <p className="text-muted-foreground">Email: compliance@pulsecal.com</p>
                 <p className="text-muted-foreground">Phone: 1-800-PULSECAL</p>
               </div>
             </section>

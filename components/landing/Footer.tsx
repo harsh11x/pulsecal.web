@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Mail, Linkedin, Instagram } from "lucide-react"
+import { Facebook, Twitter, Linkedin, Instagram } from "lucide-react"
 
 export function Footer() {
   return (
@@ -17,15 +17,23 @@ export function Footer() {
             </p>
             <div className="flex gap-4">
               <Link
-                href="https://www.instagram.com/pulsecalofficial?igsh=MWVyZG5xMjJybnVhZw%3D%3D&utm_source=qr"
+                href="https://facebook.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-muted-foreground transition-all duration-200 hover:text-primary hover:scale-110"
               >
-                <Instagram className="h-5 w-5" />
+                <Facebook className="h-5 w-5" />
               </Link>
               <Link
-                href="https://www.google.com/url?q=https://www.linkedin.com/company/pulsecal&sa=U&sqi=2&ved=2ahUKEwiQgb3-ideSAxWbklYBHY1QBO0QFnoECCwQAQ&usg=AOvVaw0QR1I682GfKEJWRwBb_Rnv"
+                href="https://twitter.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground transition-all duration-200 hover:text-primary hover:scale-110"
+              >
+                <Twitter className="h-5 w-5" />
+              </Link>
+              <Link
+                href="https://www.linkedin.com/company/pulsecal/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-muted-foreground transition-all duration-200 hover:text-primary hover:scale-110"
@@ -33,10 +41,12 @@ export function Footer() {
                 <Linkedin className="h-5 w-5" />
               </Link>
               <Link
-                href="mailto:pulsecal.info@gmail.com"
+                href="https://www.instagram.com/pulsecalofficial"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-muted-foreground transition-all duration-200 hover:text-primary hover:scale-110"
               >
-                <Mail className="h-5 w-5" />
+                <Instagram className="h-5 w-5" />
               </Link>
             </div>
           </div>
@@ -88,13 +98,8 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="mailto:pulsecal.info@gmail.com" className="transition-all duration-200 hover:text-primary hover:translate-x-1 inline-block">
+                <Link href="mailto:contact@pulsecal.com" className="transition-all duration-200 hover:text-primary hover:translate-x-1 inline-block">
                   Contact
-                </Link>
-              </li>
-              <li>
-                <Link href="mailto:Pulsecal.help@gmail.com" className="transition-all duration-200 hover:text-primary hover:translate-x-1 inline-block">
-                  Help & Support
                 </Link>
               </li>
             </ul>
