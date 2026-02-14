@@ -8,7 +8,7 @@ export default function HIPAAPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      
+
       <main className="flex-1">
         <div className="mx-auto max-w-4xl px-4 py-16">
           <div className="mb-12 text-center">

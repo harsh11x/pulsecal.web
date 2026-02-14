@@ -9,9 +9,10 @@ interface AuthModalProps {
     isOpen: boolean
     onClose: () => void
     defaultTab?: "signin" | "signup"
+    selectedRole?: "doctor" | "patient" | "receptionist" | null
 }
 
-export function AuthModal({ isOpen, onClose, defaultTab = "signin" }: AuthModalProps) {
+export function AuthModal({ isOpen, onClose, defaultTab = "signin", selectedRole }: AuthModalProps) {
     const [activeTab, setActiveTab] = useState(defaultTab)
 
     return (

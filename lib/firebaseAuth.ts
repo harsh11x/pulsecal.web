@@ -335,7 +335,7 @@ export const syncUserProfile = async (
 
     // Use the API service instead of direct fetch to ensure proper error handling
     const { apiService } = await import('@/services/api');
-    
+
     try {
       const result = await apiService.post('/auth/sync-profile', {
         firstName: finalFirstName,
@@ -345,7 +345,7 @@ export const syncUserProfile = async (
         profileImage: finalProfileImage,
         role: role, // Include role if provided
       });
-      
+
       return result;
     } catch (apiError: any) {
       // If API call fails, log but don't block auth flow

@@ -57,7 +57,7 @@ export default function PatientDashboardPage({ user }: PatientDashboardPageProps
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (p) => setUserLocation({ lat: p.coords.latitude, lng: p.coords.longitude }),
-        () => {}
+        () => { }
       )
     }
   }, [])
@@ -74,7 +74,7 @@ export default function PatientDashboardPage({ user }: PatientDashboardPageProps
         const city = data?.address?.city || data?.address?.town || data?.address?.village || data?.address?.county
         if (city) setUserCity(city)
       })
-      .catch(() => {})
+      .catch(() => { })
   }, [userLocation])
 
   useEffect(() => {
@@ -93,11 +93,11 @@ export default function PatientDashboardPage({ user }: PatientDashboardPageProps
     apiService.get(`/clinics?${params}`).then((r: any) => {
       const list = Array.isArray(r) ? r : (r?.clinics ?? r?.data ?? [])
       setNearbyClinics(list)
-    }).catch(() => {})
+    }).catch(() => { })
     apiService.get(`/doctors/search?${params}&limit=15`).then((r: any) => {
       const list = Array.isArray(r) ? r : (r?.doctors ?? r?.data ?? [])
       setNearbyDoctors(list)
-    }).catch(() => {})
+    }).catch(() => { })
   }, [userLocation, userCity])
 
   useEffect(() => {
