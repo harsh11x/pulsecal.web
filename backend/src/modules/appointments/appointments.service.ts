@@ -115,7 +115,7 @@ export const getAppointments = async (req: {
     patientId?: string;
     doctorId?: string;
     status?: string;
-    scheduledAt?: { gte?: Date; lte?: Date };
+    scheduledAt?: { gte?: Date; lte?: Date; lt?: Date };
     deletedAt?: null;
     doctor?: { clinicId?: string };
   } = {
@@ -145,20 +145,21 @@ export const getAppointments = async (req: {
   }
 
   // Handle 'date=today' query for dashboard
-  if (req.query.date === 'today') {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    where.scheduledAt = { gte: today, lt: tomorrow };
-  } else if (req.query.startDate || req.query.endDate) {
-    where.scheduledAt = {};
+  // Prioritize startDate and endDate if provided (likely from client ensuring local time)
+  if (req.query.startDate || req.query.endDate) {
+    if (!where.scheduledAt) where.scheduledAt = {};
     if (req.query.startDate) {
       where.scheduledAt.gte = new Date(req.query.startDate);
     }
     if (req.query.endDate) {
       where.scheduledAt.lte = new Date(req.query.endDate);
     }
+  } else if (req.query.date === 'today') {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    where.scheduledAt = { gte: today, lt: tomorrow };
   }
 
   const [appointments, total] = await Promise.all([

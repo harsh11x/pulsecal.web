@@ -158,7 +158,11 @@ export default function ReceptionistDashboardPage({ user }: ReceptionistDashboar
       setQueue(mapped)
 
       // Fetch today's appointments (clinic-scoped by backend)
-      const todayResponse: any = await apiService.get("/appointments?date=today")
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date();
+      endOfDay.setHours(23, 59, 59, 999);
+      const todayResponse: any = await apiService.get(`/appointments?startDate=${startOfDay.toISOString()}&endDate=${endOfDay.toISOString()}`)
       const todayApts = todayResponse?.appointments ?? todayResponse
       setTodayAppointments(Array.isArray(todayApts) ? todayApts : [])
 

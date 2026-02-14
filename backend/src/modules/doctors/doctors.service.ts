@@ -485,19 +485,39 @@ export const getDoctorSlots = async (doctorId: string, daysParam: number = 10) =
           const currentSlotStart = new Date(current);
           const currentSlotEnd = new Date(current.getTime() + configuredSlotDuration * 60000);
 
-          // Check for collision with any existing appointment
-          const isBooked = existingAppointments.some(apt => {
+          // Find ANY colliding appointment
+          const collision = existingAppointments.find(apt => {
             const aptStart = new Date(apt.scheduledAt);
-            const aptDuration = apt.duration || 30; // Default to 30 if null
+            const aptDuration = apt.duration || 30;
             const aptEnd = new Date(aptStart.getTime() + aptDuration * 60000);
 
-            // Range collision detection: (StartA < EndB) and (EndA > StartB)
+            // Range collision: (StartA < EndB) and (EndA > StartB)
             return currentSlotStart < aptEnd && currentSlotEnd > aptStart;
           });
 
-          if (!isBooked) hasAvailable = true;
-          daySlots.push({ time: currentSlotStart.toISOString(), available: !isBooked });
+          if (collision) {
+            // If collision, jump current time to the END of this appointment
+            const aptStart = new Date(collision.scheduledAt);
+            const aptDuration = collision.duration || 30;
+            const aptEnd = new Date(aptStart.getTime() + aptDuration * 60000);
+
+            // Ensure we actually move forward to avoid infinite loops if calculation is off
+            if (aptEnd > current) {
+              current = aptEnd;
+            } else {
+              // Failsafe: just move by 1 minute if for some reason aptEnd <= current
+              current.setMinutes(current.getMinutes() + 1);
+            }
+            // Continue loop to check this new time
+            continue;
+          }
+
+          // No collision -> Valid slot
+          hasAvailable = true;
+          daySlots.push({ time: currentSlotStart.toISOString(), available: true });
         }
+
+        // Advance by slot duration for the next slot
         current.setMinutes(current.getMinutes() + configuredSlotDuration);
       }
     }
@@ -537,14 +557,26 @@ export const getDoctorSlots = async (doctorId: string, daysParam: number = 10) =
         const currentSlotEnd = new Date(cur.getTime() + configuredSlotDuration * 60000);
 
         // Check for collision with any existing appointment in fallback mode too
-        const isBooked = existingAppointments.some(apt => {
+        const collision = existingAppointments.find(apt => {
           const aptStart = new Date(apt.scheduledAt);
           const aptDuration = apt.duration || 30;
           const aptEnd = new Date(aptStart.getTime() + aptDuration * 60000);
           return currentSlotStart < aptEnd && currentSlotEnd > aptStart;
         });
 
-        daySlots.push({ time: cur.toISOString(), available: !isBooked });
+        if (collision) {
+          const aptStart = new Date(collision.scheduledAt);
+          const aptDuration = collision.duration || 30;
+          const aptEnd = new Date(aptStart.getTime() + aptDuration * 60000);
+          if (aptEnd > cur) {
+            cur = aptEnd;
+          } else {
+            cur.setMinutes(cur.getMinutes() + 1);
+          }
+          continue;
+        }
+
+        daySlots.push({ time: cur.toISOString(), available: true });
         cur.setMinutes(cur.getMinutes() + configuredSlotDuration);
       }
       if (daySlots.length > 0) {
