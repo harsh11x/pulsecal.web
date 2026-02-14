@@ -23,7 +23,7 @@ export default function ClinicManager({ clinicId }: ClinicManagerProps) {
     // Simplified: Role based check or specific flag. 
     // The requirement: "Only head doctor can see ... Edit Clinic".
     // If this component renders the edit form, we should check permission.
-    const canEdit = user?.role === "admin" || (user?.role === "doctor" && (user as any)?.canManageSubscription !== false)
+    const canEdit = user?.role === "admin" || (user?.role === "doctor" && (user as any)?.canManageSubscription === true)
 
     const [loading, setLoading] = useState(false)
     const [fetching, setFetching] = useState(true)

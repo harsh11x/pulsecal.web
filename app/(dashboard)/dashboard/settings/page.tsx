@@ -11,7 +11,7 @@ import { useAppSelector } from "@/app/hooks"
 export default function SettingsPage() {
     const user = useAppSelector((state) => state.auth.user)
     // Only admins or head doctors (who can manage subscription) can edit clinic
-    const canEditClinic = user?.role === "admin" || (user?.role === "doctor" && (user as any)?.canManageSubscription !== false)
+    const canEditClinic = user?.role === "admin" || (user?.role === "doctor" && (user as any)?.canManageSubscription === true)
     return (
         <div className="space-y-6">
             <div className="flex items-center gap-2">

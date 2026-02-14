@@ -10,7 +10,7 @@ import Link from "next/link"
 export default function StaffManagementPage() {
   const user = useAppSelector((state) => state.auth.user)
   const role = user?.role?.toLowerCase()
-  const isOwnerDoctor = role === "doctor" && (user as any)?.canManageSubscription !== false
+  const isOwnerDoctor = role === "doctor" && (user as any)?.canManageSubscription === true
   const isAdmin = role === "admin"
 
   if (!isOwnerDoctor && !isAdmin) {

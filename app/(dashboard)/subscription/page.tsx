@@ -149,7 +149,7 @@ export default function SubscriptionPage() {
     const canRenew = currentSubscription?.status === "EXPIRED" || isExpired || (currentSubscription?.status === "ACTIVE" && expiresWithinWeek)
 
     // Only clinic creator (head doctor) or solo doctor can manage subscription
-    if (user?.role?.toLowerCase() === "doctor" && user?.canManageSubscription === false) {
+    if (user?.role?.toLowerCase() === "doctor" && (user as any)?.canManageSubscription !== true) {
         return (
             <ProtectedRoute allowedRoles={['DOCTOR', 'ADMIN']}>
                 <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 text-center px-4">
