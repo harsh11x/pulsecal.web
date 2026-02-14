@@ -301,9 +301,7 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          const canManage = (user as any)?.canManageSubscription === true
 
-          // ... (inside the return JSX) ...
 
           {isDoctor && canManage && (
             <div className="space-y-4 pt-4 border-t">

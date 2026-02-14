@@ -45,48 +45,55 @@ export default function DoctorScheduleManager() {
     try {
       const response: any = await apiService.get(`/doctor-profiles/me`)
       const profile = response
-      if (profile?.workingHours) {
-        // Try to get settings from defaultSettings first (most recent save), then fall back to day-specific
-        const defaults = profile.workingHours.defaultSettings;
-        if (defaults) {
-            if (defaults.workingHours) {
-                setWorkingHours({
-                    start: defaults.workingHours.start,
-                    end: defaults.workingHours.end
-                })
-            }
-            if (defaults.slotDuration) {
-                setSlotDuration(defaults.slotDuration)
-            }
-        } else {
-            // Find working hours for the selected day
-            const dayName = selectedDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
-            const daySchedule = profile.workingHours[dayName]
-            if (daySchedule) {
-                setWorkingHours({
-                    start: daySchedule.start,
-                    end: daySchedule.end
-                })
-            }
+      // Handle profile.workingHours being null or undefined
+      const workingHoursData = profile?.workingHours || {};
+
+      // Try to get settings from defaultSettings first (most recent save), then fall back to day-specific
+      const defaults = workingHoursData.defaultSettings;
+
+      if (defaults) {
+        if (defaults.workingHours) {
+          setWorkingHours({
+            start: defaults.workingHours.start,
+            end: defaults.workingHours.end
+          })
         }
-        
-        // Load blocked slots for this date
-        const dateKey = format(selectedDate, "yyyy-MM-dd")
-        if (profile.workingHours.exceptions && profile.workingHours.exceptions[dateKey]) {
-            const savedBlockedSlots = profile.workingHours.exceptions[dateKey]
-            console.log("Loaded blocked slots for", dateKey, ":", savedBlockedSlots)
-            // Ensure blocked slots have the correct format
-            const formattedSlots = Array.isArray(savedBlockedSlots) 
-              ? savedBlockedSlots.map((slot: any) => ({
-                  startTime: slot.startTime,
-                  endTime: slot.endTime,
-                  isBlocked: true
-                }))
-              : []
-            setBlockedSlots(formattedSlots)
-        } else {
-            setBlockedSlots([])
+        if (defaults.slotDuration) {
+          setSlotDuration(defaults.slotDuration)
         }
+      } else if (Object.keys(workingHoursData).length > 0) {
+        // Find working hours for the selected day if legacy format or just no defaults
+        const dayName = selectedDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
+        const daySchedule = workingHoursData[dayName]
+        if (daySchedule) {
+          setWorkingHours({
+            start: daySchedule.start,
+            end: daySchedule.end
+          })
+        }
+      } else {
+        // Fallback if no workingHours set at all
+        setWorkingHours({ start: "09:00", end: "17:00" });
+        setSlotDuration(30);
+      }
+
+      // Load blocked slots for this date
+      const dateKey = format(selectedDate, "yyyy-MM-dd")
+      if (workingHoursData.exceptions && workingHoursData.exceptions[dateKey]) {
+        const savedBlockedSlots = workingHoursData.exceptions[dateKey]
+        console.log("Loaded blocked slots for", dateKey, ":", savedBlockedSlots)
+        // Ensure blocked slots have the correct format
+        const formattedSlots = Array.isArray(savedBlockedSlots)
+          ? savedBlockedSlots.map((slot: any) => ({
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            isBlocked: true,
+            isAvailable: false
+          }))
+          : []
+        setBlockedSlots(formattedSlots)
+      } else {
+        setBlockedSlots([])
       }
     } catch (error) {
       console.warn("Failed to fetch doctor profile for schedule:", error)
@@ -146,7 +153,8 @@ export default function DoctorScheduleManager() {
     const newBlockedSlot = {
       startTime: slot.startTime,
       endTime: slot.endTime,
-      isBlocked: true
+      isBlocked: true,
+      isAvailable: false
     }
     setBlockedSlots([...blockedSlots, newBlockedSlot])
     toast.success("Time slot blocked (remember to save)")
@@ -167,7 +175,7 @@ export default function DoctorScheduleManager() {
     console.log("Slot Duration:", slotDuration)
     console.log("Blocked Slots:", blockedSlots)
     console.log("Selected Date:", selectedDate)
-    
+
     try {
       const payload = {
         date: format(selectedDate, "yyyy-MM-dd"),
@@ -182,14 +190,14 @@ export default function DoctorScheduleManager() {
           isBlocked: true
         }))
       }
-      
+
       console.log("Sending payload to /doctors/schedule:", JSON.stringify(payload, null, 2))
-      
+
       const response = await apiService.post("/doctors/schedule", payload)
       console.log("Schedule save response:", response)
-      
+
       toast.success("Schedule saved successfully!")
-      
+
       // Refresh the profile to show updated schedule
       console.log("Refreshing profile after save...")
       await fetchProfile()

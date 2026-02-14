@@ -95,6 +95,19 @@ export const createUser = async (data: {
         subscriptionStatus: clinicData.subscriptionStatus || 'PENDING',
         subscriptionPlan: clinicData.subscriptionPlan || 'BASIC',
         consultationFee: 0,
+        workingHours: {
+          defaultSettings: {
+            workingHours: { start: "09:00", end: "17:00" },
+            slotDuration: 30
+          },
+          monday: { start: "09:00", end: "17:00", isOpen: true },
+          tuesday: { start: "09:00", end: "17:00", isOpen: true },
+          wednesday: { start: "09:00", end: "17:00", isOpen: true },
+          thursday: { start: "09:00", end: "17:00", isOpen: true },
+          friday: { start: "09:00", end: "17:00", isOpen: true },
+          saturday: { start: "09:00", end: "13:00", isOpen: true },
+          sunday: { start: "09:00", end: "17:00", isOpen: false }
+        }
       },
     });
   }
