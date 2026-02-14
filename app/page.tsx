@@ -534,7 +534,7 @@ export default function Home() {
               className="bg-medical-blue hover:bg-blue-700 px-8 py-3.5 rounded-lg font-bold text-white shadow-card transition-colors h-auto text-lg"
             />
           </div>
-          <p className="mt-6 text-sm text-slate-500">No credit card required. 14-day free trial for qualifying practices.</p>
+          <p className="mt-6 text-sm text-slate-500">No credit card required for qualifying practices.</p>
         </div>
       </section>
 
@@ -615,14 +615,18 @@ export default function Home() {
                 <li><a className="hover:text-medical-blue transition-colors" href="mailto:Pulsecal.help@gmail.com">Help & Support</a></li>
               </ul>
             </div>
+            <div>
+              <h4 className="text-navy-deep font-semibold mb-4">Legal</h4>
+              <ul className="space-y-2 text-sm text-slate-500">
+                <li><a className="hover:text-medical-blue transition-colors" href="/privacy">Privacy Policy</a></li>
+                <li><a className="hover:text-medical-blue transition-colors" href="/terms">Terms of Service</a></li>
+                <li><a className="hover:text-medical-blue transition-colors" href="/hipaa">BAA Agreement</a></li>
+                <li><a className="hover:text-medical-blue transition-colors" href="/cookies">Cookie Policy</a></li>
+              </ul>
+            </div>
           </div>
           <div className="border-t border-slate-200 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-xs text-slate-500">© 2024 PulseCal Inc. All rights reserved.</p>
-            <div className="flex gap-6 text-xs text-slate-500">
-              <a className="hover:text-navy-deep" href="#">Privacy Policy</a>
-              <a className="hover:text-navy-deep" href="#">Terms of Service</a>
-              <a className="hover:text-navy-deep" href="#">BAA Agreement</a>
-            </div>
           </div>
         </div>
       </footer>
