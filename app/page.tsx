@@ -3,23 +3,33 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { store } from "@/app/store"
+import { Header } from "@/components/landing/Header"
+import { Footer } from "@/components/landing/Footer"
 import { GetStartedAction } from "@/components/landing/GetStartedAction"
 import { AuthModal } from "@/components/auth/AuthModal"
 import { Button } from "@/components/ui/button"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
+import {
+  Calendar,
+  Video,
+  FileText,
+  MessageSquare,
+  Clock,
+  Shield,
+  Users,
+  BarChart,
+  CheckCircle2,
+  ArrowRight,
+  Stethoscope,
+  Heart,
+  Activity,
+} from "lucide-react"
 import { PLANS, PLAN_AMOUNTS, SUBSCRIPTION_DURATIONS } from "@/lib/planConfig"
-import { CheckCircle2, User, Stethoscope, Users, Building2, Shield, Calendar, Video, FileText, MessageSquare, Clock, BarChart, Heart, Activity, Instagram, Linkedin, Mail } from "lucide-react"
 
 export default function Home() {
   const router = useRouter()
-  // Auth state
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
-  const [authMode, setAuthMode] = useState<"signin" | "signup">("signin")
-  const [selectedRole, setSelectedRole] = useState<"doctor" | "patient" | "receptionist" | null>(null)
-
-  // Mobile menu state
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-
-  // Pricing state
   const [billingInterval, setBillingInterval] = useState<1 | 3 | 6 | 12>(1)
 
   // Redirect logged-in users to dashboard
@@ -30,251 +40,107 @@ export default function Home() {
     }
   }, [router])
 
-  const handleAuth = (role: "doctor" | "patient" | "receptionist") => {
-    setSelectedRole(role)
-    setAuthMode("signin")
-    setIsAuthModalOpen(true)
-  }
-
   return (
-    <div className="bg-slate-base text-slate-800 antialiased selection:bg-medical-blue selection:text-white font-sans">
-
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-slate-200 bg-white/90 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
-            <div className="flex-shrink-0 flex items-center gap-2 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-              <img src="/logo.png" alt="PulseCal Logo" className="h-10 w-10 object-contain" />
-              <span className="text-xl font-bold text-navy-deep tracking-tight">PulseCal</span>
-            </div>
-            <div className="hidden md:block">
-              <div className="ml-10 flex items-baseline space-x-8">
-                <a className="text-sm font-medium text-corporate-gray hover:text-medical-blue transition-colors cursor-pointer" href="#solutions">Solutions</a>
-                <a className="text-sm font-medium text-corporate-gray hover:text-medical-blue transition-colors cursor-pointer" href="#features">Features</a>
-                <a className="text-sm font-medium text-corporate-gray hover:text-medical-blue transition-colors cursor-pointer" href="#pricing">Pricing</a>
-                <a className="text-sm font-medium text-corporate-gray hover:text-medical-blue transition-colors cursor-pointer" href="#about">About</a>
-              </div>
-            </div>
-            <div className="hidden md:flex gap-3 items-center">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleAuth("doctor")}
-                className="gap-2 border-slate-200 text-slate-700 hover:text-medical-blue hover:border-medical-blue transition-all"
-              >
-                <Stethoscope className="h-4 w-4" />
-                Doctor
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleAuth("patient")}
-                className="gap-2 border-slate-200 text-slate-700 hover:text-medical-blue hover:border-medical-blue transition-all"
-              >
-                <User className="h-4 w-4" />
-                Patient
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleAuth("receptionist")}
-                className="gap-2 border-slate-200 text-slate-700 hover:text-medical-blue hover:border-medical-blue transition-all"
-              >
-                <Building2 className="h-4 w-4" />
-                Receptionist
-              </Button>
-            </div>
-            <div className="-mr-2 flex md:hidden">
-              <button
-                className="inline-flex items-center justify-center p-2 rounded-md text-slate-500 hover:text-medical-blue focus:outline-none"
-                type="button"
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              >
-                <span className="material-symbols-outlined">{isMobileMenuOpen ? 'close' : 'menu'}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile Menu */}
-        {isMobileMenuOpen && (
-          <div className="md:hidden border-t border-slate-200 bg-white/95 backdrop-blur p-4 animate-in slide-in-from-top-2">
-            <div className="flex flex-col gap-4">
-              <a href="#solutions" className="text-sm font-medium text-slate-600 hover:text-medical-blue py-2" onClick={() => setIsMobileMenuOpen(false)}>Solutions</a>
-              <a href="#features" className="text-sm font-medium text-slate-600 hover:text-medical-blue py-2" onClick={() => setIsMobileMenuOpen(false)}>Features</a>
-              <a href="#pricing" className="text-sm font-medium text-slate-600 hover:text-medical-blue py-2" onClick={() => setIsMobileMenuOpen(false)}>Pricing</a>
-              <a href="#about" className="text-sm font-medium text-slate-600 hover:text-medical-blue py-2" onClick={() => setIsMobileMenuOpen(false)}>About</a>
-
-              <div className="flex flex-col gap-2 border-t border-slate-100 pt-4">
-                <Button
-                  variant="outline"
-                  className="w-full justify-start gap-2 border-slate-200 text-slate-700"
-                  onClick={() => { handleAuth("doctor"); setIsMobileMenuOpen(false); }}
-                >
-                  <Stethoscope className="h-4 w-4" />
-                  Doctor Login / Signup
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start gap-2 border-slate-200 text-slate-700"
-                  onClick={() => { handleAuth("patient"); setIsMobileMenuOpen(false); }}
-                >
-                  <User className="h-4 w-4" />
-                  Patient Login / Signup
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start gap-2 border-slate-200 text-slate-700"
-                  onClick={() => { handleAuth("receptionist"); setIsMobileMenuOpen(false); }}
-                >
-                  <Building2 className="h-4 w-4" />
-                  Receptionist Login / Signup
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-      </nav>
+    <div className="flex min-h-screen flex-col">
+      <Header />
 
       {/* Hero Section */}
-      <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-24 bg-white overflow-hidden">
-        {/* Subtle background gradient */}
-        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-[400px] h-[400px] rounded-full bg-blue-50 opacity-40 blur-3xl pointer-events-none"></div>
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center max-w-4xl mx-auto mb-16">
-            <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-navy-deep mb-6 leading-[1.1]">
-              Healthcare{" "}
-              <span className="bg-gradient-to-r from-medical-blue to-blue-600 bg-clip-text text-transparent">
-                Made Simple
-              </span>
-            </h1>
-            <p className="mt-6 max-w-2xl mx-auto text-xl text-slate-600 leading-relaxed mb-12">
-              Connect patients, doctors, and staff in one secure platform. Schedule appointments, manage records, and provide care—all in one place.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <GetStartedAction
-                className="bg-medical-blue hover:bg-blue-700 px-10 py-4 rounded-lg text-lg font-medium text-white shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 h-auto"
-              />
-            </div>
-          </div>
-
-          {/* Dashboard Preview */}
-          <div className="relative max-w-6xl mx-auto mt-8 animate-in fade-in zoom-in duration-1000">
-            <div className="absolute -inset-2 bg-gradient-to-b from-blue-100/50 to-white rounded-2xl blur-lg opacity-60"></div>
-            <div className="relative bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xl ring-1 ring-black/5">
-              <div className="h-10 bg-slate-50 border-b border-slate-200 flex items-center px-4 gap-2">
-                <div className="flex gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-slate-300"></div>
-                  <div className="w-2.5 h-2.5 rounded-full bg-slate-300"></div>
-                  <div className="w-2.5 h-2.5 rounded-full bg-slate-300"></div>
-                </div>
-                <div className="flex-1 text-center">
-                  <div className="inline-block px-3 py-1 bg-white border border-slate-200 rounded text-[10px] text-slate-400 font-mono">app.pulsecal.health/dashboard</div>
-                </div>
+      <section className="relative overflow-hidden border-b border-border bg-gradient-to-b from-background to-muted/20 px-4 py-20 lg:py-32">
+        <div className="mx-auto max-w-7xl">
+          <div className="grid gap-12 lg:grid-cols-2 lg:gap-8">
+            <div className="flex flex-col justify-center space-y-8">
+              <div className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/50 px-4 py-1.5 text-sm text-muted-foreground w-fit animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
+                Trusted by 500+ healthcare providers
               </div>
 
-              <div className="aspect-[16/9] w-full bg-slate-50 relative flex overflow-hidden">
-                {/* Sidebar Mockup */}
-                <div className="w-64 bg-white border-r border-slate-200 flex-shrink-0 flex flex-col pt-6 px-4 pb-6 hidden md:flex">
-                  <div className="flex items-center gap-3 mb-8 px-2">
-                    <img src="/logo.png" alt="PulseCal Logo" className="h-8 w-8 object-contain" />
-                    <span className="font-bold text-navy-deep">PulseCal</span>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-3 px-3 py-2 bg-blue-50 text-medical-blue rounded-md text-sm font-medium">
-                      <span className="material-symbols-outlined text-[20px]">dashboard</span>
-                      Overview
-                    </div>
-                    <div className="flex items-center gap-3 px-3 py-2 text-slate-600 hover:bg-slate-50 rounded-md text-sm font-medium">
-                      <span className="material-symbols-outlined text-[20px]">calendar_month</span>
-                      Appointments
-                    </div>
-                    <div className="flex items-center gap-3 px-3 py-2 text-slate-600 hover:bg-slate-50 rounded-md text-sm font-medium">
-                      <span className="material-symbols-outlined text-[20px]">people</span>
-                      Patients
-                    </div>
-                    <div className="flex items-center gap-3 px-3 py-2 text-slate-600 hover:bg-slate-50 rounded-md text-sm font-medium">
-                      <span className="material-symbols-outlined text-[20px]">description</span>
-                      Records
-                    </div>
-                  </div>
+              <h1 className="text-balance text-5xl font-bold tracking-tight text-foreground lg:text-7xl animate-in fade-in slide-in-from-bottom-6 duration-700">
+                Healthcare management that <span className="text-primary bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">just works</span>
+              </h1>
+
+              <p className="text-pretty text-xl text-muted-foreground leading-relaxed animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
+                PulseCal transforms chaotic appointment scheduling into seamless patient care. Manage appointments,
+                records, and communication all in one intelligent platform.
+              </p>
+
+              <div className="flex flex-col gap-4 sm:flex-row animate-in fade-in slide-in-from-bottom-10 duration-700 delay-200">
+                <GetStartedAction className="text-base shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105" />
+                <Button size="lg" variant="outline" className="text-base bg-transparent border-2 hover:border-primary hover:text-primary transition-all duration-200">
+                  Watch demo
+                </Button>
+              </div>
+
+              <div className="flex items-center gap-8 text-sm animate-in fade-in slide-in-from-bottom-12 duration-700 delay-300">
+                <div className="flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-success" />
+                  <span className="text-muted-foreground">Secure & Private</span>
                 </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-success" />
+                  <span className="text-muted-foreground">HIPAA compliant</span>
+                </div>
+              </div>
+            </div>
 
-                {/* Main Content Mockup */}
-                <div className="flex-1 p-8 overflow-hidden">
-                  <div className="flex justify-between items-center mb-8">
-                    <div>
-                      <h2 className="text-2xl font-bold text-navy-deep">Dr. Sarah Jenning</h2>
-                      <p className="text-sm text-slate-500">Cardiology Dept • Today's Schedule</p>
-                    </div>
-                    <div className="flex gap-3">
-                      <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs">SJ</div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-12 gap-6">
-                    {/* Stat Cards */}
-                    <div className="col-span-4 bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
-                      <div className="text-sm text-slate-500 mb-1">Total Patients</div>
-                      <div className="text-2xl font-bold text-navy-deep">1,248</div>
-                      <div className="text-xs text-green-600 mt-2 flex items-center gap-1">
-                        <span className="text-[14px]">↑</span> +12% this month
-                      </div>
-                    </div>
-                    <div className="col-span-4 bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
-                      <div className="text-sm text-slate-500 mb-1">Appointments</div>
-                      <div className="text-2xl font-bold text-navy-deep">42</div>
-                      <div className="text-xs text-slate-400 mt-2">8 Pending confirmation</div>
-                    </div>
-                    <div className="col-span-4 bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
-                      <div className="text-sm text-slate-500 mb-1">Avg. Wait Time</div>
-                      <div className="text-2xl font-bold text-navy-deep">14m</div>
-                      <div className="text-xs text-green-600 mt-2 flex items-center gap-1">
-                        <span className="text-[14px]">↓</span> -2m vs last week
-                      </div>
-                    </div>
-
-                    {/* Schedule List */}
-                    <div className="col-span-8 bg-white border border-slate-200 rounded-lg shadow-sm p-6">
-                      <h3 className="font-semibold text-navy-deep mb-4">Upcoming Consultations</h3>
-                      <div className="space-y-4">
-                        {[
-                          { name: "James Miller", time: "09:30 AM", status: "Confirmed", type: "Routine Checkup", color: "green", initial: "JM", initialColor: "blue" },
-                          { name: "Amanda Lee", time: "10:15 AM", status: "Pending", type: "Follow-up", color: "yellow", initial: "AL", initialColor: "orange" },
-                          { name: "Robert King", time: "11:00 AM", status: "Virtual", type: "Video Consult", color: "blue", initial: "RK", initialColor: "purple" }
-                        ].map((patient, i) => (
-                          <div key={i} className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-md transition-colors border border-transparent hover:border-slate-100">
-                            <div className="flex items-center gap-4">
-                              <div className={`w-10 h-10 rounded-full bg-${patient.initialColor}-100 flex items-center justify-center text-${patient.initialColor}-700 font-semibold text-sm`}>
-                                {patient.initial}
-                              </div>
-                              <div>
-                                <div className="text-sm font-medium text-navy-deep">{patient.name}</div>
-                                <div className="text-xs text-slate-500">{patient.type} • {patient.time}</div>
-                              </div>
-                            </div>
-                            <span className={`px-2 py-1 bg-${patient.color}-50 text-${patient.color}-700 text-xs font-medium rounded`}>
-                              {patient.status}
-                            </span>
+            <div className="relative flex items-center justify-center animate-in fade-in zoom-in duration-1000">
+              <div className="relative h-[500px] w-full rounded-2xl border border-border bg-gradient-to-br from-primary/5 via-background to-accent/5 p-8 shadow-2xl backdrop-blur-sm">
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/10 to-accent/10 opacity-50" />
+                <div className="relative h-full w-full rounded-lg bg-white p-6 shadow-lg overflow-hidden">
+                  {/* Modern Dashboard Preview */}
+                  <div className="grid h-full grid-cols-2 gap-4">
+                    {/* Stats Cards */}
+                    <div className="space-y-3">
+                      <div className="rounded-lg bg-gradient-to-br from-green-50 to-green-100 p-4 border border-green-200 hover:scale-105 transition-transform">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-medium text-green-600">Total Patients</p>
+                            <p className="text-2xl font-bold text-green-700">605</p>
                           </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Notification/CTA Area */}
-                    <div className="col-span-4 space-y-4">
-                      <div className="bg-gradient-to-br from-medical-blue to-blue-600 rounded-lg p-5 text-white shadow-md">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="font-medium">Notifications</div>
-                          <span className="w-2 h-2 bg-red-400 rounded-full"></span>
+                          <div className="h-12 w-12 rounded-full bg-green-500 flex items-center justify-center shadow-md">
+                            <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                          </div>
                         </div>
-                        <div className="space-y-3">
-                          <div className="bg-white/10 rounded p-2 text-xs backdrop-blur-sm">
-                            Lab results ready for <strong>Patient #8842</strong>
+                      </div>
+                      <div className="rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 p-4 border border-blue-200 hover:scale-105 transition-transform delay-75">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-medium text-blue-600">Appointments</p>
+                            <p className="text-2xl font-bold text-blue-700">403</p>
                           </div>
-                          <div className="bg-white/10 rounded p-2 text-xs backdrop-blur-sm">
-                            New referral from Dr. Chen
+                          <div className="h-12 w-12 rounded-full bg-blue-500 flex items-center justify-center shadow-md">
+                            <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-3 pt-8">
+                      <div className="rounded-lg bg-gradient-to-br from-orange-50 to-orange-100 p-4 border border-orange-200 hover:scale-105 transition-transform delay-150">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-medium text-orange-600">Pending</p>
+                            <p className="text-2xl font-bold text-orange-700">40</p>
+                          </div>
+                          <div className="h-12 w-12 rounded-full bg-orange-500 flex items-center justify-center shadow-md">
+                            <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="rounded-lg bg-gradient-to-br from-purple-50 to-purple-100 p-4 border border-purple-200 hover:scale-105 transition-transform delay-200">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-medium text-purple-600">Revenue</p>
+                            <p className="text-2xl font-bold text-purple-700">₹6.45L</p>
+                          </div>
+                          <div className="h-12 w-12 rounded-full bg-purple-500 flex items-center justify-center shadow-md">
+                            <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
                           </div>
                         </div>
                       </div>
@@ -288,149 +154,307 @@ export default function Home() {
       </section>
 
       {/* Trusted By Section */}
-      <div className="border-y border-slate-200 bg-white py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="text-center text-sm font-semibold text-slate-500 mb-8">TRUSTED BY LEADING HEALTHCARE PROVIDERS</p>
-          <div className="flex flex-wrap justify-center items-center gap-12 md:gap-20 opacity-70 grayscale hover:grayscale-0 transition-all duration-500">
-            {["MEDLIFE", "HEARTCARE", "MINDWELL", "DENTALLIANCE", "KIDSHOSPITAL"].map((brand) => (
-              <div key={brand} className="flex items-center gap-2 text-navy-deep font-bold text-xl">
-                <div className="w-6 h-6 bg-slate-300 rounded-full opacity-50"></div> {brand}
+      <section className="border-b border-border bg-background py-10">
+        <div className="mx-auto max-w-7xl px-4">
+          <p className="text-center text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-8">
+            Trusted by leading healthcare institutions
+          </p>
+          <div className="flex flex-wrap justify-center items-center gap-12 opacity-70 grayscale transition-all duration-500 hover:grayscale-0 hover:opacity-100">
+            {["City Hospital", "Medicare Plus", "HealthFirst", "Global Care", "Doctors United"].map((brand) => (
+              <div key={brand} className="flex items-center gap-2 text-xl font-bold text-muted-foreground">
+                <div className="h-8 w-8 rounded bg-muted-foreground/20" />
+                {brand}
               </div>
             ))}
           </div>
         </div>
-      </div>
-
-      {/* Solutions / Roles Section - Simplified */}
-      <section className="py-24 bg-slate-50" id="solutions">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="mb-16 text-center max-w-3xl mx-auto">
-            <h2 className="text-4xl md:text-5xl font-bold text-navy-deep mb-4">Everything You Need</h2>
-            <p className="text-slate-600 text-lg">One platform built for doctors, patients, and staff.</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* For Providers */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-10 shadow-sm hover:shadow-md transition-all">
-              <div className="w-14 h-14 rounded-xl bg-blue-50 flex items-center justify-center text-medical-blue mb-6">
-                <Stethoscope className="h-7 w-7" />
-              </div>
-              <h3 className="text-2xl font-bold text-navy-deep mb-3">For Doctors</h3>
-              <p className="text-slate-600 mb-6 leading-relaxed">
-                Manage your practice with ease. Digital records, appointment scheduling, and video consultations.
-              </p>
-              <ul className="space-y-3">
-                {["Patient Records", "Online Appointments", "Video Calls"].map((item, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <CheckCircle2 className="text-green-500 h-5 w-5 flex-shrink-0 mt-0.5" />
-                    <span className="text-slate-700">{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* For Patients */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-10 shadow-sm hover:shadow-md transition-all">
-              <div className="w-14 h-14 rounded-xl bg-green-50 flex items-center justify-center text-green-600 mb-6">
-                <User className="h-7 w-7" />
-              </div>
-              <h3 className="text-2xl font-bold text-navy-deep mb-3">For Patients</h3>
-              <p className="text-slate-600 mb-6 leading-relaxed">
-                Book appointments, access your health records, and connect with your doctor—anytime, anywhere.
-              </p>
-              <ul className="space-y-3">
-                {["Easy Booking", "Health Records", "Secure Messaging"].map((item, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <CheckCircle2 className="text-green-500 h-5 w-5 flex-shrink-0 mt-0.5" />
-                    <span className="text-slate-700">{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-
-            {/* For Administration */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-10 shadow-sm hover:shadow-md transition-all">
-              <div className="w-14 h-14 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600 mb-6">
-                <Building2 className="h-7 w-7" />
-              </div>
-              <h3 className="text-2xl font-bold text-navy-deep mb-3">For Staff</h3>
-              <p className="text-slate-600 mb-6 leading-relaxed">
-                Run your practice smoothly. Track appointments, manage billing, and stay organized.
-              </p>
-              <ul className="space-y-3">
-                {["Appointment Management", "Billing Tools", "Reports"].map((item, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <CheckCircle2 className="text-green-500 h-5 w-5 flex-shrink-0 mt-0.5" />
-                    <span className="text-slate-700">{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </div>
       </section>
 
-      {/* Benefits Section - Simplified */}
-      <section id="features" className="bg-white px-4 py-24">
+      {/* How It Works Section */}
+      <section className="border-b border-border bg-white px-4 py-20">
         <div className="mx-auto max-w-7xl">
-          <div className="mb-16 text-center max-w-2xl mx-auto">
-            <h2 className="mb-4 text-4xl md:text-5xl font-bold text-navy-deep">
-              Trusted by Healthcare Providers
+          <div className="mb-16 text-center">
+            <h2 className="mb-4 text-3xl font-bold tracking-tight text-foreground lg:text-4xl">
+              How PulseCal Works
             </h2>
-            <p className="text-lg text-slate-600">Join thousands of clinics improving patient care.</p>
+            <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
+              Streamline your practice in three simple steps
+            </p>
           </div>
 
-          <div className="grid gap-12 lg:grid-cols-3">
-            <div className="flex flex-col items-center text-center">
-              <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-2xl bg-green-50">
-                <Heart className="h-12 w-12 text-green-600" />
+          <div className="grid gap-8 md:grid-cols-3 relative">
+            {/* Connecting Line (Desktop) */}
+            <div className="hidden md:block absolute top-12 left-[16%] right-[16%] h-0.5 bg-gradient-to-r from-muted via-primary/30 to-muted z-0" />
+
+            {[
+              {
+                step: "01",
+                title: "Register Clinic",
+                desc: "Create your profile, set working hours, and configure your services.",
+              },
+              {
+                step: "02",
+                title: "Manage Schedule",
+                desc: "Patients book online. You manage appointments via the real-time dashboard.",
+              },
+              {
+                step: "03",
+                title: "Treat & Grow",
+                desc: "Focus on patient care while PulseCal handles billing, records, and reminders.",
+              },
+            ].map((item, i) => (
+              <div key={i} className="relative z-10 flex flex-col items-center text-center">
+                <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-white border-4 border-primary/10 shadow-lg transition-transform hover:scale-110">
+                  <span className="text-3xl font-bold text-primary">{item.step}</span>
+                </div>
+                <h3 className="mb-2 text-xl font-semibold">{item.title}</h3>
+                <p className="text-muted-foreground max-w-xs">{item.desc}</p>
               </div>
-              <h3 className="mb-2 text-5xl font-bold text-navy-deep">98%</h3>
-              <p className="text-xl font-semibold text-slate-800 mb-2">Patient Satisfaction</p>
-              <p className="text-slate-500">Patients love the ease of use</p>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Problem Section */}
+      <section className="border-b border-border bg-destructive/5 px-4 py-20">
+        <div className="mx-auto max-w-7xl">
+          <div className="grid gap-12 lg:grid-cols-2 lg:gap-16">
+            <div>
+              <h2 className="mb-6 text-4xl font-bold tracking-tight text-foreground">
+                Healthcare runs on outdated systems that create chaos
+              </h2>
+              <div className="space-y-4 text-lg text-muted-foreground leading-relaxed">
+                <p>
+                  Traditional healthcare management systems are fragmented, complex, and slow. They create bottlenecks
+                  that frustrate patients and overwhelm staff.
+                </p>
+                <ul className="space-y-3">
+                  <li className="flex items-start gap-3">
+                    <div className="mt-1 h-1.5 w-1.5 rounded-full bg-destructive" />
+                    <span>Missed appointments cost clinics ₹12,000 Crore annually</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <div className="mt-1 h-1.5 w-1.5 rounded-full bg-destructive" />
+                    <span>Patients wait 30+ minutes on average for appointments</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <div className="mt-1 h-1.5 w-1.5 rounded-full bg-destructive" />
+                    <span>Medical records are scattered across multiple systems</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <div className="mt-1 h-1.5 w-1.5 rounded-full bg-destructive" />
+                    <span>Staff spend hours on manual scheduling and follow-ups</span>
+                  </li>
+                </ul>
+              </div>
             </div>
 
-            <div className="flex flex-col items-center text-center">
-              <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-2xl bg-blue-50">
-                <Clock className="h-12 w-12 text-medical-blue" />
+            <div className="flex items-center">
+              <div className="rounded-2xl border border-border bg-card p-8 shadow-lg rotate-2 hover:rotate-0 transition-all duration-500">
+                <img src="/frustrated-healthcare-staff-with-paperwork.jpg" alt="Healthcare Problems" className="rounded-lg" />
               </div>
-              <h3 className="mb-2 text-5xl font-bold text-navy-deep">5hrs</h3>
-              <p className="text-xl font-semibold text-slate-800 mb-2">Saved Daily</p>
-              <p className="text-slate-500">Automated tasks free up your team</p>
-            </div>
-
-            <div className="flex flex-col items-center text-center">
-              <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-2xl bg-purple-50">
-                <BarChart className="h-12 w-12 text-purple-600" />
-              </div>
-              <h3 className="mb-2 text-5xl font-bold text-navy-deep">40%</h3>
-              <p className="text-xl font-semibold text-slate-800 mb-2">More Appointments</p>
-              <p className="text-slate-500">Better scheduling means more patients</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Pricing Section (Re-integrated) */}
-      <section id="pricing" className="border-b border-slate-200 bg-slate-base px-4 py-20 relative">
+      {/* Solution Section */}
+      <section className="border-b border-border px-4 py-20 bg-muted/10">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-16 text-center">
+            <h2 className="mb-4 text-4xl font-bold tracking-tight text-foreground lg:text-5xl">
+              One platform. Complete control.
+            </h2>
+            <p className="mx-auto max-w-2xl text-pretty text-xl text-muted-foreground leading-relaxed">
+              PulseCal brings everything together in one intelligent system designed for modern healthcare.
+            </p>
+          </div>
+
+          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+            {[
+              {
+                icon: Calendar,
+                title: "Smart Scheduling",
+                description:
+                  "AI-powered appointment booking that reduces no-shows by 60% with automated reminders and confirmations.",
+              },
+              {
+                icon: Video,
+                title: "Telemedicine Ready",
+                description:
+                  "Built-in video consultations with secure, HIPAA-compliant infrastructure. No third-party tools needed.",
+              },
+              {
+                icon: FileText,
+                title: "Unified Records",
+                description:
+                  "All patient records, prescriptions, and history in one place. Accessible anytime, anywhere.",
+              },
+              {
+                icon: MessageSquare,
+                title: "Real-time Communication",
+                description: "Secure messaging between patients and providers. Reduce phone calls by 80%.",
+              },
+              {
+                icon: Clock,
+                title: "Queue Management",
+                description:
+                  "Live wait time tracking and patient flow optimization. Keep your clinic running smoothly.",
+              },
+              {
+                icon: BarChart,
+                title: "Analytics Dashboard",
+                description:
+                  "Actionable insights on appointments, revenue, and patient satisfaction at your fingertips.",
+              },
+            ].map((feature, index) => (
+              <div
+                key={index}
+                className="group rounded-2xl border border-border bg-card p-6 shadow-sm transition-all duration-300 hover:border-primary/50 hover:shadow-xl hover:-translate-y-1"
+              >
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary transition-all duration-300 group-hover:bg-primary group-hover:text-primary-foreground group-hover:scale-110">
+                  <feature.icon className="h-6 w-6" />
+                </div>
+                <h3 className="mb-2 text-xl font-semibold text-foreground group-hover:text-primary transition-colors">{feature.title}</h3>
+                <p className="text-pretty text-muted-foreground leading-relaxed">{feature.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Benefits Section */}
+      <section id="features" className="border-b border-border bg-muted/20 px-4 py-20">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-16 text-center">
+            <h2 className="mb-4 text-4xl font-bold tracking-tight text-foreground lg:text-5xl">
+              Why healthcare providers choose PulseCal
+            </h2>
+          </div>
+
+          <div className="grid gap-8 lg:grid-cols-3">
+            <div className="flex flex-col items-center text-center p-6 rounded-2xl hover:bg-background/50 transition-colors">
+              <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-success/10 animate-bounce delay-100">
+                <Stethoscope className="h-10 w-10 text-success" />
+              </div>
+              <h3 className="mb-2 text-3xl font-bold text-foreground">98%</h3>
+              <p className="text-lg font-medium text-foreground">Patient Satisfaction</p>
+              <p className="mt-2 text-muted-foreground">Patients love the convenience</p>
+            </div>
+
+            <div className="flex flex-col items-center text-center p-6 rounded-2xl hover:bg-background/50 transition-colors">
+              <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 animate-bounce delay-200">
+                <Clock className="h-10 w-10 text-primary" />
+              </div>
+              <h3 className="mb-2 text-3xl font-bold text-foreground">5 hours</h3>
+              <p className="text-lg font-medium text-foreground">Saved per day</p>
+              <p className="mt-2 text-muted-foreground">Automated workflows free up staff</p>
+            </div>
+
+            <div className="flex flex-col items-center text-center p-6 rounded-2xl hover:bg-background/50 transition-colors">
+              <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-accent/10 animate-bounce delay-300">
+                <Activity className="h-10 w-10 text-accent" />
+              </div>
+              <h3 className="mb-2 text-3xl font-bold text-foreground">40%</h3>
+              <p className="text-lg font-medium text-foreground">Revenue Increase</p>
+              <p className="mt-2 text-muted-foreground">Reduced no-shows and better scheduling</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Role-based Section */}
+      <section id="solutions" className="border-b border-border px-4 py-20">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-16 text-center">
+            <h2 className="mb-4 text-4xl font-bold tracking-tight text-foreground lg:text-5xl">
+              Built for every role in healthcare
+            </h2>
+          </div>
+
+          <div className="grid gap-8 md:grid-cols-2">
+            {[
+              {
+                role: "Patients",
+                icon: Heart,
+                benefits: [
+                  "Book appointments in seconds",
+                  "Access medical records anytime",
+                  "Get prescription refills online",
+                  "Video consultations from home",
+                ],
+              },
+              {
+                role: "Doctors",
+                icon: Stethoscope,
+                benefits: [
+                  "See patient history instantly",
+                  "Manage schedule efficiently",
+                  "E-prescriptions and digital notes",
+                  "Focus on care, not paperwork",
+                ],
+              },
+              {
+                role: "Receptionists",
+                icon: Users,
+                benefits: [
+                  "Automated appointment reminders",
+                  "Real-time queue management",
+                  "Quick patient check-in",
+                  "Reduce phone call volume",
+                ],
+              },
+              {
+                role: "Administrators",
+                icon: Shield,
+                benefits: [
+                  "Complete system analytics",
+                  "Revenue and performance insights",
+                  "Compliance management",
+                  "Staff and resource optimization",
+                ],
+              },
+            ].map((item, index) => (
+              <div key={index} className="rounded-2xl border border-border bg-card p-8 shadow-lg transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-primary/50">
+                <div className="mb-6 flex items-center gap-4">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-primary/10 transition-all duration-300 group-hover:bg-primary group-hover:scale-110">
+                    <item.icon className="h-7 w-7 text-primary" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-foreground">{item.role}</h3>
+                </div>
+                <ul className="space-y-3">
+                  {item.benefits.map((benefit, idx) => (
+                    <li key={idx} className="flex items-start gap-3">
+                      <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
+                      <span className="text-muted-foreground">{benefit}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section id="pricing" className="border-b border-border bg-muted/20 px-4 py-20 relative">
         <div className="mx-auto max-w-7xl">
           <div className="mb-12 text-center">
-            <h2 className="mb-4 text-4xl font-bold tracking-tight text-navy-deep lg:text-5xl">
+            <h2 className="mb-4 text-4xl font-bold tracking-tight text-foreground lg:text-5xl">
               Simple, transparent pricing
             </h2>
-            <p className="mx-auto max-w-2xl text-pretty text-xl text-corporate-gray leading-relaxed mb-8">
+            <p className="mx-auto max-w-2xl text-pretty text-xl text-muted-foreground leading-relaxed mb-8">
               Choose the plan that fits your practice.
             </p>
 
-            <div className="flex flex-wrap items-center justify-center gap-2 mb-8 bg-white p-1.5 rounded-full w-fit mx-auto border border-slate-200 shadow-sm">
+            <div className="flex flex-wrap items-center justify-center gap-2 mb-8 bg-muted/30 p-1.5 rounded-full w-fit mx-auto border border-border">
               {SUBSCRIPTION_DURATIONS.map((duration) => (
                 <button
                   key={duration.value}
                   onClick={() => setBillingInterval(duration.value)}
                   className={`relative px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${billingInterval === duration.value
-                    ? "bg-medical-blue text-white shadow-sm"
-                    : "text-slate-500 hover:text-navy-deep"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
                     }`}
                 >
                   {duration.label}
@@ -467,14 +491,14 @@ export default function Home() {
               return (
                 <div
                   key={plan.id}
-                  className={`relative rounded-2xl border-2 p-8 transition-all duration-300 bg-white ${plan.recommended
-                    ? "border-medical-blue shadow-xl scale-105 z-10"
-                    : "border-slate-200 hover:border-medical-blue/50 hover:shadow-lg hover:-translate-y-1"
+                  className={`relative rounded-2xl border-2 p-8 transition-all duration-300 ${plan.recommended
+                    ? "border-primary bg-card shadow-xl scale-105 z-10"
+                    : "border-border bg-card hover:border-primary/50 hover:shadow-lg hover:-translate-y-1"
                     }`}
                 >
                   {plan.recommended && (
                     <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                      <span className="rounded-full bg-medical-blue px-4 py-1 text-xs font-semibold text-white shadow-md">
+                      <span className="rounded-full bg-primary px-4 py-1 text-xs font-semibold text-primary-foreground shadow-md">
                         Most Popular
                       </span>
                     </div>
@@ -487,12 +511,12 @@ export default function Home() {
                     </div>
                   )}
                   <div className="mb-6">
-                    <h3 className="mb-2 text-2xl font-bold text-navy-deep">{plan.name}</h3>
-                    <p className="text-sm text-slate-500">{plan.description}</p>
+                    <h3 className="mb-2 text-2xl font-bold text-foreground">{plan.name}</h3>
+                    <p className="text-sm text-muted-foreground">{plan.description}</p>
                   </div>
                   <div className="mb-2">
-                    <span className="text-4xl font-bold text-navy-deep">{priceDisplay}</span>
-                    <span className="text-slate-500"> / {SUBSCRIPTION_DURATIONS.find(d => d.value === billingInterval)?.label.toLowerCase().replace("months", "mo") || "month"}</span>
+                    <span className="text-4xl font-bold text-foreground">{priceDisplay}</span>
+                    <span className="text-muted-foreground"> / {SUBSCRIPTION_DURATIONS.find(d => d.value === billingInterval)?.label.toLowerCase().replace("months", "mo") || "month"}</span>
                   </div>
                   {savings && (
                     <div className="mb-6 text-sm text-green-600 font-semibold animate-pulse">
@@ -504,13 +528,13 @@ export default function Home() {
                   <ul className="mb-8 space-y-3">
                     {plan.features.map((feature, idx) => (
                       <li key={idx} className="flex items-start gap-3">
-                        <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-green-500" />
-                        <span className="text-sm text-slate-600">{feature}</span>
+                        <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
+                        <span className="text-sm text-muted-foreground">{feature}</span>
                       </li>
                     ))}
                   </ul>
                   <GetStartedAction
-                    className={`w-full ${plan.recommended ? "bg-medical-blue hover:bg-blue-700 text-white" : "border-2 border-medical-blue text-medical-blue hover:bg-blue-50 bg-transparent"}`}
+                    className="w-full"
                     variant={plan.recommended ? "default" : "outline"}
                   />
                 </div>
@@ -520,123 +544,96 @@ export default function Home() {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="bg-white px-4 py-20">
-        <div className="mx-auto max-w-4xl text-center">
-          <h2 className="mb-6 text-balance text-4xl font-bold tracking-tight text-navy-deep lg:text-5xl">
-            Modernize your practice today.
-          </h2>
-          <p className="mb-8 text-pretty text-xl text-corporate-gray leading-relaxed">
-            Join over 850 healthcare organizations delivering better outcomes with PulseCal.
-          </p>
-          <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
-            <GetStartedAction
-              className="bg-medical-blue hover:bg-blue-700 px-8 py-3.5 rounded-lg font-bold text-white shadow-card transition-colors h-auto text-lg"
-            />
+      {/* About Section */}
+      <section id="about" className="border-b border-border px-4 py-20">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-16 text-center">
+            <h2 className="mb-4 text-4xl font-bold tracking-tight text-foreground lg:text-5xl">
+              About PulseCal
+            </h2>
+            <p className="mx-auto max-w-2xl text-pretty text-xl text-muted-foreground leading-relaxed">
+              We're on a mission to revolutionize healthcare management through innovative technology.
+            </p>
           </div>
-          <p className="mt-6 text-sm text-slate-500">No credit card required for qualifying practices.</p>
+
+          <div className="grid gap-12 lg:grid-cols-2 lg:gap-16">
+            <div>
+              <h3 className="mb-4 text-2xl font-bold text-foreground">Our Mission</h3>
+              <p className="mb-6 text-lg text-muted-foreground leading-relaxed">
+                At PulseCal, we believe that healthcare providers should focus on what they do best—caring for
+                patients—not wrestling with outdated software. Our platform streamlines every aspect of practice
+                management, from appointment scheduling to patient communication.
+              </p>
+              <p className="text-lg text-muted-foreground leading-relaxed">
+                Founded in 2024, PulseCal was born from the frustration of healthcare professionals who were tired of
+                fragmented systems and manual processes. We've built a comprehensive solution that brings everything
+                together in one intuitive platform.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="mb-4 text-2xl font-bold text-foreground">Why Choose Us</h3>
+              <ul className="space-y-4">
+                {[
+                  {
+                    icon: Shield,
+                    title: "HIPAA Compliant",
+                    description: "We take data security seriously. All patient information is encrypted and stored securely.",
+                  },
+                  {
+                    icon: Activity,
+                    title: "Always Improving",
+                    description: "We release new features and improvements every month based on user feedback.",
+                  },
+                  {
+                    icon: Users,
+                    title: "Trusted by 500+ Providers",
+                    description: "Join hundreds of healthcare professionals who trust PulseCal for their practice management.",
+                  },
+                  {
+                    icon: Clock,
+                    title: "24/7 Support",
+                    description: "Our dedicated support team is always here to help you succeed.",
+                  },
+                ].map((item, index) => (
+                  <li key={index} className="flex gap-4">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                      <item.icon className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                      <h4 className="mb-1 font-semibold text-foreground">{item.title}</h4>
+                      <p className="text-sm text-muted-foreground">{item.description}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-slate-200 bg-slate-50 pt-16 pb-8" id="about">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 mb-12">
-            <div className="col-span-2 lg:col-span-2">
-              <div className="flex items-center gap-2 mb-4">
-                <img src="/logo.png" alt="PulseCal Logo" className="h-6 w-6 object-contain" />
-                <span className="text-lg font-bold text-navy-deep">PulseCal</span>
-              </div>
-              <p className="text-slate-500 text-sm max-w-xs mb-6 leading-relaxed">
-                The complete operating system for modern healthcare providers. Streamlining operations so you can focus on care.
-              </p>
-              <div className="flex gap-4 mb-6">
-                <a
-                  href="https://www.instagram.com/pulsecalofficial?igsh=MWVyZG5xMjJybnVhZw%3D%3D&utm_source=qr"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-medical-blue hover:text-white transition-all shadow-sm"
-                  aria-label="Instagram"
-                >
-                  <Instagram className="h-5 w-5" />
-                </a>
-                <a
-                  href="https://www.linkedin.com/company/pulsecal"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-medical-blue hover:text-white transition-all shadow-sm"
-                  aria-label="LinkedIn"
-                >
-                  <Linkedin className="h-5 w-5" />
-                </a>
-                <a
-                  href="mailto:pulsecal.info@gmail.com"
-                  className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-medical-blue hover:text-white transition-all shadow-sm"
-                  aria-label="Email"
-                >
-                  <Mail className="h-5 w-5" />
-                </a>
-              </div>
-              <div className="text-sm text-slate-500 space-y-1">
-                <p className="flex items-center gap-2">
-                  <span className="font-semibold text-navy-deep">Contact:</span>
-                  <a href="mailto:pulsecal.info@gmail.com" className="hover:text-medical-blue transition-colors">pulsecal.info@gmail.com</a>
-                </p>
-                <p className="flex items-center gap-2">
-                  <span className="font-semibold text-navy-deep">Support:</span>
-                  <a href="mailto:Pulsecal.help@gmail.com" className="hover:text-medical-blue transition-colors">Pulsecal.help@gmail.com</a>
-                </p>
-              </div>
-            </div>
-            <div>
-              <h4 className="text-navy-deep font-semibold mb-4">Product</h4>
-              <ul className="space-y-2 text-sm text-slate-500">
-                <li><a className="hover:text-medical-blue transition-colors" href="#features">Scheduling</a></li>
-                <li><a className="hover:text-medical-blue transition-colors" href="#features">Telehealth</a></li>
-                <li><a className="hover:text-medical-blue transition-colors" href="#features">EHR Integration</a></li>
-                <li><a className="hover:text-medical-blue transition-colors" href="#solutions">Patient Portal</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-navy-deep font-semibold mb-4">Resources</h4>
-              <ul className="space-y-2 text-sm text-slate-500">
-                <li><a className="hover:text-medical-blue transition-colors" href="#">Case Studies</a></li>
-                <li><a className="hover:text-medical-blue transition-colors" href="#">Help Center</a></li>
-                <li><a className="hover:text-medical-blue transition-colors" href="#">Webinars</a></li>
-                <li><a className="hover:text-medical-blue transition-colors" href="#">API Docs</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-navy-deep font-semibold mb-4">Company</h4>
-              <ul className="space-y-2 text-sm text-slate-500">
-                <li><a className="hover:text-medical-blue transition-colors" href="#">About Us</a></li>
-                <li><a className="hover:text-medical-blue transition-colors" href="#">Careers</a></li>
-                <li><a className="hover:text-medical-blue transition-colors" href="mailto:pulsecal.info@gmail.com">Contact</a></li>
-                <li><a className="hover:text-medical-blue transition-colors" href="mailto:Pulsecal.help@gmail.com">Help & Support</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-navy-deep font-semibold mb-4">Legal</h4>
-              <ul className="space-y-2 text-sm text-slate-500">
-                <li><a className="hover:text-medical-blue transition-colors" href="/privacy">Privacy Policy</a></li>
-                <li><a className="hover:text-medical-blue transition-colors" href="/terms">Terms of Service</a></li>
-                <li><a className="hover:text-medical-blue transition-colors" href="/hipaa">BAA Agreement</a></li>
-                <li><a className="hover:text-medical-blue transition-colors" href="/cookies">Cookie Policy</a></li>
-              </ul>
-            </div>
+      {/* CTA Section */}
+      <section className="border-b border-border bg-gradient-to-br from-primary/10 via-primary/5 to-accent/10 px-4 py-20">
+        <div className="mx-auto max-w-4xl text-center">
+          <h2 className="mb-6 text-balance text-4xl font-bold tracking-tight text-foreground lg:text-5xl">
+            Ready to transform your healthcare practice?
+          </h2>
+          <p className="mb-8 text-pretty text-xl text-muted-foreground leading-relaxed">
+            Join hundreds of healthcare providers who have already switched to PulseCal. Get started today.
+          </p>
+          <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
+            <GetStartedAction className="text-base shadow-lg hover:shadow-xl transition-shadow" />
+            <Button size="lg" variant="outline" className="text-base bg-transparent border-2">
+              Schedule a demo
+            </Button>
           </div>
-          <div className="border-t border-slate-200 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-xs text-slate-500">© 2024 PulseCal Inc. All rights reserved.</p>
-          </div>
+          <p className="mt-6 text-sm text-muted-foreground">HIPAA compliant • 24/7 support</p>
         </div>
-      </footer>
+      </section >
 
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        defaultTab={authMode}
-        selectedRole={selectedRole}
-      />
-    </div>
+      <Footer />
+    </div >
   )
 }
