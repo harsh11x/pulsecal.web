@@ -191,12 +191,15 @@ export const getDoctorAnalytics = async (
 
     const now = new Date();
     let startDate: Date;
-    let endDate: Date = now;
+    let endDate: Date;
 
-    if (period === 'custom' && customStartDate && customEndDate) {
+    // Use custom dates if provided (e.g. from Client for Timezone handling), regardless of 'period' param
+    if (customStartDate && customEndDate) {
       startDate = new Date(customStartDate);
       endDate = new Date(customEndDate);
     } else {
+      // Default Server Time fallback
+      endDate = new Date(now);
       switch (period) {
         case 'day':
           startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -253,7 +256,8 @@ export const getDoctorAnalytics = async (
       },
     });
 
-    const nowStartOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const nowStartOfDay = new Date(startDate);
+    nowStartOfDay.setHours(0, 0, 0, 0);
     const nowEndOfDay = new Date(nowStartOfDay);
     nowEndOfDay.setDate(nowEndOfDay.getDate() + 1);
 
@@ -265,15 +269,26 @@ export const getDoctorAnalytics = async (
       return aptDate >= nowStartOfDay && aptDate < nowEndOfDay;
     }).length;
 
-    const yesterday = new Date(now);
-    yesterday.setDate(yesterday.getDate() - 1);
+    // Anchor for relative calculations (Yesterday/Week/Month stats)
+    // Use the effective 'now' from the perspective of the requested startDate
+    const anchorDate = new Date(startDate);
 
-    // Parallelize secondary queries
-    const weekStart = new Date(now);
+    // Calculate Yesterday relative to anchorDate
+    const yesterdayAnchor = new Date(anchorDate);
+    yesterdayAnchor.setDate(yesterdayAnchor.getDate() - 1);
+    const yesterdayStart = new Date(yesterdayAnchor.getFullYear(), yesterdayAnchor.getMonth(), yesterdayAnchor.getDate());
+
+    // Calculate Week/Month start relative to anchorDate
+    const weekStart = new Date(anchorDate);
     weekStart.setDate(weekStart.getDate() - 7);
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthStart = new Date(anchorDate.getFullYear(), anchorDate.getMonth(), 1);
 
-    const yesterdayStart = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
+    // For "Yesterday Status", we want appointments strictly before the start of the current requested day
+    const currentDayStart = new Date(startDate);
+    currentDayStart.setHours(0, 0, 0, 0);
+
+    // Effective end date for relative queries (usually up to the end of the requested period)
+    const effectiveNow = endDate;
 
     const [
       yesterdayAppointments,
@@ -288,7 +303,7 @@ export const getDoctorAnalytics = async (
           ...(clinicId ? { OR: [{ doctorId }, { doctor: { clinicId } }] } : { doctorId }),
           scheduledAt: {
             gte: yesterdayStart,
-            lt: nowStartOfDay,
+            lt: currentDayStart,
           },
           deletedAt: null,
         },
@@ -297,7 +312,7 @@ export const getDoctorAnalytics = async (
       prisma.appointment.findMany({
         where: {
           ...(clinicId ? { OR: [{ doctorId }, { doctor: { clinicId } }] } : { doctorId }),
-          scheduledAt: { gte: weekStart, lte: now },
+          scheduledAt: { gte: weekStart, lte: effectiveNow },
           deletedAt: null
         },
         select: { id: true, status: true, scheduledAt: true }
@@ -306,7 +321,7 @@ export const getDoctorAnalytics = async (
       prisma.appointment.findMany({
         where: {
           ...(clinicId ? { OR: [{ doctorId }, { doctor: { clinicId } }] } : { doctorId }),
-          scheduledAt: { gte: monthStart, lte: now },
+          scheduledAt: { gte: monthStart, lte: effectiveNow },
           deletedAt: null
         },
         select: { id: true, status: true }
@@ -315,7 +330,7 @@ export const getDoctorAnalytics = async (
       prisma.appointment.findMany({
         where: {
           ...(clinicId ? { OR: [{ doctorId }, { doctor: { clinicId } }] } : { doctorId }),
-          scheduledAt: { gte: yesterdayStart, lt: nowStartOfDay },
+          scheduledAt: { gte: yesterdayStart, lt: currentDayStart },
           deletedAt: null
         },
         select: { status: true }
