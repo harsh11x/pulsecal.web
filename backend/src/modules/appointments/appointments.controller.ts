@@ -305,7 +305,11 @@ export const cancelAppointmentController = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { error, value } = cancelSchema.validate(req.body);
+    const { error, value } = cancelSchema.validate(req.body, {
+      abortEarly: false,
+      allowUnknown: true,
+      stripUnknown: true,
+    });
     if (error) {
       throw new AppError(error.details[0].message, 400);
     }

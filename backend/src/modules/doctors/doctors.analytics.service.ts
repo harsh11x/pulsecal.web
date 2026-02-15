@@ -311,6 +311,12 @@ export const getDoctorAnalytics = async (
     // Standardize: Total appointments should include ALL appointments (including CANCELLED)
     // to match Receptionist dashboard and other views.
     const todayAppointmentsCount = appointments.filter(apt => {
+      // If we are in the default 'day' mode (no custom dates), we forced a merge of "Upcoming".
+      // We should trust that merge and count them, otherwise checking strictly against
+      // nowStartOfDay/nowEndOfDay (which might be based on Server Time) will filter them out again.
+      if (period === 'day' && !customStartDate) {
+        return true;
+      }
       const aptDate = new Date(apt.scheduledAt);
       return aptDate >= nowStartOfDay && aptDate < nowEndOfDay;
     }).length;
