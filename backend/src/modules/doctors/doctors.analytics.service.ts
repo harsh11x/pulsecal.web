@@ -202,9 +202,22 @@ export const getDoctorAnalytics = async (
       endDate = new Date(now);
       switch (period) {
         case 'day':
+          // Default behavior (no custom dates): "Today" means "Upcoming 24h" or at least "Server Today + Tomorrow"
+          // to catch appointments that are "Today" for the client but "Tomorrow" for server.
+          // Using a 48h rolling window from Server Midnight to cover both "Yesterday" (if client is behind) and "Tomorrow" (if client is ahead)
           startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
           endDate = new Date(startDate);
-          endDate.setDate(startDate.getDate() + 1);
+
+          // EXTEND END DATE to cover "Tomorrow" Server Time (likely Client Today for Eastern zones)
+          // Ideally, we should fetch a bit more and let the frontend filter?
+          // BUT this is an aggregation endpoint returning a single number.
+          // IF we can't know the client timezone, we can't be perfect.
+          // However, "Today's Appointments" usually means "Upcoming today".
+          // If we mimic getAppointments default: "gte: now".
+
+          // Let's broaden the search to include "Tomorrow" Server Time.
+          // This ensures that an appointment at 2:30 PM Client Time (9AM Server Tomorrow) is caught.
+          endDate.setDate(startDate.getDate() + 2);
           break;
         case 'week':
           startDate = new Date(now);
@@ -258,8 +271,8 @@ export const getDoctorAnalytics = async (
 
     const nowStartOfDay = new Date(startDate);
     nowStartOfDay.setHours(0, 0, 0, 0);
-    const nowEndOfDay = new Date(nowStartOfDay);
-    nowEndOfDay.setDate(nowEndOfDay.getDate() + 1);
+    // Use the calculated endDate (which might include Tomorrow for default 'day' view)
+    const nowEndOfDay = new Date(endDate);
 
     // Calculate metrics
     // Standardize: Total appointments should include ALL appointments (including CANCELLED)
