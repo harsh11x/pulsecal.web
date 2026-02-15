@@ -199,16 +199,8 @@ export const getDoctorAnalytics = async (
       switch (period) {
         case 'day':
           startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-<<<<<<< HEAD
-=======
-      switch (period) {
-        case 'day':
-          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-<<<<<<< HEAD
           endDate = new Date(startDate);
           endDate.setDate(startDate.getDate() + 1);
-=======
->>>>>>> b1a3e047845e28030058369249da410e6242be86
           break;
         case 'week':
           startDate = new Date(now);
@@ -250,15 +242,16 @@ export const getDoctorAnalytics = async (
       },
     });
 
-    // Calculate metrics - exclude CANCELLED from appointment counts
-    const nonCancelledStatuses = ['SCHEDULED', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'NO_SHOW', 'RESCHEDULED'];
-    const todayAppointments = appointments.filter(apt => {
+    const nowStartOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const nowEndOfDay = new Date(nowStartOfDay);
+    nowEndOfDay.setDate(nowEndOfDay.getDate() + 1);
+
+    // Calculate metrics
+    // Standardize: Total appointments should include ALL appointments (including CANCELLED)
+    // to match Receptionist dashboard and other views.
+    const todayAppointmentsCount = appointments.filter(apt => {
       const aptDate = new Date(apt.scheduledAt);
-<<<<<<< HEAD
-      return aptDate >= todayStart && aptDate < todayEnd && nonCancelledStatuses.includes(apt.status);
-=======
-      return aptDate.toDateString() === now.toDateString() && nonCancelledStatuses.includes(apt.status);
->>>>>>> b1a3e047845e28030058369249da410e6242be86
+      return aptDate >= nowStartOfDay && aptDate < nowEndOfDay;
     }).length;
 
     const yesterday = new Date(now);
@@ -269,9 +262,6 @@ export const getDoctorAnalytics = async (
     weekStart.setDate(weekStart.getDate() - 7);
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const todayEnd = new Date(todayStart);
-    todayEnd.setDate(todayEnd.getDate() + 1);
     const yesterdayStart = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
 
     const [
@@ -281,19 +271,18 @@ export const getDoctorAnalytics = async (
       yesterdayStats,
       allConsultationPayments
     ] = await Promise.all([
-      // Yesterday's appointment count (exclude CANCELLED)
+      // Yesterday's appointment count (ALL statuses)
       prisma.appointment.count({
         where: {
           doctorId,
           scheduledAt: {
             gte: yesterdayStart,
-            lt: todayStart,
+            lt: nowStartOfDay,
           },
           deletedAt: null,
-          status: { not: 'CANCELLED' },
         },
       }),
-      // Week appointments (include scheduledAt for chart breakdown)
+      // Week appointments
       prisma.appointment.findMany({
         where: { doctorId, scheduledAt: { gte: weekStart, lte: now }, deletedAt: null },
         select: { id: true, status: true, scheduledAt: true }
@@ -303,16 +292,16 @@ export const getDoctorAnalytics = async (
         where: { doctorId, scheduledAt: { gte: monthStart, lte: now }, deletedAt: null },
         select: { id: true, status: true }
       }),
-      // Yesterday stats (completed count, cancellation count)
+      // Yesterday stats
       prisma.appointment.findMany({
         where: {
           doctorId,
-          scheduledAt: { gte: yesterdayStart, lt: todayStart },
+          scheduledAt: { gte: yesterdayStart, lt: nowStartOfDay },
           deletedAt: null
         },
         select: { status: true }
       }),
-      // All COMPLETED payments for this doctor (exclude subscription in JS to avoid Prisma nullable filter issues)
+      // All COMPLETED payments
       prisma.payment.findMany({
         where: {
           doctorId,
@@ -326,7 +315,7 @@ export const getDoctorAnalytics = async (
 
     const todayCompletedCount = appointments.filter(apt => {
       const aptDate = new Date(apt.scheduledAt);
-      return aptDate.toDateString() === now.toDateString() && apt.status === 'COMPLETED';
+      return aptDate >= nowStartOfDay && aptDate < nowEndOfDay && apt.status === 'COMPLETED';
     }).length;
 
     const yesterdayCompletedCount = yesterdayStats.filter(a => a.status === 'COMPLETED').length;
@@ -343,14 +332,14 @@ export const getDoctorAnalytics = async (
     const todayRevenue = payments
       .filter(p => {
         const d = getPaidDate(p);
-        return d >= todayStart && d < todayEnd;
+        return d >= nowStartOfDay && d < nowEndOfDay;
       })
       .reduce((sum, p) => sum + Number(p.amount), 0);
 
     const yesterdayRevenue = payments
       .filter(p => {
         const d = getPaidDate(p);
-        return d >= yesterdayStart && d < todayStart;
+        return d >= yesterdayStart && d < nowStartOfDay;
       })
       .reduce((sum, p) => sum + Number(p.amount), 0);
 
@@ -426,17 +415,13 @@ export const getDoctorAnalytics = async (
 
     return {
       today: {
-        appointments: todayAppointments,
+        appointments: todayAppointmentsCount,
         revenue: Number(todayRevenue.toFixed(2)),
         patients: todayCompletedCount,
-<<<<<<< HEAD
         cancellations: appointments.filter(apt => {
           const aptDate = new Date(apt.scheduledAt);
-          return aptDate >= todayStart && aptDate < todayEnd && apt.status === 'CANCELLED';
+          return aptDate >= nowStartOfDay && aptDate < nowEndOfDay && apt.status === 'CANCELLED';
         }).length,
-=======
-        cancellations: appointments.filter(apt => apt.status === 'CANCELLED' && new Date(apt.scheduledAt).toDateString() === now.toDateString()).length,
->>>>>>> b1a3e047845e28030058369249da410e6242be86
       },
       yesterday: {
         appointments: yesterdayAppointments,
@@ -478,19 +463,6 @@ export const getDoctorAnalytics = async (
     console.error('Error in getDoctorAnalytics:', error.message, error.stack);
     throw error;
   }
-};
-patientGrowth: patientGrowthFormatted,
-  cancellationRate: Number(cancellationRate.toFixed(2)),
-    reviews: {
-  total: totalReviews,
-    averageRating: Number(averageRating.toFixed(1)),
-      recent: recentReviews
-}
-    };
-  } catch (error: any) {
-  console.error('Error in getDoctorAnalytics:', error.message, error.stack);
-  throw error;
-}
 };
 
 /**
