@@ -170,6 +170,10 @@ export const getAppointments = async (req: {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
     where.scheduledAt = { gte: today, lt: tomorrow };
+  } else if (!req.query.date && !req.query.status) {
+    // Default behavior if no date/status filter: Show UPCOMING appointments only (including today)
+    // This prevents "previous" appointments from flooding the list after inclusive logic update
+    where.scheduledAt = { gte: new Date() };
   }
 
   const [appointments, total] = await Promise.all([
