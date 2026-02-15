@@ -222,8 +222,7 @@ export const getDoctorAnalytics = async (
       }
     }
 
-    // Get appointments for the selected period
-    // If clinicId is provided, fetch ALL appointments for the clinic (Doctor + Sub-Doctor visibility)
+    // If clinicId is provided, fetch ALL appointments for the clinic OR assigned to the doctor
     const appointmentWhereConditions: any = {
       scheduledAt: {
         gte: startDate,
@@ -233,7 +232,10 @@ export const getDoctorAnalytics = async (
     };
 
     if (clinicId) {
-      appointmentWhereConditions.doctor = { clinicId };
+      appointmentWhereConditions.OR = [
+        { doctorId: doctorId },
+        { doctor: { clinicId } }
+      ];
     } else {
       appointmentWhereConditions.doctorId = doctorId;
     }
@@ -283,7 +285,7 @@ export const getDoctorAnalytics = async (
       // Yesterday's appointment count (ALL statuses)
       prisma.appointment.count({
         where: {
-          ...(clinicId ? { doctor: { clinicId } } : { doctorId }),
+          ...(clinicId ? { OR: [{ doctorId }, { doctor: { clinicId } }] } : { doctorId }),
           scheduledAt: {
             gte: yesterdayStart,
             lt: nowStartOfDay,
@@ -294,7 +296,7 @@ export const getDoctorAnalytics = async (
       // Week appointments
       prisma.appointment.findMany({
         where: {
-          ...(clinicId ? { doctor: { clinicId } } : { doctorId }),
+          ...(clinicId ? { OR: [{ doctorId }, { doctor: { clinicId } }] } : { doctorId }),
           scheduledAt: { gte: weekStart, lte: now },
           deletedAt: null
         },
@@ -303,7 +305,7 @@ export const getDoctorAnalytics = async (
       // Month appointments
       prisma.appointment.findMany({
         where: {
-          ...(clinicId ? { doctor: { clinicId } } : { doctorId }),
+          ...(clinicId ? { OR: [{ doctorId }, { doctor: { clinicId } }] } : { doctorId }),
           scheduledAt: { gte: monthStart, lte: now },
           deletedAt: null
         },
@@ -312,7 +314,7 @@ export const getDoctorAnalytics = async (
       // Yesterday stats
       prisma.appointment.findMany({
         where: {
-          ...(clinicId ? { doctor: { clinicId } } : { doctorId }),
+          ...(clinicId ? { OR: [{ doctorId }, { doctor: { clinicId } }] } : { doctorId }),
           scheduledAt: { gte: yesterdayStart, lt: nowStartOfDay },
           deletedAt: null
         },
