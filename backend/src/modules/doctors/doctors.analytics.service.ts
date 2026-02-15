@@ -256,18 +256,51 @@ export const getDoctorAnalytics = async (
       appointmentWhereConditions.doctorId = doctorId;
     }
 
-    const appointments = await prisma.appointment.findMany({
+
+
+    // [FIX] Force Consistency with "Today's Schedule" list.
+    // The schedule list uses "Upcoming" (gte: Now) by default.
+    // To ensure Analytics never shows 0 when Schedule shows 1, we also fetch "Upcoming"
+    // appointments if period is 'day', and merge them.
+    const primaryPromise = prisma.appointment.findMany({
       where: appointmentWhereConditions,
       include: {
-        patient: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-          },
-        },
+        patient: { select: { id: true, firstName: true, lastName: true } },
       },
     });
+
+    let extraUpcomingAppointments: any[] = [];
+    if (period === 'day') {
+      // Fetch upcoming appointments (similar to getAppointments default)
+      // to ensure we capture what the user sees in their "Today's Schedule"
+      const upcomingWhere = { ...appointmentWhereConditions };
+      if (upcomingWhere.scheduledAt) delete upcomingWhere.scheduledAt; // Remove strict date range
+
+      upcomingWhere.scheduledAt = { gte: new Date() }; // Upcoming only
+      // Limit to next 24-48h to avoid fetching years of data
+      const farFuture = new Date();
+      farFuture.setDate(farFuture.getDate() + 2);
+      upcomingWhere.scheduledAt = { gte: new Date(), lte: farFuture };
+
+      extraUpcomingAppointments = await prisma.appointment.findMany({
+        where: upcomingWhere,
+        include: {
+          patient: { select: { id: true, firstName: true, lastName: true } },
+        }
+      });
+    }
+
+    const [primaryAppointments, upcoming] = await Promise.all([
+      primaryPromise,
+      period === 'day' ? extraUpcomingAppointments : Promise.resolve([])
+    ]);
+
+    // Deduplicate appointments
+    const appointmentMap = new Map();
+    [...primaryAppointments, ...(upcoming as any[])].forEach(apt => {
+      appointmentMap.set(apt.id, apt);
+    });
+    const appointments = Array.from(appointmentMap.values());
 
     const nowStartOfDay = new Date(startDate);
     nowStartOfDay.setHours(0, 0, 0, 0);
