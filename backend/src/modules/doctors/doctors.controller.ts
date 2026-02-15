@@ -262,7 +262,8 @@ export const getDoctorAnalyticsController = async (
       doctorId,
       (period as any) || 'day',
       startDate ? new Date(startDate as string) : undefined,
-      endDate ? new Date(endDate as string) : undefined
+      endDate ? new Date(endDate as string) : undefined,
+      req.user?.clinicId || undefined // Pass clinicId for broader visibility (handle null)
     );
 
     logger.info({ doctorId }, 'Analytics retrieved successfully');
@@ -305,7 +306,7 @@ export const getFinancialReportsController = async (
       throw new AppError('Doctor profile not found. Please complete your profile setup.', 404);
     }
     const type = (req.query.type as 'daily' | 'monthly' | 'yearly') || 'monthly';
-    const report = await getFinancialReports(doctorId, type);
+    const report = await getFinancialReports(doctorId, type, req.user?.clinicId || undefined);
     sendSuccess(res, report, 'Financial report retrieved successfully');
   } catch (err: any) {
     logger.error({ error: err.message, doctorId: req.user?.id }, 'Error in getFinancialReportsController');

@@ -181,7 +181,8 @@ export const getDoctorAnalytics = async (
   doctorId: string,
   period: 'day' | 'week' | 'month' | '3months' | 'year' | 'custom' = 'day',
   customStartDate?: Date,
-  customEndDate?: Date
+  customEndDate?: Date,
+  clinicId?: string // Optional clinicId for broader visibility
 ) => {
   try {
     if (!doctorId || typeof doctorId !== 'string') {
@@ -222,15 +223,23 @@ export const getDoctorAnalytics = async (
     }
 
     // Get appointments for the selected period
-    const appointments = await prisma.appointment.findMany({
-      where: {
-        doctorId,
-        scheduledAt: {
-          gte: startDate,
-          lte: endDate
-        },
-        deletedAt: null,
+    // If clinicId is provided, fetch ALL appointments for the clinic (Doctor + Sub-Doctor visibility)
+    const appointmentWhereConditions: any = {
+      scheduledAt: {
+        gte: startDate,
+        lte: endDate
       },
+      deletedAt: null,
+    };
+
+    if (clinicId) {
+      appointmentWhereConditions.doctor = { clinicId };
+    } else {
+      appointmentWhereConditions.doctorId = doctorId;
+    }
+
+    const appointments = await prisma.appointment.findMany({
+      where: appointmentWhereConditions,
       include: {
         patient: {
           select: {
@@ -274,7 +283,7 @@ export const getDoctorAnalytics = async (
       // Yesterday's appointment count (ALL statuses)
       prisma.appointment.count({
         where: {
-          doctorId,
+          ...(clinicId ? { doctor: { clinicId } } : { doctorId }),
           scheduledAt: {
             gte: yesterdayStart,
             lt: nowStartOfDay,
@@ -284,18 +293,26 @@ export const getDoctorAnalytics = async (
       }),
       // Week appointments
       prisma.appointment.findMany({
-        where: { doctorId, scheduledAt: { gte: weekStart, lte: now }, deletedAt: null },
+        where: {
+          ...(clinicId ? { doctor: { clinicId } } : { doctorId }),
+          scheduledAt: { gte: weekStart, lte: now },
+          deletedAt: null
+        },
         select: { id: true, status: true, scheduledAt: true }
       }),
       // Month appointments
       prisma.appointment.findMany({
-        where: { doctorId, scheduledAt: { gte: monthStart, lte: now }, deletedAt: null },
+        where: {
+          ...(clinicId ? { doctor: { clinicId } } : { doctorId }),
+          scheduledAt: { gte: monthStart, lte: now },
+          deletedAt: null
+        },
         select: { id: true, status: true }
       }),
       // Yesterday stats
       prisma.appointment.findMany({
         where: {
-          doctorId,
+          ...(clinicId ? { doctor: { clinicId } } : { doctorId }),
           scheduledAt: { gte: yesterdayStart, lt: nowStartOfDay },
           deletedAt: null
         },
@@ -470,10 +487,11 @@ export const getDoctorAnalytics = async (
  */
 export const getFinancialReports = async (
   doctorId: string,
-  type: 'daily' | 'monthly' | 'yearly' = 'monthly'
+  type: 'daily' | 'monthly' | 'yearly' = 'monthly',
+  clinicId?: string
 ) => {
   const periodMap = { daily: 'week' as const, monthly: 'month' as const, yearly: 'year' as const };
-  const analytics = await getDoctorAnalytics(doctorId, periodMap[type]);
+  const analytics = await getDoctorAnalytics(doctorId, periodMap[type], undefined, undefined, clinicId);
 
   const periodData = type === 'daily'
     ? analytics.thisWeek
