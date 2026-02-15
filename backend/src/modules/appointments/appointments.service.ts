@@ -126,7 +126,13 @@ export const getAppointments = async (req: {
   if (req.user?.role === 'PATIENT') {
     where.patientId = req.user.id;
   } else if (req.user?.role === 'DOCTOR') {
-    where.doctorId = req.user.id;
+    if (req.user.clinicId) {
+      // Doctor can see all appointments for their clinic (like receptionist)
+      where.doctor = { clinicId: req.user.clinicId };
+    } else {
+      // Fallback for standalone doctors
+      where.doctorId = req.user.id;
+    }
   } else if (req.user?.role === 'RECEPTIONIST' && req.user.clinicId) {
     // Receptionist can see all appointments for their clinic
     where.doctor = { clinicId: req.user.clinicId };
@@ -149,10 +155,10 @@ export const getAppointments = async (req: {
   if (req.query.startDate || req.query.endDate) {
     if (!where.scheduledAt) where.scheduledAt = {};
     if (req.query.startDate) {
-      where.scheduledAt.gte = new Date(req.query.startDate);
+      where.scheduledAt.gte = new Date(req.query.startDate as string);
     }
     if (req.query.endDate) {
-      where.scheduledAt.lte = new Date(req.query.endDate);
+      where.scheduledAt.lte = new Date(req.query.endDate as string);
     }
   } else if (req.query.date === 'today') {
     const today = new Date();
