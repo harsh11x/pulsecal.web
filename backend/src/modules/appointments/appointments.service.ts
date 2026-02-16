@@ -127,16 +127,8 @@ export const getAppointments = async (req: {
   if (req.user?.role === 'PATIENT') {
     where.patientId = req.user.id;
   } else if (req.user?.role === 'DOCTOR') {
-    if (req.user.clinicId) {
-      // Doctor can see appointments assigned to them OR appointments for their clinic
-      where.OR = [
-        { doctorId: req.user.id },
-        { doctor: { clinicId: req.user.clinicId } }
-      ];
-    } else {
-      // Fallback for standalone doctors
-      where.doctorId = req.user.id;
-    }
+    // Doctor can ONLY see appointments assigned to them
+    where.doctorId = req.user.id;
   } else if (req.user?.role === 'RECEPTIONIST' && req.user.clinicId) {
     // Receptionist can see all appointments for their clinic
     where.doctor = { clinicId: req.user.clinicId };
