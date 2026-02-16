@@ -70,27 +70,12 @@ const startServer = async () => {
       // process.exit(1); // Continuing without Redis for now
     }
 
-    // 3. Start HTTP Listener with Port Fallback
-    const startListener = (port: number) => {
-      const serverInstance = server.listen(port, () => {
-        logger.info(`Server listening on port ${port}`);
-        logger.info(`Environment: ${config.nodeEnv}`);
-        logger.info(`API Version: ${config.apiVersion}`);
-      });
-
-      serverInstance.on('error', (e: any) => {
-        if (e.code === 'EADDRINUSE') {
-          logger.warn(`Port ${port} is in use, trying ${port + 1}...`);
-          serverInstance.close();
-          startListener(port + 1);
-        } else {
-          logger.error({ err: e }, 'Server error');
-          process.exit(1);
-        }
-      });
-    };
-
-    startListener(Number(config.port));
+    // 3. Start HTTP Listener
+    server.listen(config.port, () => {
+      logger.info(`Server listening on port ${config.port}`);
+      logger.info(`Environment: ${config.nodeEnv}`);
+      logger.info(`API Version: ${config.apiVersion}`);
+    });
 
   } catch (error) {
     logger.error({ err: error }, 'Failed to start server');
