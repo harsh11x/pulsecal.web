@@ -270,14 +270,15 @@ export const getDoctorAnalytics = async (
     });
 
     let extraUpcomingAppointments: any[] = [];
-    if (period === 'day') {
+    // Always fetch upcoming to guarantee "Today's" count accuracy
+    if (true) {
       // Fetch upcoming appointments (similar to getAppointments default)
       // to ensure we capture what the user sees in their "Today's Schedule"
       const upcomingWhere = { ...appointmentWhereConditions };
       if (upcomingWhere.scheduledAt) delete upcomingWhere.scheduledAt; // Remove strict date range
 
       upcomingWhere.scheduledAt = { gte: new Date() }; // Upcoming only
-      // Limit to next 24-48h to avoid fetching years of data
+      // Limit to next 48h to avoid fetching years of data but cover timezone diffs
       const farFuture = new Date();
       farFuture.setDate(farFuture.getDate() + 2);
       upcomingWhere.scheduledAt = { gte: new Date(), lte: farFuture };
@@ -292,7 +293,7 @@ export const getDoctorAnalytics = async (
 
     const [primaryAppointments, upcoming] = await Promise.all([
       primaryPromise,
-      period === 'day' ? extraUpcomingAppointments : Promise.resolve([])
+      extraUpcomingAppointments
     ]);
 
     // Deduplicate appointments
@@ -302,28 +303,35 @@ export const getDoctorAnalytics = async (
     });
     const appointments = Array.from(appointmentMap.values());
 
-    const nowStartOfDay = new Date(startDate);
-    nowStartOfDay.setHours(0, 0, 0, 0);
-    // Use the calculated endDate (which might include Tomorrow for default 'day' view)
-    const nowEndOfDay = new Date(endDate);
-
     // Calculate metrics
-    // Standardize: Total appointments should include ALL appointments (including CANCELLED)
-    // to match Receptionist dashboard and other views.
+    // "Today" Logic: Always relative to NOW (Server Time 00:00 -> +48h), UNLESS custom dates explicitly provided.
+    // This allows "Today's Appointments" to be correct even if period='week'.
+
+    let calcTodayStart = new Date(now);
+    calcTodayStart.setHours(0, 0, 0, 0);
+    let calcTodayEnd = new Date(calcTodayStart);
+    calcTodayEnd.setDate(calcTodayEnd.getDate() + 2); // 48h window default
+
+    // If custom dates were provided, respect them strictly
+    if (customStartDate) {
+      calcTodayStart = new Date(startDate);
+      calcTodayEnd = new Date(endDate);
+    }
+
+    // Restore variables for downstream usage
+    const nowStartOfDay = calcTodayStart;
+    const nowEndOfDay = calcTodayEnd;
+
     const todayAppointmentsCount = appointments.filter(apt => {
-      // If we are in the default 'day' mode (no custom dates), we forced a merge of "Upcoming".
-      // We should trust that merge and count them, otherwise checking strictly against
-      // nowStartOfDay/nowEndOfDay (which might be based on Server Time) will filter them out again.
-      if (period === 'day' && !customStartDate) {
-        return true;
-      }
+      // Also verify it's within our 48h "Today" window to avoid counting last week's appointments (if period=week)
       const aptDate = new Date(apt.scheduledAt);
       return aptDate >= nowStartOfDay && aptDate < nowEndOfDay;
     }).length;
 
+
     // Anchor for relative calculations (Yesterday/Week/Month stats)
-    // Use the effective 'now' from the perspective of the requested startDate
-    const anchorDate = new Date(startDate);
+    // ALWAYS use NOW (or customStart) as anchor. Do NOT use period's startDate (which might be 7 days ago).
+    const anchorDate = customStartDate ? new Date(startDate) : new Date(now);
 
     // Calculate Yesterday relative to anchorDate
     const yesterdayAnchor = new Date(anchorDate);
@@ -336,7 +344,7 @@ export const getDoctorAnalytics = async (
     const monthStart = new Date(anchorDate.getFullYear(), anchorDate.getMonth(), 1);
 
     // For "Yesterday Status", we want appointments strictly before the start of the current requested day
-    const currentDayStart = new Date(startDate);
+    const currentDayStart = new Date(anchorDate);
     currentDayStart.setHours(0, 0, 0, 0);
 
     // Effective end date for relative queries (usually up to the end of the requested period)
