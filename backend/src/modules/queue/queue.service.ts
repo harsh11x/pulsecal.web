@@ -53,21 +53,52 @@ export const addToQueue = async (data: {
   return queueEntry;
 };
 
-export const getQueue = async (doctorId?: string, clinicId?: string) => {
+export const getQueue = async (doctorId?: string, clinicId?: string, req?: { user?: { id: string; role: string; clinicId?: string | null } }) => {
   const where: {
     doctorId?: string;
     clinicId?: string;
+    patientId?: string;
     status?: string;
   } = {
     status: 'waiting',
   };
 
+  if (req?.user?.role === 'DOCTOR') {
+    where.doctorId = req.user.id;
+  } else if (req?.user?.role === 'RECEPTIONIST' && req.user.clinicId) {
+    where.clinicId = req.user.clinicId;
+  } else if (req?.user?.role === 'PATIENT') {
+    // Patients should only see their own status via getQueueStatus,
+    // but if they call this, restrict it.
+    where.patientId = req.user.id;
+  } else if (req?.user?.role !== 'ADMIN') {
+    // Fail-safe: Non-admin users with no credentials should see nothing
+    where.doctorId = 'non-existent';
+  }
+
+  // Allow query parameter overrides ONLY if they don't violate role restrictions
   if (doctorId) {
-    where.doctorId = doctorId;
+    if (req?.user?.role === 'DOCTOR') {
+      where.doctorId = req.user.id; // Force self
+    } else {
+      where.doctorId = doctorId;
+    }
   }
 
   if (clinicId) {
-    where.clinicId = clinicId;
+    if (req?.user?.role === 'RECEPTIONIST' || req?.user?.role === 'DOCTOR') {
+      // Only allow showing clinic queue if they belong to it
+      if (req?.user?.clinicId) {
+        where.clinicId = req.user.clinicId;
+      }
+    } else {
+      where.clinicId = clinicId;
+    }
+  }
+
+  // CRITICAL: Ensure we never return EVERY waiting patient in the system
+  if (!where.doctorId && !where.clinicId && !where.patientId && req?.user?.role !== 'ADMIN') {
+    where.doctorId = 'non-existent';
   }
 
   const queue = await prisma.queueEntry.findMany({
@@ -91,7 +122,7 @@ export const getQueue = async (doctorId?: string, clinicId?: string) => {
   return queue;
 };
 
-export const getQueueStatus = async (patientId: string) => {
+export const getQueueStatus = async (patientId: string, req?: { user?: { id: string; role: string; clinicId?: string | null } }) => {
   const queueEntry = await prisma.queueEntry.findFirst({
     where: {
       patientId,

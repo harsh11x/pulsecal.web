@@ -118,7 +118,7 @@ export const getAppointments = async (req: {
     scheduledAt?: { gte?: Date; lte?: Date; lt?: Date };
     deletedAt?: null;
     doctor?: { clinicId?: string };
-    OR?: Array<{ doctorId?: string } | { doctor?: { clinicId?: string } }>;
+    OR?: Array<{ doctorId?: string } | { doctor?: { clinicId?: string } } | { patientId?: string }>;
   } = {
     deletedAt: null,
   };
@@ -132,14 +132,31 @@ export const getAppointments = async (req: {
   } else if (req.user?.role === 'RECEPTIONIST' && req.user.clinicId) {
     // Receptionist can see all appointments for their clinic
     where.doctor = { clinicId: req.user.clinicId };
+  } else if (req.user?.role !== 'ADMIN') {
+    // Fail-safe: Non-admin users with no specific role/clinic match should see nothing
+    where.OR = [{ doctorId: 'non-existent' }, { patientId: 'non-existent' }];
   }
 
   if (req.query.patientId) {
-    where.patientId = req.query.patientId;
+    // Patients can only filter their own appointments
+    if (req.user?.role === 'PATIENT' && req.query.patientId !== req.user.id) {
+      where.patientId = 'non-existent';
+    } else {
+      where.patientId = req.query.patientId;
+    }
   }
 
   if (req.query.doctorId) {
-    where.doctorId = req.query.doctorId;
+    // Doctors can only see their own appointments; don't let query override
+    if (req.user?.role === 'DOCTOR') {
+      where.doctorId = req.user.id;
+    } else if (req.user?.role === 'RECEPTIONIST' && req.user.clinicId) {
+      // Receptionists can filter by doctor, but ONLY within their clinic
+      where.doctorId = req.query.doctorId;
+      where.doctor = { clinicId: req.user.clinicId };
+    } else {
+      where.doctorId = req.query.doctorId;
+    }
   }
 
   if (req.query.status) {

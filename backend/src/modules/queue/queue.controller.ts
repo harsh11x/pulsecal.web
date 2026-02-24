@@ -49,7 +49,7 @@ export const getQueueController = async (
   try {
     const doctorId = req.query.doctorId as string | undefined;
     const clinicId = req.query.clinicId as string | undefined;
-    const queue = await getQueue(doctorId, clinicId);
+    const queue = await getQueue(doctorId, clinicId, req as any);
     sendSuccess(res, queue, 'Queue retrieved successfully');
   } catch (err) {
     next(err);
@@ -65,7 +65,7 @@ export const getQueueStatusController = async (
     if (!req.user) {
       throw new AppError('User not authenticated', 401);
     }
-    const status = await getQueueStatus(req.user.id);
+    const status = await getQueueStatus(req.user.id, req as any);
     sendSuccess(res, status, 'Queue status retrieved successfully');
   } catch (err) {
     next(err);

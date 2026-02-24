@@ -76,7 +76,7 @@ export const getPayments = async (req: {
     doctorId?: string;
     status?: string;
   };
-  user?: { id: string; role: string };
+  user?: { id: string; role: string; clinicId?: string | null };
 }) => {
   const { page, limit, skip } = getPaginationParams(req as never);
   const { orderBy, order } = getSortParams(req as never);
@@ -93,14 +93,36 @@ export const getPayments = async (req: {
       { doctorId: req.user.id },
       { patientId: req.user.id }
     ];
+  } else if (req.user?.role === 'RECEPTIONIST' && req.user.clinicId) {
+    // Receptionist can see all payments for THEIR clinic
+    where.doctor = { clinicId: req.user.clinicId };
+  } else if (req.user?.role !== 'ADMIN') {
+    // Fail-safe: Non-admin users with no specific role/clinic match should see nothing
+    where.OR = [{ doctorId: 'non-existent' }, { patientId: 'non-existent' }];
   }
 
   if (req.query.patientId) {
-    where.patientId = req.query.patientId;
+    // Patients can only see their own payments
+    if (req.user?.role === 'PATIENT' && req.query.patientId !== req.user.id) {
+      where.patientId = 'non-existent';
+    } else {
+      where.patientId = req.query.patientId;
+    }
   }
 
   if (req.query.doctorId) {
-    where.doctorId = req.query.doctorId;
+    // Doctors can only see their own receipts/payments
+    if (req.user?.role === 'DOCTOR' && req.query.doctorId !== req.user.id) {
+      // Note: Doctors might see payments where they are patientId=userId (subscriptions)
+      // so we keep the OR logic but restrict the doctorId filter part
+      where.doctorId = req.user.id;
+    } else if (req.user?.role === 'RECEPTIONIST' && req.user.clinicId) {
+      // Receptionists can filter by doctor, but ONLY within their clinic
+      where.doctorId = req.query.doctorId;
+      where.doctor = { clinicId: req.user.clinicId };
+    } else {
+      where.doctorId = req.query.doctorId;
+    }
   }
 
   if (req.query.status) {
