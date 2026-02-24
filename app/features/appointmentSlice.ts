@@ -39,6 +39,9 @@ const appointmentSlice = createSlice({
       state.loading = action.payload
     },
   },
+  extraReducers: (builder) => {
+    builder.addCase("auth/logout", () => initialState)
+  },
 })
 
 export const {

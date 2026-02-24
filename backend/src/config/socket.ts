@@ -17,7 +17,7 @@ export const initializeSocket = (httpServer: HTTPServer): SocketIOServer => {
       origin: (origin, callback) => {
         // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin) return callback(null, true);
-        
+
         // Check if origin is in allowed list
         const isAllowed = allowedOrigins.some(allowed => {
           // Exact match
@@ -29,7 +29,7 @@ export const initializeSocket = (httpServer: HTTPServer): SocketIOServer => {
           }
           return false;
         });
-        
+
         if (isAllowed) {
           callback(null, true);
         } else {
@@ -94,7 +94,14 @@ export const initializeSocket = (httpServer: HTTPServer): SocketIOServer => {
   });
 
   io.on('connection', (socket) => {
-    logger.info(`Socket connected: ${socket.id} (User: ${socket.data.user?.email})`);
+    const user = socket.data.user;
+    logger.info(`Socket connected: ${socket.id} (User: ${user?.email})`);
+
+    // Join user-specific room for targeted notifications/updates
+    if (user?.id) {
+      socket.join(`user-${user.id}`);
+      logger.info(`User ${user.id} joined room: user-${user.id}`);
+    }
 
     socket.on('disconnect', () => {
       logger.info(`Socket disconnected: ${socket.id}`);

@@ -333,7 +333,7 @@ export const getClinicStaffController = async (
       return sendSuccess(res, { doctors: [], receptionists: [], totalStaff: 0 }, 'No clinic linked');
     }
 
-    const staff = await getClinicStaff(clinicId);
+    const staff = await getClinicStaff(clinicId, req.user?.id, req.user?.role);
     sendSuccess(res, staff, 'Clinic staff retrieved successfully');
   } catch (err: any) {
     logger.error({ error: err.message, userId: req.user?.id }, 'Error in getClinicStaffController');

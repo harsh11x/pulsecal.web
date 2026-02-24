@@ -3,7 +3,9 @@ import prisma from '../../config/database';
 /**
  * Get all staff members (doctors and receptionists) in a clinic
  */
-export const getClinicStaff = async (clinicId: string) => {
+export const getClinicStaff = async (clinicId: string, requesterId?: string, requesterRole?: string) => {
+    const role = requesterRole?.toUpperCase();
+
     // Get all doctors in the clinic
     const doctors = await prisma.user.findMany({
         where: {
@@ -47,14 +49,21 @@ export const getClinicStaff = async (clinicId: string) => {
         },
     });
 
-    // Get stats for each doctor
+    // Get stats for each doctor (RESTRICTED)
     const doctorsWithStats = await Promise.all(
         doctors.map(async (doctor) => {
+            // Stats logic
+            const showStats = role === 'ADMIN' || (role === 'DOCTOR' && doctor.id === requesterId);
+
+            if (!showStats) {
+                return { ...doctor, stats: null };
+            }
+
             const now = new Date();
             const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
             // Get this month's appointments
-            const appointments = await prisma.appointment.count({
+            const appointmentsCount = await prisma.appointment.count({
                 where: {
                     doctorId: doctor.id,
                     scheduledAt: { gte: startOfMonth },
@@ -86,7 +95,7 @@ export const getClinicStaff = async (clinicId: string) => {
             const revenue = payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
 
             // Get unique patients
-            const uniquePatients = await prisma.appointment.findMany({
+            const uniquePatientsCount = await prisma.appointment.findMany({
                 where: {
                     doctorId: doctor.id,
                     scheduledAt: { gte: startOfMonth },
@@ -101,22 +110,27 @@ export const getClinicStaff = async (clinicId: string) => {
             return {
                 ...doctor,
                 stats: {
-                    appointmentsThisMonth: appointments,
+                    appointmentsThisMonth: appointmentsCount,
                     completedAppointments: completedAppointments.length,
                     revenueThisMonth: revenue,
-                    uniquePatients: uniquePatients.length,
+                    uniquePatients: uniquePatientsCount.length,
                 },
             };
         })
     );
 
-    // Get stats for each receptionist
+    // Get stats for each receptionist (RESTRICTED/SIMPLIFIED)
     const receptionistsWithStats = await Promise.all(
         receptionists.map(async (receptionist) => {
+            const showStats = role === 'ADMIN' || (role === 'RECEPTIONIST' && receptionist.id === requesterId);
+
+            if (!showStats) {
+                return { ...receptionist, stats: null };
+            }
+
             const now = new Date();
             const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-            // Count appointments managed this month (simplified - count all appointments in clinic)
             const appointmentsManaged = await prisma.appointment.count({
                 where: {
                     doctor: {

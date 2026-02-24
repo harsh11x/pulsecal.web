@@ -85,44 +85,38 @@ export const getPayments = async (req: {
     deletedAt: null,
   };
 
-  if (req.user?.role === 'PATIENT') {
-    where.patientId = req.user.id;
-  } else if (req.user?.role === 'DOCTOR') {
+  // Role-based filtering
+  const userRole = req.user?.role?.toUpperCase();
+  const userId = req.user?.id;
+  const userClinicId = req.user?.clinicId;
+
+  if (userRole === 'PATIENT') {
+    where.patientId = userId;
+  } else if (userRole === 'DOCTOR') {
     // Doctor should see payments where they are the recipient (doctorId) OR the payer (patientId - for subscriptions)
     where.OR = [
-      { doctorId: req.user.id },
-      { patientId: req.user.id }
+      { doctorId: userId },
+      { patientId: userId }
     ];
-  } else if (req.user?.role === 'RECEPTIONIST' && req.user.clinicId) {
-    // Receptionist can see all payments for THEIR clinic
-    where.doctor = { clinicId: req.user.clinicId };
-  } else if (req.user?.role !== 'ADMIN') {
+  } else if (userRole === 'RECEPTIONIST') {
+    if (userClinicId) {
+      // Receptionist can see all payments for THEIR clinic
+      where.doctor = { clinicId: userClinicId };
+      // Allow filtering by doctor within their own clinic
+      if (req.query.doctorId) {
+        where.doctorId = req.query.doctorId as string;
+      }
+    } else {
+      where.doctorId = 'non-existent';
+    }
+  } else if (userRole !== 'ADMIN') {
     // Fail-safe: Non-admin users with no specific role/clinic match should see nothing
     where.OR = [{ doctorId: 'non-existent' }, { patientId: 'non-existent' }];
   }
 
-  if (req.query.patientId) {
-    // Patients can only see their own payments
-    if (req.user?.role === 'PATIENT' && req.query.patientId !== req.user.id) {
-      where.patientId = 'non-existent';
-    } else {
-      where.patientId = req.query.patientId;
-    }
-  }
-
-  if (req.query.doctorId) {
-    // Doctors can only see their own receipts/payments
-    if (req.user?.role === 'DOCTOR' && req.query.doctorId !== req.user.id) {
-      // Note: Doctors might see payments where they are patientId=userId (subscriptions)
-      // so we keep the OR logic but restrict the doctorId filter part
-      where.doctorId = req.user.id;
-    } else if (req.user?.role === 'RECEPTIONIST' && req.user.clinicId) {
-      // Receptionists can filter by doctor, but ONLY within their clinic
-      where.doctorId = req.query.doctorId;
-      where.doctor = { clinicId: req.user.clinicId };
-    } else {
-      where.doctorId = req.query.doctorId;
-    }
+  // Handle explicit patientId filter (for Admins or authorized receptionists)
+  if (req.query.patientId && userRole !== 'PATIENT') {
+    where.patientId = req.query.patientId as string;
   }
 
   if (req.query.status) {
@@ -181,13 +175,37 @@ export const getPaymentById = async (
     throw new AppError('Payment not found', 404);
   }
 
-  if (
-    userId &&
-    userRole !== 'ADMIN' &&
-    userRole !== 'RECEPTIONIST' &&
-    payment.patientId !== userId
-  ) {
-    throw new AppError('Unauthorized', 403);
+  const role = userRole?.toUpperCase();
+
+  if (userId && role !== 'ADMIN') {
+    if (role === 'RECEPTIONIST') {
+      // Receptionist can see payments for their clinic.
+      // We need to check if the payment relates to a doctor in their clinic.
+      if (!payment.doctorId) {
+        // If no doctor assigned, patients can see it, but receptionists? 
+        // Let's assume receptionists only see clinic-scoped payments.
+        throw new AppError('Unauthorized: Payment has no clinic affiliation', 403);
+      }
+
+      const doctor = await prisma.user.findUnique({
+        where: { id: payment.doctorId },
+        select: { clinicId: true }
+      });
+
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { clinicId: true } });
+
+      if (!doctor || doctor.clinicId !== user?.clinicId) {
+        throw new AppError('Unauthorized: Payment belongs to another clinic', 403);
+      }
+    } else if (role === 'DOCTOR') {
+      // Doctor can see if they are the doctor or the patient
+      if (payment.doctorId !== userId && payment.patientId !== userId) {
+        throw new AppError('Unauthorized: Not your payment', 403);
+      }
+    } else if (payment.patientId !== userId) {
+      // Patients and any other role
+      throw new AppError('Unauthorized', 403);
+    }
   }
 
   return payment;

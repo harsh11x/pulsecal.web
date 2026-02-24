@@ -54,4 +54,8 @@ export const userService = {
     // Note: This requires ADMIN role, doctors may not have permission
     await apiService.patch(`/users/${id}/status`, { isActive: false })
   },
+
+  getClinicStaff: async (): Promise<{ doctors: User[], receptionists: User[], totalStaff: number }> => {
+    return await apiService.get<{ doctors: User[], receptionists: User[], totalStaff: number }>("/doctors/clinic/staff")
+  },
 }

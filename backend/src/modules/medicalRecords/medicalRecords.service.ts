@@ -72,18 +72,34 @@ export const getMedicalRecords = async (req: {
     deletedAt: null,
   };
 
-  if (req.user?.role === 'PATIENT') {
-    where.patientId = req.user.id;
-  } else if (req.query.patientId) {
-    where.patientId = req.query.patientId;
+  // Role-based filtering
+  const userRole = req.user?.role?.toUpperCase();
+  const userId = req.user?.id;
+
+  if (userRole === 'PATIENT') {
+    where.patientId = userId;
+  } else if (userRole === 'DOCTOR') {
+    // Doctor can only see records for their own patients (assigned to them)
+    // Actually, in many systems doctors can see any record in the clinic, 
+    // but the user's request was about 'booked doctor' visibility.
+    // Let's enforce strict doctor-only access for now as per the "Fix Multi-Doctor Appointment Visibility" goal.
+    where.doctorId = userId;
+  } else if (userRole !== 'ADMIN' && userRole !== 'RECEPTIONIST') {
+    // Fail-safe
+    where.patientId = 'non-existent';
   }
 
-  if (req.query.doctorId) {
-    where.doctorId = req.query.doctorId;
+  // Handle explicit filters if permitted
+  if (req.query.patientId && userRole !== 'PATIENT') {
+    where.patientId = req.query.patientId as string;
+  }
+
+  if (req.query.doctorId && userRole !== 'DOCTOR') {
+    where.doctorId = req.query.doctorId as string;
   }
 
   if (req.query.recordType) {
-    where.recordType = req.query.recordType;
+    where.recordType = req.query.recordType as string;
   }
 
   const [records, total] = await Promise.all([

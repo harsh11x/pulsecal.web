@@ -27,6 +27,9 @@ const notificationSlice = createSlice({
       state.unreadCount = 0
     },
   },
+  extraReducers: (builder) => {
+    builder.addCase("auth/logout", () => initialState)
+  },
 })
 
 export const { setUnreadCount, incrementUnreadCount, decrementUnreadCount, resetUnreadCount } =

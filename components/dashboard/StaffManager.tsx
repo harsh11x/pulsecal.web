@@ -43,21 +43,16 @@ export default function StaffManager() {
     const fetchStaff = async () => {
         try {
             setLoading(true)
-            // Fetch both receptionists and doctors in parallel
-            // Handle both array (legacy) and paginated { data, pagination } structures
-            const [receptionistsData, doctorsData] = await Promise.all([
-                userService.getAllUsers("receptionist"),
-                userService.getAllUsers("doctor")
-            ]) as [any, any]
+            const data = await userService.getClinicStaff()
 
-            const receptionists = Array.isArray(receptionistsData) ? receptionistsData : (receptionistsData?.data || [])
-            const doctors = Array.isArray(doctorsData) ? doctorsData : (doctorsData?.data || [])
+            // Backend returns { doctors: User[], receptionists: User[], totalStaff: number }
+            const doctors = data.doctors || []
+            const receptionists = data.receptionists || []
 
-            // Filter by clinicId and combine
-            const myReceptionists = receptionists.filter((u: User) => u.clinicId === currentUser.clinicId)
-            const myDoctors = doctors.filter((u: User) => u.clinicId === currentUser.clinicId && u.id !== currentUser.id) // Exclude self
+            // Combine and filter self out of doctors if needed (though dashboard already does this usually)
+            const otherDoctors = doctors.filter((d: User) => d.id !== currentUser.id)
 
-            setStaff([...myReceptionists, ...myDoctors])
+            setStaff([...receptionists, ...otherDoctors])
         } catch (error: any) {
             console.error("Failed to fetch staff:", error)
             const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || "Failed to load staff members"

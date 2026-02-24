@@ -63,41 +63,37 @@ export const getQueue = async (doctorId?: string, clinicId?: string, req?: { use
     status: 'waiting',
   };
 
-  if (req?.user?.role === 'DOCTOR') {
-    where.doctorId = req.user.id;
-  } else if (req?.user?.role === 'RECEPTIONIST' && req.user.clinicId) {
-    where.clinicId = req.user.clinicId;
-  } else if (req?.user?.role === 'PATIENT') {
-    // Patients should only see their own status via getQueueStatus,
-    // but if they call this, restrict it.
-    where.patientId = req.user.id;
-  } else if (req?.user?.role !== 'ADMIN') {
-    // Fail-safe: Non-admin users with no credentials should see nothing
+  const userRole = req?.user?.role?.toUpperCase();
+  const userId = req?.user?.id;
+  const userClinicId = req?.user?.clinicId;
+
+  if (userRole === 'DOCTOR') {
+    where.doctorId = userId;
+  } else if (userRole === 'RECEPTIONIST') {
+    if (userClinicId) {
+      where.clinicId = userClinicId;
+      // Allow filtering by doctor within their own clinic
+      if (doctorId) {
+        where.doctorId = doctorId;
+      }
+    } else {
+      where.clinicId = 'non-existent';
+    }
+  } else if (userRole === 'PATIENT') {
+    where.patientId = userId;
+  } else if (userRole !== 'ADMIN') {
+    // Fail-safe: Non-admin users with no specific role/clinic match should see nothing
     where.doctorId = 'non-existent';
   }
 
-  // Allow query parameter overrides ONLY if they don't violate role restrictions
-  if (doctorId) {
-    if (req?.user?.role === 'DOCTOR') {
-      where.doctorId = req.user.id; // Force self
-    } else {
-      where.doctorId = doctorId;
-    }
-  }
-
-  if (clinicId) {
-    if (req?.user?.role === 'RECEPTIONIST' || req?.user?.role === 'DOCTOR') {
-      // Only allow showing clinic queue if they belong to it
-      if (req?.user?.clinicId) {
-        where.clinicId = req.user.clinicId;
-      }
-    } else {
-      where.clinicId = clinicId;
-    }
+  // Handle explicit overrides ONLY for Admins
+  if (userRole === 'ADMIN') {
+    if (doctorId) where.doctorId = doctorId;
+    if (clinicId) where.clinicId = clinicId;
   }
 
   // CRITICAL: Ensure we never return EVERY waiting patient in the system
-  if (!where.doctorId && !where.clinicId && !where.patientId && req?.user?.role !== 'ADMIN') {
+  if (!where.doctorId && !where.clinicId && !where.patientId && userRole !== 'ADMIN') {
     where.doctorId = 'non-existent';
   }
 
@@ -123,6 +119,11 @@ export const getQueue = async (doctorId?: string, clinicId?: string, req?: { use
 };
 
 export const getQueueStatus = async (patientId: string, req?: { user?: { id: string; role: string; clinicId?: string | null } }) => {
+  // Authorization: Patients can only see their own queue status
+  if (req?.user?.role === 'PATIENT' && req.user.id !== patientId) {
+    throw new AppError('Unauthorized access to queue status', 403);
+  }
+
   const queueEntry = await prisma.queueEntry.findFirst({
     where: {
       patientId,

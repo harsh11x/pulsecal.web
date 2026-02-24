@@ -124,43 +124,38 @@ export const getAppointments = async (req: {
   };
 
   // Role-based filtering
-  if (req.user?.role === 'PATIENT') {
-    where.patientId = req.user.id;
-  } else if (req.user?.role === 'DOCTOR') {
+  const userRole = req.user?.role?.toUpperCase();
+  const userId = req.user?.id;
+  const userClinicId = req.user?.clinicId;
+
+  if (userRole === 'PATIENT') {
+    where.patientId = userId;
+  } else if (userRole === 'DOCTOR') {
     // Doctor can ONLY see appointments assigned to them
-    where.doctorId = req.user.id;
-  } else if (req.user?.role === 'RECEPTIONIST' && req.user.clinicId) {
-    // Receptionist can see all appointments for their clinic
-    where.doctor = { clinicId: req.user.clinicId };
-  } else if (req.user?.role !== 'ADMIN') {
-    // Fail-safe: Non-admin users with no specific role/clinic match should see nothing
+    where.doctorId = userId;
+  } else if (userRole === 'RECEPTIONIST') {
+    if (userClinicId) {
+      // Receptionist can see all appointments for their clinic
+      where.doctor = { clinicId: userClinicId };
+      // Allow filtering by doctor within their own clinic
+      if (req.query.doctorId) {
+        where.doctorId = req.query.doctorId as string;
+      }
+    } else {
+      where.doctorId = 'non-existent';
+    }
+  } else if (userRole !== 'ADMIN') {
+    // Fail-safe for any other role
     where.OR = [{ doctorId: 'non-existent' }, { patientId: 'non-existent' }];
   }
 
-  if (req.query.patientId) {
-    // Patients can only filter their own appointments
-    if (req.user?.role === 'PATIENT' && req.query.patientId !== req.user.id) {
-      where.patientId = 'non-existent';
-    } else {
-      where.patientId = req.query.patientId;
-    }
-  }
-
-  if (req.query.doctorId) {
-    // Doctors can only see their own appointments; don't let query override
-    if (req.user?.role === 'DOCTOR') {
-      where.doctorId = req.user.id;
-    } else if (req.user?.role === 'RECEPTIONIST' && req.user.clinicId) {
-      // Receptionists can filter by doctor, but ONLY within their clinic
-      where.doctorId = req.query.doctorId;
-      where.doctor = { clinicId: req.user.clinicId };
-    } else {
-      where.doctorId = req.query.doctorId;
-    }
+  // Handle explicit patientId filter (for Admins or authorized receptionists)
+  if (req.query.patientId && userRole !== 'PATIENT') {
+    where.patientId = req.query.patientId as string;
   }
 
   if (req.query.status) {
-    where.status = req.query.status;
+    where.status = req.query.status as string;
   }
 
   // Handle 'date=today' query for dashboard

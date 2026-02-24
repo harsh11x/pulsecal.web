@@ -67,18 +67,30 @@ export const getPrescriptions = async (req: {
     deletedAt: null,
   };
 
-  if (req.user?.role === 'PATIENT') {
-    where.patientId = req.user.id;
-  } else if (req.query.patientId) {
-    where.patientId = req.query.patientId;
+  // Role-based filtering
+  const userRole = req.user?.role?.toUpperCase();
+  const userId = req.user?.id;
+
+  if (userRole === 'PATIENT') {
+    where.patientId = userId;
+  } else if (userRole === 'DOCTOR') {
+    where.doctorId = userId;
+  } else if (userRole !== 'ADMIN' && userRole !== 'RECEPTIONIST') {
+    // Fail-safe
+    where.patientId = 'non-existent';
   }
 
-  if (req.query.doctorId) {
-    where.doctorId = req.query.doctorId;
+  // Handle explicit filters if permitted
+  if (req.query.patientId && userRole !== 'PATIENT') {
+    where.patientId = req.query.patientId as string;
+  }
+
+  if (req.query.doctorId && userRole !== 'DOCTOR') {
+    where.doctorId = req.query.doctorId as string;
   }
 
   if (req.query.status) {
-    where.status = req.query.status;
+    where.status = req.query.status as string;
   }
 
   const [prescriptions, total] = await Promise.all([
