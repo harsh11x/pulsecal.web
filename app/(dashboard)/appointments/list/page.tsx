@@ -26,8 +26,9 @@ import {
 export default function AppointmentsListPage() {
   const router = useRouter()
   const { user } = useAppSelector((state) => state.auth)
-  const isDoctor = user?.role === "doctor"
-  const isReceptionist = user?.role === "receptionist"
+  const role = user?.role?.toLowerCase()
+  const isDoctor = role === "doctor"
+  const isReceptionist = role === "receptionist"
   const [appointments, setAppointments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("upcoming")
