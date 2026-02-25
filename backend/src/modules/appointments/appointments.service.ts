@@ -135,11 +135,28 @@ export const getAppointments = async (req: {
     where.doctorId = userId;
   } else if (userRole === 'RECEPTIONIST') {
     if (userClinicId) {
-      // Receptionist can see all appointments for their clinic
-      where.doctor = { clinicId: userClinicId };
-      // Allow filtering by doctor within their own clinic
-      if (req.query.doctorId) {
+      // Fetch all doctor IDs that belong to this clinic (using both clinicId on user AND clinic's ownerId)
+      const clinicDoctors = await prisma.user.findMany({
+        where: {
+          OR: [
+            { clinicId: userClinicId, role: 'DOCTOR' },
+            { clinic: { id: userClinicId } }
+          ],
+          isActive: true,
+        },
+        select: { id: true },
+      });
+      const clinicDoctorIds = clinicDoctors.map((d) => d.id);
+
+      if (clinicDoctorIds.length === 0) {
+        // No doctors in clinic yet - show nothing
+        where.doctorId = 'non-existent';
+      } else if (req.query.doctorId && clinicDoctorIds.includes(req.query.doctorId as string)) {
+        // Filter by specific doctor (verified to be in this clinic)
         where.doctorId = req.query.doctorId as string;
+      } else {
+        // Show all clinic appointments
+        (where as any).doctorId = { in: clinicDoctorIds };
       }
     } else {
       where.doctorId = 'non-existent';
