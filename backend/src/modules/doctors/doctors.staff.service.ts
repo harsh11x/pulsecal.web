@@ -19,6 +19,7 @@ export const getClinicStaff = async (clinicId: string, requesterId?: string, req
             firstName: true,
             lastName: true,
             email: true,
+            role: true,
             profileImage: true,
             createdAt: true,
             doctorProfile: {
@@ -44,6 +45,7 @@ export const getClinicStaff = async (clinicId: string, requesterId?: string, req
             firstName: true,
             lastName: true,
             email: true,
+            role: true,
             profileImage: true,
             createdAt: true,
         },
