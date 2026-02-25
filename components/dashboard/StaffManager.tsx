@@ -50,7 +50,7 @@ export default function StaffManager() {
             const receptionists = data.receptionists || []
 
             // Combine and filter self out of doctors if needed (though dashboard already does this usually)
-            const otherDoctors = doctors.filter((d: User) => d.id !== currentUser.id)
+            const otherDoctors = doctors.filter((d: User) => d.id !== currentUser?.id)
 
             setStaff([...receptionists, ...otherDoctors])
         } catch (error: any) {
@@ -139,9 +139,9 @@ export default function StaffManager() {
     }
 
     const filteredStaff = staff.filter(s =>
-        s.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.email.toLowerCase().includes(searchTerm.toLowerCase())
+        (s.firstName?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+        (s.lastName?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+        (s.email?.toLowerCase() || "").includes(searchTerm.toLowerCase())
     )
 
     // Determine plan limits
@@ -322,7 +322,7 @@ export default function StaffManager() {
                                         </TableCell>
                                         <TableCell>
                                             <Badge variant="outline" className="capitalize mr-2">
-                                                {member.role.toLowerCase()}
+                                                {member.role?.toLowerCase() || 'staff'}
                                             </Badge>
                                             <Badge variant={member.isActive ? "default" : "secondary"}>
                                                 {member.isActive ? "Active" : "Inactive"}
