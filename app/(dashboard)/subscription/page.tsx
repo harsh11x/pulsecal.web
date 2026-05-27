@@ -28,7 +28,8 @@ export default function SubscriptionPage() {
     const planFeaturesMap = PLAN_FEATURES
     const plans = PLANS.map((p) => ({ ...p, price: `${p.price}`, amount: p.amount, period: "/month" }))
     const planOrder = PLAN_ORDER
-    const currentPlanIndex = planOrder.indexOf((currentSubscription?.plan || "BASIC") as any)
+    const normalizedCurrentPlan = currentSubscription?.plan === "STARTER" ? "BASIC" : (currentSubscription?.plan || "BASIC")
+    const currentPlanIndex = planOrder.indexOf(normalizedCurrentPlan as any)
 
     useEffect(() => {
         fetchSubscriptionStatus()
@@ -38,7 +39,7 @@ export default function SubscriptionPage() {
         try {
             const data: any = await apiService.get("/payments/subscription/status")
             setCurrentSubscription({
-                plan: data?.plan || "BASIC",
+                plan: data?.plan === "STARTER" ? "BASIC" : (data?.plan || "BASIC"),
                 status: data?.status || "PENDING",
                 expiresAt: data?.expiresAt || null,
                 lastPaymentAmount: data?.lastPaymentAmount ?? null,
@@ -61,8 +62,9 @@ export default function SubscriptionPage() {
     const handleSubscribe = async (planId: string, action: "renew" | "upgrade" | "downgrade" = "upgrade") => {
         setProcessing(planId)
         try {
+            const payablePlanId = planId === "STARTER" ? "BASIC" : planId
             const data: any = await apiService.post("/payments/create-subscription", {
-                plan: planId
+                plan: payablePlanId
             })
             const { subscriptionId, key } = data ?? {}
             if (!subscriptionId || !key) {
@@ -82,14 +84,14 @@ export default function SubscriptionPage() {
                 currency: "INR",
                 subscription_id: subscriptionId,
                 name: "PulseCal",
-                description: `${planId} monthly auto-payment subscription`,
+                description: `${payablePlanId} monthly auto-payment subscription`,
                 handler: async (rzpResponse: any) => {
                     try {
                         await apiService.post("/payments/verify-subscription", {
                             razorpay_payment_id: rzpResponse.razorpay_payment_id,
                             razorpay_subscription_id: rzpResponse.razorpay_subscription_id,
                             razorpay_signature: rzpResponse.razorpay_signature,
-                            plan: planId
+                            plan: payablePlanId
                         })
                         toast.success("Monthly auto-payment activated successfully!")
                         await fetchSubscriptionStatus()
@@ -187,7 +189,7 @@ export default function SubscriptionPage() {
                     <CardHeader>
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                             <div>
-                                <CardTitle className="text-xl">Your Plan: {plans.find(p => p.id === currentSubscription?.plan)?.name || currentSubscription?.plan || "Basic"}</CardTitle>
+                                <CardTitle className="text-xl">Your Plan: {plans.find(p => p.id === normalizedCurrentPlan)?.name || normalizedCurrentPlan || "Basic"}</CardTitle>
                                 <CardDescription className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
                                     <span>Status: <Badge variant={currentSubscription?.status === 'ACTIVE' && !isExpired ? 'default' : (currentSubscription?.status === 'EXPIRED' || isExpired) ? 'destructive' : 'secondary'} className="ml-1">{isExpired ? "EXPIRED" : (currentSubscription?.status || "PENDING")}</Badge></span>
                                     {currentSubscription?.expiresAt && (
@@ -213,7 +215,7 @@ export default function SubscriptionPage() {
                     <CardContent>
                         <p className="text-sm font-medium mb-2">Plan Features:</p>
                         <ul className="space-y-1.5 text-sm text-muted-foreground">
-                            {(planFeaturesMap[currentSubscription?.plan || "BASIC"] || planFeaturesMap.BASIC).map((f, i) => (
+                            {(planFeaturesMap[normalizedCurrentPlan] || planFeaturesMap.BASIC).map((f, i) => (
                                 <li key={i} className="flex items-center gap-2">
                                     <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
                                     {f}

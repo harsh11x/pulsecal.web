@@ -492,7 +492,8 @@ export const getSubscriptionStatusController = async (
       }),
     ]);
 
-    const plan = clinic?.subscriptionPlan || doctorProfile?.subscriptionPlan || 'STARTER';
+    const storedPlan = clinic?.subscriptionPlan || doctorProfile?.subscriptionPlan || 'BASIC';
+    const plan = storedPlan === 'STARTER' ? 'BASIC' : storedPlan;
     const status = clinic?.subscriptionStatus || doctorProfile?.subscriptionStatus || 'PENDING';
     const expiresAt = doctorProfile?.subscriptionExpiresAt;
 
