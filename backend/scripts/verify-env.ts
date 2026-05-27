@@ -51,11 +51,33 @@ async function main(): Promise<void> {
   checkPostgresUrl('DATABASE_URL', process.env.DATABASE_URL!);
   checkPostgresUrl('DIRECT_URL', process.env.DIRECT_URL!);
 
+  const mask = (url: string) => {
+    try {
+      const u = new URL(url);
+      return `${u.protocol}//${u.username}:***@${u.hostname}:${u.port}${u.pathname}`;
+    } catch {
+      return '(invalid url)';
+    }
+  };
+  console.log('DATABASE_URL →', mask(process.env.DATABASE_URL!));
+  console.log('DIRECT_URL    →', mask(process.env.DIRECT_URL!));
+
   const prisma = new PrismaClient();
   try {
     await prisma.$connect();
     await prisma.$queryRaw`SELECT 1`;
     console.log('✅ Database connection OK');
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes('tenant/user') && message.includes('not found')) {
+      console.error(
+        '\nPooler rejected this project/region. Use direct DB for both URLs:\n' +
+          '  DATABASE_URL=postgresql://postgres:PASSWORD@db.<project-ref>.supabase.co:5432/postgres\n' +
+          '  DIRECT_URL=postgresql://postgres:PASSWORD@db.<project-ref>.supabase.co:5432/postgres\n' +
+          'Copy the exact host from Supabase → Settings → Database → Direct connection.'
+      );
+    }
+    throw error;
   } finally {
     await prisma.$disconnect();
   }

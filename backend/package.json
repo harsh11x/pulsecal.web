@@ -15,6 +15,7 @@
     "prisma:seed": "tsx prisma/seed.ts",
     "verify:env": "tsx scripts/verify-env.ts",
     "fix:env": "tsx scripts/fix-env-database-urls.ts",
+    "db:use-direct": "bash scripts/use-direct-database-url.sh",
     "lint": "eslint src --ext .ts",
     "test": "jest"
   },
