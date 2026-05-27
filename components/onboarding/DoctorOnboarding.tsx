@@ -286,51 +286,64 @@ export default function DoctorOnboarding() {
       });
 
       const orderData = orderResponse.data || orderResponse;
+      const isSubscriptionCheckout =
+        orderData?.mode === "subscription" || Boolean(orderData?.subscriptionId);
 
-      if (!orderData?.subscriptionId) {
-        console.error("❌ Invalid order data:", orderData);
+      if (!orderData?.key || (!orderData?.subscriptionId && !orderData?.orderId)) {
+        console.error("❌ Invalid checkout data:", orderData);
         toast.error("Failed to create subscription");
         setLoading(false);
         return;
       }
 
-      console.log("✅ Subscription created:", orderData.subscriptionId);
+      console.log(
+        isSubscriptionCheckout
+          ? `✅ Subscription checkout: ${orderData.subscriptionId}`
+          : `✅ Order checkout: ${orderData.orderId}`
+      );
+
+      const clinicData = {
+        name: formData.clinicName,
+        address: formData.clinicAddress,
+        city: formData.clinicCity,
+        state: formData.clinicState,
+        zipCode: formData.clinicZipCode,
+        country: formData.clinicCountry || 'India',
+        phone: clinicPhone,
+        email: clinicEmail,
+        latitude: formData.clinicLatitude ? parseFloat(formData.clinicLatitude) : null,
+        longitude: formData.clinicLongitude ? parseFloat(formData.clinicLongitude) : null,
+        subscriptionPlan: formData.subscriptionPlan
+      };
 
       // 2. Open Razorpay
-      const options = {
+      const options: Record<string, unknown> = {
         key: orderData.key,
         currency: "INR",
         name: "PulseCal",
-        description: `${formData.subscriptionPlan} monthly auto-payment subscription`,
-        subscription_id: orderData.subscriptionId,
+        description: isSubscriptionCheckout
+          ? `${formData.subscriptionPlan} monthly auto-payment subscription`
+          : `${formData.subscriptionPlan} plan (1 month)`,
         handler: async (response: any) => {
           try {
             console.log("💳 Payment successful, verifying...");
             toast.loading("Verifying payment...");
 
-            const clinicData = {
-              name: formData.clinicName,
-              address: formData.clinicAddress,
-              city: formData.clinicCity,
-              state: formData.clinicState,
-              zipCode: formData.clinicZipCode,
-              country: formData.clinicCountry || 'India',
-              phone: clinicPhone,
-              email: clinicEmail,
-              latitude: formData.clinicLatitude ? parseFloat(formData.clinicLatitude) : null,
-              longitude: formData.clinicLongitude ? parseFloat(formData.clinicLongitude) : null,
-              subscriptionPlan: formData.subscriptionPlan
-            };
-
-            // Verify first subscription payment and activate auto-debit
             console.log("🔍 Verifying payment with backend...");
-            const verifyResponse: any = await apiService.post("/payments/verify-subscription", {
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_subscription_id: response.razorpay_subscription_id,
-              razorpay_signature: response.razorpay_signature,
-              clinicDetails: clinicData,
-              plan: formData.subscriptionPlan
-            });
+            const verifyResponse: any = isSubscriptionCheckout
+              ? await apiService.post("/payments/verify-subscription", {
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_subscription_id: response.razorpay_subscription_id,
+                  razorpay_signature: response.razorpay_signature,
+                  clinicDetails: clinicData,
+                  plan: formData.subscriptionPlan
+                })
+              : await apiService.post("/payments/subscription/verify", {
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                  clinicDetails: clinicData,
+                });
 
             console.log("✅ Payment verified successfully");
             toast.dismiss();
@@ -417,6 +430,13 @@ export default function DoctorOnboarding() {
           }
         }
       };
+
+      if (isSubscriptionCheckout) {
+        options.subscription_id = orderData.subscriptionId;
+      } else {
+        options.order_id = orderData.orderId;
+        options.amount = orderData.amount;
+      }
 
       console.log("🚀 Opening Razorpay payment modal...");
       const paymentObject = new (window as any).Razorpay(options);

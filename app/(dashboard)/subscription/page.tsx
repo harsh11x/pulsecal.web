@@ -66,8 +66,8 @@ export default function SubscriptionPage() {
             const data: any = await apiService.post("/payments/create-subscription", {
                 plan: payablePlanId
             })
-            const { subscriptionId, key } = data ?? {}
-            if (!subscriptionId || !key) {
+            const { key, mode, subscriptionId, orderId, amount } = data ?? {}
+            if (!key || (!subscriptionId && !orderId)) {
                 toast.error("Invalid response from server. Please try again.")
                 setProcessing(null)
                 return
@@ -79,21 +79,32 @@ export default function SubscriptionPage() {
                 return
             }
 
-            const options = {
+            const isSubscriptionCheckout = mode === "subscription" || Boolean(subscriptionId)
+            const options: Record<string, unknown> = {
                 key,
                 currency: "INR",
-                subscription_id: subscriptionId,
                 name: "PulseCal",
-                description: `${payablePlanId} monthly auto-payment subscription`,
+                description: isSubscriptionCheckout
+                    ? `${payablePlanId} monthly auto-payment subscription`
+                    : `${payablePlanId} plan renewal (1 month)`,
                 handler: async (rzpResponse: any) => {
                     try {
-                        await apiService.post("/payments/verify-subscription", {
-                            razorpay_payment_id: rzpResponse.razorpay_payment_id,
-                            razorpay_subscription_id: rzpResponse.razorpay_subscription_id,
-                            razorpay_signature: rzpResponse.razorpay_signature,
-                            plan: payablePlanId
-                        })
-                        toast.success("Monthly auto-payment activated successfully!")
+                        if (isSubscriptionCheckout) {
+                            await apiService.post("/payments/verify-subscription", {
+                                razorpay_payment_id: rzpResponse.razorpay_payment_id,
+                                razorpay_subscription_id: rzpResponse.razorpay_subscription_id,
+                                razorpay_signature: rzpResponse.razorpay_signature,
+                                plan: payablePlanId
+                            })
+                            toast.success("Monthly auto-payment activated successfully!")
+                        } else {
+                            await apiService.post("/payments/subscription/verify", {
+                                razorpay_order_id: rzpResponse.razorpay_order_id,
+                                razorpay_payment_id: rzpResponse.razorpay_payment_id,
+                                razorpay_signature: rzpResponse.razorpay_signature,
+                            })
+                            toast.success("Subscription renewed successfully!")
+                        }
                         await fetchSubscriptionStatus()
                     } catch (verifyError: any) {
                         toast.error(verifyError.response?.data?.message || "Payment verification failed")
@@ -103,6 +114,13 @@ export default function SubscriptionPage() {
                 },
                 modal: { ondismiss: () => setProcessing(null) },
                 theme: { color: "#0F172A" }
+            }
+
+            if (isSubscriptionCheckout) {
+                options.subscription_id = subscriptionId
+            } else {
+                options.order_id = orderId
+                options.amount = amount
             }
 
             const rzp = new (window as any).Razorpay(options)

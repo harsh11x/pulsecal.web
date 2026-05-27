@@ -429,10 +429,25 @@ const createSubscriptionOrderSchema = Joi.object({
   duration: Joi.number().valid(1, 3, 6, 12).optional(),
 });
 
+const clinicDetailsSchema = Joi.object({
+  name: Joi.string().required(),
+  address: Joi.string().required(),
+  city: Joi.string().required(),
+  state: Joi.string().required(),
+  zipCode: Joi.string().required(),
+  country: Joi.string().required(),
+  phone: Joi.string().required(),
+  email: Joi.string().email().required(),
+  latitude: Joi.number().allow(null).optional(),
+  longitude: Joi.number().allow(null).optional(),
+  subscriptionPlan: Joi.string().valid('BASIC', 'PROFESSIONAL', 'ENTERPRISE').required(),
+});
+
 const verifySubscriptionOrderSchema = Joi.object({
   razorpay_order_id: Joi.string().required(),
   razorpay_payment_id: Joi.string().required(),
   razorpay_signature: Joi.string().required(),
+  clinicDetails: clinicDetailsSchema.optional(),
 });
 
 const ensureCanManageSubscription = async (req: AuthRequest): Promise<void> => {
@@ -597,6 +612,47 @@ export const verifySubscriptionOrderController = async (
     const planId = notes.planId as string;
     const userId = notes.userId;
     const duration = parseInt(notes.duration || '1', 10);
+    const { clinicDetails } = value;
+
+    if (clinicDetails) {
+      const payment = (await razorpay.payments.fetch(razorpay_payment_id)) as any;
+      const subscriptionPlan = clinicDetails.subscriptionPlan || planId;
+      let expiresAt = new Date();
+      expiresAt.setMonth(expiresAt.getMonth() + duration);
+
+      await syncSubscriptionState({
+        userId,
+        plan: subscriptionPlan,
+        subscriptionId: razorpay_order_id,
+        paymentId: razorpay_payment_id,
+        expiresAt,
+        clinicDetails,
+      });
+
+      await recordSubscriptionPayment({
+        userId,
+        subscriptionId: razorpay_order_id,
+        paymentId: razorpay_payment_id,
+        amount: Number((payment as any)?.amount || order.amount) / 100,
+        plan: subscriptionPlan,
+        signature: razorpay_signature,
+      });
+
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { clinicId: true },
+      });
+      const clinic = user?.clinicId
+        ? await prisma.clinic.findUnique({ where: { id: user.clinicId } })
+        : null;
+
+      sendSuccess(
+        res,
+        { planId: subscriptionPlan, status: 'ACTIVE', expiresAt, clinic },
+        'Subscription activated successfully'
+      );
+      return;
+    }
 
     const existingProfile = await prisma.doctorProfile.findUnique({
       where: { userId },
@@ -710,19 +766,7 @@ const verifyRazorpaySubscriptionSchema = Joi.object({
   razorpay_subscription_id: Joi.string().required(),
   razorpay_signature: Joi.string().required(),
   plan: Joi.string().valid('BASIC', 'PROFESSIONAL', 'ENTERPRISE').optional(),
-  clinicDetails: Joi.object({
-    name: Joi.string().required(),
-    address: Joi.string().required(),
-    city: Joi.string().required(),
-    state: Joi.string().required(),
-    zipCode: Joi.string().required(),
-    country: Joi.string().required(),
-    phone: Joi.string().required(),
-    email: Joi.string().email().required(),
-    latitude: Joi.number().allow(null).optional(),
-    longitude: Joi.number().allow(null).optional(),
-    subscriptionPlan: Joi.string().valid('BASIC', 'PROFESSIONAL', 'ENTERPRISE').required(),
-  }).optional(),
+  clinicDetails: clinicDetailsSchema.optional(),
 });
 
 const RAZORPAY_MONTHLY_PLAN_ENV: Record<string, string> = {
@@ -970,6 +1014,28 @@ const recordSubscriptionPayment = async (data: {
   });
 };
 
+const createMonthlySubscriptionOrder = async (userId: string, plan: string) => {
+  const baseAmount = PLAN_AMOUNTS[plan] ?? PLAN_AMOUNTS.BASIC;
+  const order = await razorpay.orders.create({
+    amount: baseAmount * 100,
+    currency: 'INR',
+    receipt: `sub_${Date.now()}_${userId.substring(0, 8)}`,
+    notes: {
+      type: 'SUBSCRIPTION_UPGRADE',
+      userId,
+      planId: plan,
+      duration: '1',
+    },
+  });
+
+  return {
+    orderId: order.id,
+    key: process.env.RAZORPAY_KEY_ID,
+    amount: order.amount,
+    plan,
+  };
+};
+
 export const createRazorpaySubscriptionController = async (
   req: AuthRequest,
   res: Response,
@@ -983,34 +1049,56 @@ export const createRazorpaySubscriptionController = async (
     if (!req.user) {
       throw new AppError('User not authenticated', 401);
     }
+    await ensureCanManageSubscription(req);
 
-    const planId = await getRazorpayMonthlyPlanId(value.plan);
+    // Prefer Razorpay Subscriptions (true monthly auto-debit) when the account supports it.
+    try {
+      const razorpayPlanId = await getRazorpayMonthlyPlanId(value.plan);
+      const subscription = await razorpay.subscriptions.create({
+        plan_id: razorpayPlanId,
+        customer_notify: 1,
+        total_count: 120,
+        quantity: 1,
+        notes: {
+          userId: req.user.id,
+          planType: value.plan,
+          billingCycle: 'MONTHLY',
+        },
+      });
 
-    const subscription = await razorpay.subscriptions.create({
-      plan_id: planId,
-      customer_notify: 1,
-      total_count: 120,
-      quantity: 1,
-      notes: {
-        userId: req.user.id,
-        planType: value.plan,
-        billingCycle: 'MONTHLY',
-      }
-    });
+      sendSuccess(
+        res,
+        {
+          mode: 'subscription',
+          subscriptionId: subscription.id,
+          key: process.env.RAZORPAY_KEY_ID,
+          plan: value.plan,
+          billingCycle: 'MONTHLY',
+        },
+        'Monthly auto-payment subscription created successfully',
+        201
+      );
+      return;
+    } catch (subscriptionErr: any) {
+      logger.warn(
+        { err: subscriptionErr, plan: value.plan, userId: req.user.id },
+        'Razorpay subscription API unavailable; falling back to one-time order checkout'
+      );
+    }
 
+    // Fallback: same one-time order flow used by signup (works with standard Razorpay keys).
+    const orderCheckout = await createMonthlySubscriptionOrder(req.user.id, value.plan);
     sendSuccess(
       res,
       {
-        subscriptionId: subscription.id,
-        key: process.env.RAZORPAY_KEY_ID,
-        plan: value.plan,
-        billingCycle: 'MONTHLY',
+        mode: 'order',
+        ...orderCheckout,
       },
-      'Monthly auto-payment subscription created successfully',
+      'Subscription payment order created successfully',
       201
     );
   } catch (err: any) {
-    console.error('Razorpay subscription creation error:', err);
+    console.error('Subscription checkout creation error:', err);
     if (err instanceof AppError) {
       next(err);
       return;
@@ -1023,7 +1111,7 @@ export const createRazorpaySubscriptionController = async (
       err?.description ||
       err?.message ||
       'Failed to create subscription';
-    next(new AppError(`Razorpay subscription creation failed: ${razorpayMessage}`, 500));
+    next(new AppError(`Payment setup failed: ${razorpayMessage}`, 500));
   }
 };
 
