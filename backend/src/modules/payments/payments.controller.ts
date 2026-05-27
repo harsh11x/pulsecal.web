@@ -757,7 +757,17 @@ const getRazorpayMonthlyPlanId = async (plan: string): Promise<string> => {
   const envKey = RAZORPAY_MONTHLY_PLAN_ENV[plan];
   const planId = envKey ? process.env[envKey] : undefined;
   if (planId && planId.startsWith('plan_') && !planId.includes('_monthly')) {
-    return planId;
+    try {
+      const configuredPlan = await (razorpay.plans.fetch(planId) as Promise<any>);
+      if (configuredPlan?.id) {
+        return configuredPlan.id;
+      }
+    } catch (err) {
+      logger.warn(
+        { err, plan, planId, envKey },
+        'Configured Razorpay plan ID is not valid for the current Razorpay keys. Falling back to lookup/create.'
+      );
+    }
   }
 
   const config = RAZORPAY_MONTHLY_PLAN_CONFIG[plan];
