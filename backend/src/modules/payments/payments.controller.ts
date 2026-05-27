@@ -731,16 +731,78 @@ const RAZORPAY_MONTHLY_PLAN_ENV: Record<string, string> = {
   ENTERPRISE: 'RAZORPAY_PLAN_ENTERPRISE',
 };
 
-const getRazorpayMonthlyPlanId = (plan: string): string => {
+const RAZORPAY_MONTHLY_PLAN_CONFIG: Record<string, {
+  name: string;
+  amount: number;
+  description: string;
+}> = {
+  BASIC: {
+    name: 'PulseCal Basic Monthly',
+    amount: 149900,
+    description: 'Basic plan for small clinics (Up to 3 Doctors)',
+  },
+  PROFESSIONAL: {
+    name: 'PulseCal Professional Monthly',
+    amount: 299900,
+    description: 'Professional plan for growing clinics (Up to 10 Doctors, Unlimited Appointments)',
+  },
+  ENTERPRISE: {
+    name: 'PulseCal Enterprise Monthly',
+    amount: 499900,
+    description: 'Enterprise solution (Unlimited Doctors)',
+  },
+};
+
+const getRazorpayMonthlyPlanId = async (plan: string): Promise<string> => {
   const envKey = RAZORPAY_MONTHLY_PLAN_ENV[plan];
   const planId = envKey ? process.env[envKey] : undefined;
-  if (!planId || planId.startsWith('plan_') === false || planId.includes('_monthly')) {
-    throw new AppError(
-      `Razorpay monthly plan is not configured for ${plan}. Set ${envKey} in backend .env using backend/scripts/create_plans.js.`,
-      500
-    );
+  if (planId && planId.startsWith('plan_') && !planId.includes('_monthly')) {
+    return planId;
   }
-  return planId;
+
+  const config = RAZORPAY_MONTHLY_PLAN_CONFIG[plan];
+  if (!config) throw new AppError(`Invalid Razorpay subscription plan: ${plan}`, 400);
+
+  const plansResponse = await (razorpay.plans.all({
+    count: 100,
+  } as any) as Promise<any>);
+  const existingPlan = (plansResponse.items || []).find((item: any) =>
+    item?.period === 'monthly' &&
+    item?.interval === 1 &&
+    Number(item?.item?.amount) === config.amount &&
+    item?.notes?.plan_type === plan &&
+    item?.notes?.billing_cycle === 'MONTHLY'
+  );
+
+  if (existingPlan?.id) {
+    logger.warn(
+      { plan, planId: existingPlan.id, envKey },
+      `Using existing Razorpay monthly plan. Add ${envKey}=${existingPlan.id} to .env to skip lookup.`
+    );
+    return existingPlan.id;
+  }
+
+  const createdPlan = await (razorpay.plans.create({
+    period: 'monthly',
+    interval: 1,
+    item: {
+      name: config.name,
+      amount: config.amount,
+      currency: 'INR',
+      description: config.description,
+    },
+    notes: {
+      plan_type: plan,
+      billing_cycle: 'MONTHLY',
+    },
+  } as any) as Promise<any>);
+
+  logger.warn(
+    { plan, planId: createdPlan.id, envKey },
+    `Created Razorpay monthly plan automatically. Add ${envKey}=${createdPlan.id} to .env.`
+  );
+
+  return createdPlan.id;
 };
 
 const toDateFromRazorpaySeconds = (value?: number | null): Date | null => {
@@ -912,7 +974,7 @@ export const createRazorpaySubscriptionController = async (
       throw new AppError('User not authenticated', 401);
     }
 
-    const planId = getRazorpayMonthlyPlanId(value.plan);
+    const planId = await getRazorpayMonthlyPlanId(value.plan);
 
     const subscription = await razorpay.subscriptions.create({
       plan_id: planId,
