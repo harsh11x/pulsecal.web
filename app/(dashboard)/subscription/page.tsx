@@ -11,7 +11,7 @@ import { apiService } from "@/services/api"
 import { useAppSelector } from "@/app/hooks"
 import { toast } from "sonner"
 import { format } from "date-fns"
-import { PLANS, PLAN_AMOUNTS, PLAN_FEATURES, PLAN_ORDER, SUBSCRIPTION_DURATIONS } from "@/lib/planConfig"
+import { PLANS, PLAN_AMOUNTS, PLAN_FEATURES, PLAN_ORDER } from "@/lib/planConfig"
 
 export default function SubscriptionPage() {
     const { user } = useAppSelector((state) => state.auth)
@@ -24,7 +24,6 @@ export default function SubscriptionPage() {
         lastPaymentDate: string | null
     } | null>(null)
     const [processing, setProcessing] = useState<string | null>(null)
-    const [billingInterval, setBillingInterval] = useState<1 | 3 | 6 | 12>(1)
 
     const planFeaturesMap = PLAN_FEATURES
     const plans = PLANS.map((p) => ({ ...p, price: `${p.price}`, amount: p.amount, period: "/month" }))
@@ -62,12 +61,11 @@ export default function SubscriptionPage() {
     const handleSubscribe = async (planId: string, action: "renew" | "upgrade" | "downgrade" = "upgrade") => {
         setProcessing(planId)
         try {
-            const data: any = await apiService.post("/payments/subscription/create", {
-                planId,
-                duration: billingInterval
+            const data: any = await apiService.post("/payments/create-subscription", {
+                plan: planId
             })
-            const { orderId, key, amount } = data ?? {}
-            if (!orderId || !key) {
+            const { subscriptionId, key } = data ?? {}
+            if (!subscriptionId || !key) {
                 toast.error("Invalid response from server. Please try again.")
                 setProcessing(null)
                 return
@@ -81,19 +79,19 @@ export default function SubscriptionPage() {
 
             const options = {
                 key,
-                amount: amount ?? (PLAN_AMOUNTS[planId] ?? 1) * 100 * billingInterval,
                 currency: "INR",
-                order_id: orderId,
+                subscription_id: subscriptionId,
                 name: "PulseCal",
-                description: `${planId} Subscription (${billingInterval} month${billingInterval > 1 ? 's' : ''})`,
+                description: `${planId} monthly auto-payment subscription`,
                 handler: async (rzpResponse: any) => {
                     try {
-                        await apiService.post("/payments/subscription/verify", {
-                            razorpay_order_id: rzpResponse.razorpay_order_id,
+                        await apiService.post("/payments/verify-subscription", {
                             razorpay_payment_id: rzpResponse.razorpay_payment_id,
-                            razorpay_signature: rzpResponse.razorpay_signature
+                            razorpay_subscription_id: rzpResponse.razorpay_subscription_id,
+                            razorpay_signature: rzpResponse.razorpay_signature,
+                            plan: planId
                         })
-                        toast.success("Subscription activated successfully!")
+                        toast.success("Monthly auto-payment activated successfully!")
                         await fetchSubscriptionStatus()
                     } catch (verifyError: any) {
                         toast.error(verifyError.response?.data?.message || "Payment verification failed")
@@ -181,7 +179,7 @@ export default function SubscriptionPage() {
             <div className="space-y-8 pb-10">
                 <div>
                     <h1 className="text-3xl font-bold">Subscription & Billing</h1>
-                    <p className="text-muted-foreground">Manage your clinic&apos;s subscription plan</p>
+                        <p className="text-muted-foreground">Manage your clinic&apos;s monthly auto-payment subscription</p>
                 </div>
 
                 {/* Current Plan Status */}
@@ -252,27 +250,7 @@ export default function SubscriptionPage() {
                 <div>
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                         <h2 className="text-xl font-semibold">Available Plans</h2>
-
-                        <div className="flex flex-wrap items-center gap-2 bg-muted/30 p-1 rounded-full border border-border">
-                            {SUBSCRIPTION_DURATIONS.map((duration) => (
-                                <button
-                                    key={duration.value}
-                                    onClick={() => setBillingInterval(duration.value)}
-                                    className={`relative px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${billingInterval === duration.value
-                                        ? "bg-primary text-primary-foreground shadow-sm"
-                                        : "text-muted-foreground hover:text-foreground"
-                                        }`}
-                                >
-                                    {duration.label}
-                                    {duration.discount > 0 && (
-                                        <span className={`absolute -top-1.5 -right-1.5 text-[8px] bg-green-100 text-green-700 px-1 py-px rounded-full border border-green-200 font-bold ${billingInterval === duration.value ? "opacity-100" : "opacity-0"
-                                            }`}>
-                                            -{duration.discount}%
-                                        </span>
-                                    )}
-                                </button>
-                            ))}
-                        </div>
+                        <Badge variant="outline">Auto-debits monthly on your signup date</Badge>
                     </div>
 
                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -282,26 +260,14 @@ export default function SubscriptionPage() {
                             const planIdx = planOrder.indexOf(plan.id)
                             const isUpgrade = planIdx > currentPlanIndex
 
-                            // Calculate price based on interval
                             const baseAmount = PLAN_AMOUNTS[plan.id]
-                            let multiplier: number = billingInterval
-                            if (billingInterval === 12) multiplier = 10 // pay for 10 get 12
-
-                            const totalAmount = baseAmount * multiplier
-                            const priceDisplay = `Rs. ${totalAmount.toLocaleString("en-IN")}`
+                            const priceDisplay = `Rs. ${baseAmount.toLocaleString("en-IN")}`
 
                             return (
                                 <Card key={plan.id} className={`relative flex flex-col ${plan.recommended ? 'border-primary shadow-lg md:scale-105' : ''}`}>
                                     {plan.recommended && (
                                         <div className="absolute -top-3 left-0 right-0 flex justify-center">
                                             <Badge className="bg-primary text-primary-foreground"><TrendingUp className="h-3 w-3 mr-1" />Recommended</Badge>
-                                        </div>
-                                    )}
-                                    {billingInterval > 1 && (
-                                        <div className="absolute top-4 right-4 z-10">
-                                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                                                {billingInterval === 12 ? "12 Months Autopay" : `${billingInterval} Months`}
-                                            </Badge>
                                         </div>
                                     )}
                                     <CardHeader>
@@ -311,7 +277,7 @@ export default function SubscriptionPage() {
                                     <CardContent className="flex-1">
                                         <div className="mb-6">
                                             <span className="text-4xl font-bold">{priceDisplay}</span>
-                                            <span className="text-muted-foreground"> / {SUBSCRIPTION_DURATIONS.find(d => d.value === billingInterval)?.label.toLowerCase().replace("months", "mo") || "month"}</span>
+                                            <span className="text-muted-foreground"> / month</span>
                                         </div>
                                         <ul className="space-y-3">
                                             {plan.features.map((feature, i) => (

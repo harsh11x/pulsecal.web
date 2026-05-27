@@ -16,6 +16,7 @@ import {
   verifyRazorpayPaymentController,
   createAppointmentOrderController,
   verifyAppointmentPaymentController,
+  razorpayWebhookController,
 } from './payments.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
 import { requireReceptionist, requireStaff } from '../../middlewares/role.middleware';
@@ -27,6 +28,7 @@ const router = Router();
 router.post('/create-subscription', authenticate, createRazorpaySubscriptionController);
 router.post('/verify-subscription', authenticate, verifyRazorpaySubscriptionController);
 router.post('/cancel-subscription/:id', authenticate, cancelSubscriptionController);
+router.post('/razorpay/webhook', razorpayWebhookController);
 
 // Subscription upgrade via one-time payment (Order-based - simpler, works without Razorpay Plans)
 router.get('/subscription/status', authenticate, getSubscriptionStatusController);

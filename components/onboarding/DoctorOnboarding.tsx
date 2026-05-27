@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
 import { apiService } from "@/services/api"
 import { MapPin, Clock, DollarSign, Upload, CheckCircle, Building2, FileText, User, Search } from "lucide-react"
@@ -75,7 +74,6 @@ export default function DoctorOnboarding() {
 
     // Subscription
     subscriptionPlan: "STARTER" as "STARTER" | "BASIC" | "PROFESSIONAL" | "ENTERPRISE",
-    billingCycle: "MONTHLY" as "MONTHLY" | "YEARLY",
   })
 
   // Helper validation function
@@ -281,32 +279,30 @@ export default function DoctorOnboarding() {
       console.log("✅ Token refreshed");
       await new Promise(resolve => setTimeout(resolve, 800));
 
-      // Create Razorpay order
-      console.log("🛒 Creating payment order...");
-      const orderResponse: any = await apiService.post("/payment-gateway/create-order", {
-        plan: formData.subscriptionPlan,
-        billingCycle: formData.billingCycle
+      // Create Razorpay subscription for monthly auto-debit.
+      console.log("🛒 Creating monthly auto-payment subscription...");
+      const orderResponse: any = await apiService.post("/payments/create-subscription", {
+        plan: formData.subscriptionPlan
       });
 
       const orderData = orderResponse.data || orderResponse;
 
-      if (!orderData?.orderId) {
+      if (!orderData?.subscriptionId) {
         console.error("❌ Invalid order data:", orderData);
-        toast.error("Failed to create payment order");
+        toast.error("Failed to create subscription");
         setLoading(false);
         return;
       }
 
-      console.log("✅ Order created:", orderData.orderId);
+      console.log("✅ Subscription created:", orderData.subscriptionId);
 
       // 2. Open Razorpay
       const options = {
         key: orderData.key,
-        amount: orderData.amount,
-        currency: orderData.currency,
+        currency: "INR",
         name: "PulseCal",
-        description: `${formData.subscriptionPlan} Subscription`,
-        order_id: orderData.orderId,
+        description: `${formData.subscriptionPlan} monthly auto-payment subscription`,
+        subscription_id: orderData.subscriptionId,
         handler: async (response: any) => {
           try {
             console.log("💳 Payment successful, verifying...");
@@ -326,15 +322,14 @@ export default function DoctorOnboarding() {
               subscriptionPlan: formData.subscriptionPlan
             };
 
-            // Verify payment
+            // Verify first subscription payment and activate auto-debit
             console.log("🔍 Verifying payment with backend...");
-            const verifyResponse: any = await apiService.post("/payment-gateway/verify", {
-              razorpay_order_id: response.razorpay_order_id,
+            const verifyResponse: any = await apiService.post("/payments/verify-subscription", {
               razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_subscription_id: response.razorpay_subscription_id,
               razorpay_signature: response.razorpay_signature,
               clinicDetails: clinicData,
-              plan: formData.subscriptionPlan,
-              billingCycle: formData.billingCycle
+              plan: formData.subscriptionPlan
             });
 
             console.log("✅ Payment verified successfully");
@@ -1282,23 +1277,13 @@ export default function DoctorOnboarding() {
                 Select Subscription Plan
               </div>
 
-              <div className="flex items-center justify-center gap-4 mb-4 bg-muted/20 p-4 rounded-lg">
-                <Label htmlFor="billing-cycle" className={`cursor-pointer ${formData.billingCycle === 'MONTHLY' ? 'font-bold' : ''}`}>Monthly</Label>
-                <Switch
-                  id="billing-cycle"
-                  checked={formData.billingCycle === 'YEARLY'}
-                  onCheckedChange={(checked) => setFormData({ ...formData, billingCycle: checked ? 'YEARLY' : 'MONTHLY' })}
-                />
-                <Label htmlFor="billing-cycle" className={`cursor-pointer ${formData.billingCycle === 'YEARLY' ? 'font-bold' : ''}`}>
-                  Yearly <span className="text-xs text-green-600 ml-1">(2 Months Free)</span>
-                </Label>
+              <div className="flex items-center justify-center gap-4 mb-4 bg-muted/20 p-4 rounded-lg text-sm text-muted-foreground">
+                Monthly auto-payment is enabled. Razorpay will charge the same calendar day each month after signup.
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 {PLANS.map((plan) => {
-                  const displayPrice = formData.billingCycle === 'YEARLY'
-                    ? `₹${(plan.amount * 10).toLocaleString()}/yr`
-                    : `₹${plan.amount}/mo`;
+                  const displayPrice = `₹${plan.amount}/mo`;
 
                   return (
                     <Card key={plan.id}
@@ -1311,9 +1296,7 @@ export default function DoctorOnboarding() {
                       </CardHeader>
                       <CardContent>
                         <p className="font-semibold">{plan.limit}</p>
-                        {formData.billingCycle === 'YEARLY' && (
-                          <p className="text-xs text-green-600 mt-2 font-medium">Autopay enabled (12 months)</p>
-                        )}
+                        <p className="text-xs text-green-600 mt-2 font-medium">Auto-debits monthly</p>
                       </CardContent>
                     </Card>
                   )

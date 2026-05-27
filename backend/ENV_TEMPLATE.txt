@@ -22,6 +22,10 @@ FIREBASE_SERVICE_ACCOUNT_KEY={"type":"service_account","project_id":"...","priva
 # Razorpay Payment Gateway
 RAZORPAY_KEY_ID=your-razorpay-key-id
 RAZORPAY_KEY_SECRET=your-razorpay-key-secret
+RAZORPAY_WEBHOOK_SECRET=your-razorpay-webhook-secret
+RAZORPAY_PLAN_BASIC=plan_basic_monthly
+RAZORPAY_PLAN_PROFESSIONAL=plan_professional_monthly
+RAZORPAY_PLAN_ENTERPRISE=plan_enterprise_monthly
 
 # Calendly API Integration
 CALENDLY_CLIENT_ID=your-calendly-client-id

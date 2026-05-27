@@ -16,6 +16,7 @@
     "verify:env": "tsx scripts/verify-env.ts",
     "fix:env": "tsx scripts/fix-env-database-urls.ts",
     "db:use-direct": "bash scripts/use-direct-database-url.sh",
+    "razorpay:create-plans": "node scripts/create_plans.js",
     "lint": "eslint src --ext .ts",
     "test": "jest"
   },

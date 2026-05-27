@@ -1,4 +1,4 @@
-import { Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import prisma from '../../config/database';
 import {
   createPayment,
@@ -14,6 +14,7 @@ import Joi from 'joi';
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import admin from '../../config/firebase';
+import { logger } from '../../utils/logger';
 
 // Initialize Razorpay
 const razorpay = new Razorpay({
@@ -471,7 +472,7 @@ export const getSubscriptionStatusController = async (
     const [doctorProfile, clinic, lastSubscriptionPayment] = await Promise.all([
       prisma.doctorProfile.findUnique({
         where: { userId },
-        select: { subscriptionPlan: true, subscriptionStatus: true, subscriptionExpiresAt: true },
+        select: { subscriptionPlan: true, subscriptionStatus: true, subscriptionExpiresAt: true, razorpaySubscriptionId: true },
       }),
       req.user?.clinicId
         ? prisma.clinic.findUnique({
@@ -499,6 +500,7 @@ export const getSubscriptionStatusController = async (
       plan,
       status,
       expiresAt: expiresAt ? expiresAt.toISOString() : null,
+      autoRenew: Boolean(doctorProfile?.razorpaySubscriptionId && status === 'ACTIVE'),
       lastPaymentAmount: lastSubscriptionPayment ? Number(lastSubscriptionPayment.amount) : null,
       lastPaymentDate: lastSubscriptionPayment?.createdAt ? lastSubscriptionPayment.createdAt.toISOString() : null,
     }, 'Subscription status retrieved');
@@ -665,33 +667,48 @@ export const cancelSubscriptionStatusController = async (
     await ensureCanManageSubscription(req);
     const userId = req.user!.id;
 
+    const profile = await prisma.doctorProfile.findUnique({
+      where: { userId },
+      select: { razorpaySubscriptionId: true },
+    });
+
+    if (profile?.razorpaySubscriptionId) {
+      try {
+        await razorpay.subscriptions.cancel(profile.razorpaySubscriptionId, false);
+      } catch (err) {
+        console.error('Failed to cancel Razorpay subscription', err);
+        throw new AppError('Failed to cancel auto-payment at Razorpay', 502);
+      }
+    }
+
     await prisma.doctorProfile.updateMany({
       where: { userId },
-      data: { subscriptionStatus: 'PENDING', subscriptionPlan: 'STARTER' },
+      data: { subscriptionStatus: 'PENDING', subscriptionPlan: 'BASIC' },
     });
 
     if (req.user?.clinicId) {
       await prisma.clinic.update({
         where: { id: req.user.clinicId },
-        data: { subscriptionStatus: 'PENDING', subscriptionPlan: 'STARTER' },
+        data: { subscriptionStatus: 'PENDING', subscriptionPlan: 'BASIC' },
       });
     }
 
-    sendSuccess(res, { status: 'CANCELLED' }, 'Subscription cancelled');
+    sendSuccess(res, { status: 'CANCELLED' }, 'Monthly auto-payment cancellation scheduled');
   } catch (err: any) {
     next(new AppError(err.message || 'Failed to cancel subscription', 500));
   }
 };
 
-// Razorpay Subscription Integration (Plans API - requires dashboard setup)
+// Razorpay Subscription Integration (auto-debit monthly billing)
 const createRazorpaySubscriptionSchema = Joi.object({
-  plan: Joi.string().valid('STARTER', 'BASIC', 'PROFESSIONAL', 'ENTERPRISE').required(),
+  plan: Joi.string().valid('BASIC', 'PROFESSIONAL', 'ENTERPRISE').required(),
 });
 
 const verifyRazorpaySubscriptionSchema = Joi.object({
   razorpay_payment_id: Joi.string().required(),
   razorpay_subscription_id: Joi.string().required(),
   razorpay_signature: Joi.string().required(),
+  plan: Joi.string().valid('BASIC', 'PROFESSIONAL', 'ENTERPRISE').optional(),
   clinicDetails: Joi.object({
     name: Joi.string().required(),
     address: Joi.string().required(),
@@ -703,9 +720,182 @@ const verifyRazorpaySubscriptionSchema = Joi.object({
     email: Joi.string().email().required(),
     latitude: Joi.number().allow(null).optional(),
     longitude: Joi.number().allow(null).optional(),
-    subscriptionPlan: Joi.string().valid('STARTER', 'BASIC', 'PROFESSIONAL', 'ENTERPRISE').required(),
+    subscriptionPlan: Joi.string().valid('BASIC', 'PROFESSIONAL', 'ENTERPRISE').required(),
   }).optional(),
 });
+
+const RAZORPAY_MONTHLY_PLAN_ENV: Record<string, string> = {
+  BASIC: 'RAZORPAY_PLAN_BASIC',
+  PROFESSIONAL: 'RAZORPAY_PLAN_PROFESSIONAL',
+  ENTERPRISE: 'RAZORPAY_PLAN_ENTERPRISE',
+};
+
+const getRazorpayMonthlyPlanId = (plan: string): string => {
+  const envKey = RAZORPAY_MONTHLY_PLAN_ENV[plan];
+  const planId = envKey ? process.env[envKey] : undefined;
+  if (!planId || planId.startsWith('plan_') === false) {
+    throw new AppError(
+      `Razorpay monthly plan is not configured for ${plan}. Set ${envKey} in backend .env using backend/scripts/create_plans.js.`,
+      500
+    );
+  }
+  return planId;
+};
+
+const toDateFromRazorpaySeconds = (value?: number | null): Date | null => {
+  if (!value) return null;
+  return new Date(value * 1000);
+};
+
+const oneMonthFrom = (from: Date): Date => {
+  const next = new Date(from);
+  next.setMonth(next.getMonth() + 1);
+  return next;
+};
+
+const syncSubscriptionState = async (data: {
+  userId: string;
+  plan: string;
+  subscriptionId: string;
+  paymentId?: string;
+  expiresAt?: Date | null;
+  status?: 'ACTIVE' | 'PENDING' | 'EXPIRED';
+  clinicDetails?: {
+    name: string;
+    address: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    country: string;
+    phone: string;
+    email: string;
+    latitude?: number | null;
+    longitude?: number | null;
+  };
+}) => {
+  const user = await prisma.user.findUnique({
+    where: { id: data.userId },
+    select: { id: true, clinicId: true, firebaseUid: true },
+  });
+  if (!user) throw new AppError('Subscription user not found', 404);
+
+  let clinicId = user.clinicId;
+  if (!clinicId && data.clinicDetails) {
+    const clinic = await prisma.clinic.create({
+      data: {
+        ownerId: data.userId,
+        name: data.clinicDetails.name,
+        address: data.clinicDetails.address,
+        city: data.clinicDetails.city,
+        state: data.clinicDetails.state,
+        zipCode: data.clinicDetails.zipCode,
+        country: data.clinicDetails.country,
+        phone: data.clinicDetails.phone,
+        email: data.clinicDetails.email,
+        latitude: data.clinicDetails.latitude ?? null,
+        longitude: data.clinicDetails.longitude ?? null,
+        subscriptionPlan: data.plan,
+        subscriptionStatus: data.status || 'ACTIVE',
+        razorpayOrderId: data.subscriptionId,
+        razorpayPaymentId: data.paymentId,
+        staff: { connect: { id: data.userId } },
+      },
+    });
+    clinicId = clinic.id;
+
+    await prisma.user.update({
+      where: { id: data.userId },
+      data: { clinicId, onboardingCompleted: true, role: 'DOCTOR' },
+    });
+
+    if (user.firebaseUid) {
+      try {
+        await admin.auth().setCustomUserClaims(user.firebaseUid, { role: 'DOCTOR' });
+      } catch (err) {
+        console.error('Firebase role sync failed', err);
+      }
+    }
+  } else if (clinicId) {
+    await prisma.clinic.update({
+      where: { id: clinicId },
+      data: {
+        subscriptionPlan: data.plan,
+        subscriptionStatus: data.status || 'ACTIVE',
+        razorpayOrderId: data.subscriptionId,
+        razorpayPaymentId: data.paymentId,
+      },
+    });
+  }
+
+  const clinicAddress = data.clinicDetails
+    ? [data.clinicDetails.address, data.clinicDetails.city, data.clinicDetails.state, data.clinicDetails.zipCode]
+      .filter(Boolean)
+      .join(', ')
+    : undefined;
+
+  await prisma.doctorProfile.upsert({
+    where: { userId: data.userId },
+    create: {
+      userId: data.userId,
+      licenseNumber: `LIC-${data.userId.substring(0, 8)}`,
+      specialization: 'General',
+      subscriptionPlan: data.plan,
+      subscriptionStatus: data.status || 'ACTIVE',
+      subscriptionExpiresAt: data.expiresAt || oneMonthFrom(new Date()),
+      razorpaySubscriptionId: data.subscriptionId,
+      ...(data.clinicDetails ? {
+        clinicName: data.clinicDetails.name,
+        clinicAddress,
+        clinicLatitude: data.clinicDetails.latitude ?? null,
+        clinicLongitude: data.clinicDetails.longitude ?? null,
+      } : {}),
+    },
+    update: {
+      subscriptionPlan: data.plan,
+      subscriptionStatus: data.status || 'ACTIVE',
+      subscriptionExpiresAt: data.expiresAt || oneMonthFrom(new Date()),
+      razorpaySubscriptionId: data.subscriptionId,
+      ...(data.clinicDetails ? {
+        clinicName: data.clinicDetails.name,
+        clinicAddress,
+        clinicLatitude: data.clinicDetails.latitude ?? null,
+        clinicLongitude: data.clinicDetails.longitude ?? null,
+      } : {}),
+    },
+  });
+};
+
+const recordSubscriptionPayment = async (data: {
+  userId: string;
+  subscriptionId: string;
+  paymentId: string;
+  amount: number;
+  plan: string;
+  status?: 'COMPLETED' | 'FAILED';
+  signature?: string;
+}) => {
+  const existing = await prisma.payment.findFirst({
+    where: {
+      razorpayPaymentId: data.paymentId,
+      deletedAt: null,
+    },
+    select: { id: true },
+  });
+  if (existing) return;
+
+  await createPayment({
+    patientId: data.userId,
+    amount: data.amount,
+    currency: 'INR',
+    method: 'RAZORPAY_ONLINE',
+    transactionId: data.paymentId,
+    razorpayOrderId: data.subscriptionId,
+    razorpayPaymentId: data.paymentId,
+    razorpaySignature: data.signature,
+    status: data.status || 'COMPLETED',
+    description: `Auto subscription payment for ${data.plan} plan (${data.subscriptionId})`,
+  });
+};
 
 export const createRazorpaySubscriptionController = async (
   req: AuthRequest,
@@ -721,28 +911,17 @@ export const createRazorpaySubscriptionController = async (
       throw new AppError('User not authenticated', 401);
     }
 
-    // Mapping Plan Types to Razorpay Plan IDs (These should be in .env)
-    const PLAN_IDS: Record<string, string> = {
-      STARTER: process.env.RAZORPAY_PLAN_STARTER || 'plan_starter_id',
-      BASIC: process.env.RAZORPAY_PLAN_BASIC || 'plan_basic_id',
-      PROFESSIONAL: process.env.RAZORPAY_PLAN_PROFESSIONAL || 'plan_professional_id',
-      ENTERPRISE: process.env.RAZORPAY_PLAN_ENTERPRISE || 'plan_enterprise_id',
-    };
+    const planId = getRazorpayMonthlyPlanId(value.plan);
 
-    const planId = PLAN_IDS[value.plan];
-    if (!planId) {
-      throw new AppError('Plan ID not configured for this subscription type', 500);
-    }
-
-    // Create Subscription
     const subscription = await razorpay.subscriptions.create({
       plan_id: planId,
       customer_notify: 1,
-      total_count: 120, // 10 years (or make it effectively infinite/large)
+      total_count: 120,
       quantity: 1,
       notes: {
         userId: req.user.id,
         planType: value.plan,
+        billingCycle: 'MONTHLY',
       }
     });
 
@@ -751,8 +930,10 @@ export const createRazorpaySubscriptionController = async (
       {
         subscriptionId: subscription.id,
         key: process.env.RAZORPAY_KEY_ID,
+        plan: value.plan,
+        billingCycle: 'MONTHLY',
       },
-      'Subscription created successfully',
+      'Monthly auto-payment subscription created successfully',
       201
     );
   } catch (err: any) {
@@ -788,82 +969,34 @@ export const verifyRazorpaySubscriptionController = async (
       throw new AppError('Invalid subscription signature', 400);
     }
 
-    // Determine Logic: New Clinic vs Existing
-    const isNewRegistration = !req.user.clinicId;
-    let clinic;
-    const subscriptionPlan = clinicDetails?.subscriptionPlan || 'STARTER'; // Default or retrieve from sub notes if possible
+    const [subscription, payment] = await Promise.all([
+      razorpay.subscriptions.fetch(razorpay_subscription_id) as Promise<any>,
+      razorpay.payments.fetch(razorpay_payment_id) as Promise<any>,
+    ]);
+    const notes = (subscription?.notes || {}) as Record<string, string>;
+    const subscriptionPlan = value.plan || clinicDetails?.subscriptionPlan || notes.planType;
+    if (!subscriptionPlan) throw new AppError('Subscription plan missing from Razorpay subscription', 400);
+    if (notes.userId && notes.userId !== req.user.id) throw new AppError('Subscription belongs to another user', 403);
 
-    if (isNewRegistration) {
-      if (!clinicDetails) throw new AppError('Clinic details required for new registration', 400);
-
-      const { createClinic } = await import('../clinics/clinics.service');
-      clinic = await createClinic({
-        ...clinicDetails,
-        subscriptionStatus: 'ACTIVE',
-        razorpayOrderId: razorpay_subscription_id, // Storing sub ID in order ID field or new field
-        razorpayPaymentId: razorpay_payment_id,
-      });
-
-      await prisma.user.update({
-        where: { id: req.user.id },
-        data: { clinicId: clinic.id, onboardingCompleted: true, role: 'DOCTOR' },
-      });
-
-      // Update Firebase Role
-      try {
-        if (req.user.firebaseUid) {
-          await admin.auth().setCustomUserClaims(req.user.firebaseUid, { role: 'DOCTOR' });
-        }
-      } catch (e) { console.error('Firebase role sync failed', e); }
-
-    } else {
-      // Renewal or Update
-      clinic = await prisma.clinic.update({
-        where: { id: req.user.clinicId! },
-        data: {
-          subscriptionPlan: subscriptionPlan as any,
-          subscriptionStatus: 'ACTIVE',
-          razorpayOrderId: razorpay_subscription_id,
-          // We should probably store subscription ID in a dedicated field
-        }
-      });
-    }
-
-    // Update Doctor Profile
-    await prisma.doctorProfile.upsert({
-      where: { userId: req.user.id },
-      create: {
-        userId: req.user.id,
-        licenseNumber: `LIC-${req.user.id.substring(0, 8)}`, // Placeholder
-        specialization: 'General',
-        subscriptionPlan: subscriptionPlan,
-        subscriptionStatus: 'ACTIVE',
-        razorpaySubscriptionId: razorpay_subscription_id,
-        ...(clinicDetails ? {
-          clinicName: clinicDetails.name,
-          clinicAddress: `${clinicDetails.address}, ${clinicDetails.city}`,
-        } : {})
-      },
-      update: {
-        subscriptionPlan: subscriptionPlan,
-        subscriptionStatus: 'ACTIVE',
-        razorpaySubscriptionId: razorpay_subscription_id,
-      }
+    await syncSubscriptionState({
+      userId: req.user.id,
+      plan: subscriptionPlan,
+      subscriptionId: razorpay_subscription_id,
+      paymentId: razorpay_payment_id,
+      expiresAt: toDateFromRazorpaySeconds(subscription?.current_end) || oneMonthFrom(new Date()),
+      clinicDetails,
     });
 
-    // Record Payment
-    await createPayment({
-      patientId: req.user.id,
-      amount: 0, // It's a subscription, amount is handled by Razorpay auto-debit. We might want to record the first payment amount if known.
-      currency: 'INR',
-      method: 'RAZORPAY_SUBSCRIPTION',
-      transactionId: razorpay_payment_id,
-      razorpayPaymentId: razorpay_payment_id,
-      description: `Subscription Activation: ${razorpay_subscription_id}`,
-      status: 'COMPLETED',
+    await recordSubscriptionPayment({
+      userId: req.user.id,
+      subscriptionId: razorpay_subscription_id,
+      paymentId: razorpay_payment_id,
+      amount: Number(payment?.amount || 0) / 100,
+      plan: subscriptionPlan,
+      signature: razorpay_signature,
     });
 
-    sendSuccess(res, { clinic, subscriptionId: razorpay_subscription_id }, 'Subscription activated successfully');
+    sendSuccess(res, { subscriptionId: razorpay_subscription_id }, 'Monthly auto-payment subscription activated successfully');
 
   } catch (err: any) {
     console.error('Subscription verification error:', err);
@@ -889,5 +1022,98 @@ export const cancelSubscriptionController = async (
     sendSuccess(res, null, 'Subscription cancellation scheduled at end of billing cycle');
   } catch (err: any) {
     next(new AppError(err.message, 500));
+  }
+};
+
+export const razorpayWebhookController = async (
+  req: Request & { rawBody?: string },
+  res: Response
+): Promise<void> => {
+  const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    res.status(500).json({ success: false, message: 'Razorpay webhook secret not configured' });
+    return;
+  }
+
+  const rawBody = req.rawBody || JSON.stringify(req.body);
+  const signature = req.get('x-razorpay-signature') || '';
+  const expectedSignature = crypto
+    .createHmac('sha256', webhookSecret)
+    .update(rawBody)
+    .digest('hex');
+
+  if (expectedSignature !== signature) {
+    res.status(400).json({ success: false, message: 'Invalid Razorpay webhook signature' });
+    return;
+  }
+
+  const event = req.body?.event as string | undefined;
+  const subscription = req.body?.payload?.subscription?.entity;
+  const payment = req.body?.payload?.payment?.entity;
+  const subscriptionId = subscription?.id || payment?.subscription_id;
+
+  try {
+    if (!subscriptionId) {
+      res.status(200).json({ success: true, ignored: true });
+      return;
+    }
+
+    const profile = await prisma.doctorProfile.findFirst({
+      where: { razorpaySubscriptionId: subscriptionId },
+      select: { userId: true, subscriptionPlan: true },
+    });
+    const notes = (subscription?.notes || {}) as Record<string, string>;
+    const userId = notes.userId || profile?.userId;
+    const plan = notes.planType || profile?.subscriptionPlan;
+
+    if (!userId || !plan) {
+      logger.warn({ event, subscriptionId }, 'Razorpay webhook ignored: subscription owner not found');
+      res.status(200).json({ success: true, ignored: true });
+      return;
+    }
+
+    if (event === 'subscription.charged' || event === 'payment.captured') {
+      await syncSubscriptionState({
+        userId,
+        plan,
+        subscriptionId,
+        paymentId: payment?.id,
+        expiresAt: toDateFromRazorpaySeconds(subscription?.current_end) || oneMonthFrom(new Date()),
+      });
+
+      if (payment?.id) {
+        await recordSubscriptionPayment({
+          userId,
+          subscriptionId,
+          paymentId: payment.id,
+          amount: Number(payment.amount || 0) / 100,
+          plan,
+        });
+      }
+    } else if (
+      event === 'subscription.cancelled' ||
+      event === 'subscription.halted' ||
+      event === 'subscription.completed'
+    ) {
+      await syncSubscriptionState({
+        userId,
+        plan,
+        subscriptionId,
+        expiresAt: toDateFromRazorpaySeconds(subscription?.current_end),
+        status: 'EXPIRED',
+      });
+    } else if (event === 'subscription.activated' || event === 'subscription.resumed') {
+      await syncSubscriptionState({
+        userId,
+        plan,
+        subscriptionId,
+        expiresAt: toDateFromRazorpaySeconds(subscription?.current_end) || oneMonthFrom(new Date()),
+      });
+    }
+
+    res.status(200).json({ success: true });
+  } catch (err) {
+    logger.error(err, 'Razorpay webhook processing failed');
+    res.status(500).json({ success: false });
   }
 };

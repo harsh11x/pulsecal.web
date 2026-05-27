@@ -9,37 +9,40 @@ const razorpay = new Razorpay({
 
 const plans = [
     {
+        key: 'BASIC',
         period: 'monthly',
         interval: 1,
         item: {
-            name: 'Starter Plan',
-            amount: 100, // ₹1
+            name: 'PulseCal Basic Monthly',
+            amount: 149900, // ₹1499
             currency: 'INR',
-            description: 'Starter plan for small clinics (Up to 3 Doctors, 1000 Appointments)',
+            description: 'Basic plan for small clinics (Up to 3 Doctors)',
         },
-        notes: { plan_type: 'STARTER' }
+        notes: { plan_type: 'BASIC', billing_cycle: 'MONTHLY' }
     },
     {
+        key: 'PROFESSIONAL',
         period: 'monthly',
         interval: 1,
         item: {
-            name: 'Professional Plan',
+            name: 'PulseCal Professional Monthly',
             amount: 299900, // ₹2999
             currency: 'INR',
             description: 'Professional plan for growing clinics (Up to 10 Doctors, Unlimited Appointments)',
         },
-        notes: { plan_type: 'PROFESSIONAL' }
+        notes: { plan_type: 'PROFESSIONAL', billing_cycle: 'MONTHLY' }
     },
     {
+        key: 'ENTERPRISE',
         period: 'monthly',
         interval: 1,
         item: {
-            name: 'Enterprise Plan',
+            name: 'PulseCal Enterprise Monthly',
             amount: 499900, // ₹4999
             currency: 'INR',
             description: 'Enterprise solution (Unlimited Doctors)',
         },
-        notes: { plan_type: 'ENTERPRISE' }
+        notes: { plan_type: 'ENTERPRISE', billing_cycle: 'MONTHLY' }
     }
 ];
 
@@ -47,8 +50,9 @@ async function createPlans() {
     console.log('Creating Razorpay Plans...');
     for (const plan of plans) {
         try {
-            const response = await razorpay.plans.create(plan);
-            console.log(`Created ${plan.notes.plan_type}: ${response.id}`);
+            const { key, ...payload } = plan;
+            const response = await razorpay.plans.create(payload);
+            console.log(`RAZORPAY_PLAN_${key}=${response.id}`);
         } catch (error) {
             console.error(`Failed to create ${plan.notes.plan_type}:`, error);
         }
