@@ -28,7 +28,9 @@ rm -f src/middlewares/rateLimit.middleware.ts
 npm ci
 npm run build
 
-# Validate .env (catches bad Supabase URLs before PM2 restart loop)
+# Fix common Supabase URL mistakes (@ in password) then validate
+echo "🔧 Checking .env database URLs..."
+npm run fix:env || true
 echo "🔍 Validating .env and database connection..."
 npm run verify:env
 
