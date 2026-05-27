@@ -734,7 +734,7 @@ const RAZORPAY_MONTHLY_PLAN_ENV: Record<string, string> = {
 const getRazorpayMonthlyPlanId = (plan: string): string => {
   const envKey = RAZORPAY_MONTHLY_PLAN_ENV[plan];
   const planId = envKey ? process.env[envKey] : undefined;
-  if (!planId || planId.startsWith('plan_') === false) {
+  if (!planId || planId.startsWith('plan_') === false || planId.includes('_monthly')) {
     throw new AppError(
       `Razorpay monthly plan is not configured for ${plan}. Set ${envKey} in backend .env using backend/scripts/create_plans.js.`,
       500
@@ -939,7 +939,19 @@ export const createRazorpaySubscriptionController = async (
     );
   } catch (err: any) {
     console.error('Razorpay subscription creation error:', err);
-    next(new AppError(err.message || 'Failed to create subscription', 500));
+    if (err instanceof AppError) {
+      next(err);
+      return;
+    }
+
+    const razorpayMessage =
+      err?.error?.description ||
+      err?.error?.reason ||
+      err?.error?.field ||
+      err?.description ||
+      err?.message ||
+      'Failed to create subscription';
+    next(new AppError(`Razorpay subscription creation failed: ${razorpayMessage}`, 500));
   }
 };
 
