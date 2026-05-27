@@ -63,11 +63,12 @@ export default function SubscriptionPage() {
         setProcessing(planId)
         try {
             const payablePlanId = planId === "STARTER" ? "BASIC" : planId
-            const data: any = await apiService.post("/payments/create-subscription", {
-                plan: payablePlanId
+            const data: any = await apiService.post("/payments/subscription/create", {
+                planId: payablePlanId,
+                duration: 1,
             })
-            const { key, mode, subscriptionId, orderId, amount } = data ?? {}
-            if (!key || (!subscriptionId && !orderId)) {
+            const { key, orderId, amount } = data ?? {}
+            if (!key || !orderId) {
                 toast.error("Invalid response from server. Please try again.")
                 setProcessing(null)
                 return
@@ -79,32 +80,21 @@ export default function SubscriptionPage() {
                 return
             }
 
-            const isSubscriptionCheckout = mode === "subscription" || Boolean(subscriptionId)
             const options: Record<string, unknown> = {
                 key,
                 currency: "INR",
                 name: "PulseCal",
-                description: isSubscriptionCheckout
-                    ? `${payablePlanId} monthly auto-payment subscription`
-                    : `${payablePlanId} plan renewal (1 month)`,
+                description: `${payablePlanId} plan renewal (1 month)`,
+                order_id: orderId,
+                amount,
                 handler: async (rzpResponse: any) => {
                     try {
-                        if (isSubscriptionCheckout) {
-                            await apiService.post("/payments/verify-subscription", {
-                                razorpay_payment_id: rzpResponse.razorpay_payment_id,
-                                razorpay_subscription_id: rzpResponse.razorpay_subscription_id,
-                                razorpay_signature: rzpResponse.razorpay_signature,
-                                plan: payablePlanId
-                            })
-                            toast.success("Monthly auto-payment activated successfully!")
-                        } else {
-                            await apiService.post("/payments/subscription/verify", {
-                                razorpay_order_id: rzpResponse.razorpay_order_id,
-                                razorpay_payment_id: rzpResponse.razorpay_payment_id,
-                                razorpay_signature: rzpResponse.razorpay_signature,
-                            })
-                            toast.success("Subscription renewed successfully!")
-                        }
+                        await apiService.post("/payments/subscription/verify", {
+                            razorpay_order_id: rzpResponse.razorpay_order_id,
+                            razorpay_payment_id: rzpResponse.razorpay_payment_id,
+                            razorpay_signature: rzpResponse.razorpay_signature,
+                        })
+                        toast.success("Subscription renewed successfully!")
                         await fetchSubscriptionStatus()
                     } catch (verifyError: any) {
                         toast.error(verifyError.response?.data?.message || "Payment verification failed")
@@ -114,13 +104,6 @@ export default function SubscriptionPage() {
                 },
                 modal: { ondismiss: () => setProcessing(null) },
                 theme: { color: "#0F172A" }
-            }
-
-            if (isSubscriptionCheckout) {
-                options.subscription_id = subscriptionId
-            } else {
-                options.order_id = orderId
-                options.amount = amount
             }
 
             const rzp = new (window as any).Razorpay(options)
@@ -199,7 +182,7 @@ export default function SubscriptionPage() {
             <div className="space-y-8 pb-10">
                 <div>
                     <h1 className="text-3xl font-bold">Subscription & Billing</h1>
-                        <p className="text-muted-foreground">Manage your clinic&apos;s monthly auto-payment subscription</p>
+                    <p className="text-muted-foreground">Manage your clinic&apos;s monthly subscription billing</p>
                 </div>
 
                 {/* Current Plan Status */}
@@ -270,7 +253,7 @@ export default function SubscriptionPage() {
                 <div>
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                         <h2 className="text-xl font-semibold">Available Plans</h2>
-                        <Badge variant="outline">Auto-debits monthly on your signup date</Badge>
+                        <Badge variant="outline">Secure Razorpay checkout</Badge>
                     </div>
 
                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
