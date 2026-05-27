@@ -20,6 +20,12 @@ export const connectDatabase = async (): Promise<void> => {
     await prisma.$connect();
     logger.info('Database connected successfully');
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes('tenant/user') && message.includes('not found')) {
+      logger.error(
+        'Database connection failed: invalid DATABASE_URL. If your password contains @, encode it as %40 in both DATABASE_URL and DIRECT_URL.'
+      );
+    }
     logger.error(error, 'Database connection error');
     process.exit(1);
   }

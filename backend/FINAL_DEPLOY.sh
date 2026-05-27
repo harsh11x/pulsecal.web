@@ -28,20 +28,33 @@ rm -f src/middlewares/rateLimit.middleware.ts
 npm ci
 npm run build
 
+# Validate .env (catches bad Supabase URLs before PM2 restart loop)
+echo "🔍 Validating .env and database connection..."
+npm run verify:env
+
 # Verify no rate limiter
 if grep -i "apiRateLimiter" dist/app.js 2>/dev/null | grep -v "//" | grep -v "^\s*//"; then
     echo "❌ Rate limiter still in compiled code!"
     exit 1
 fi
 
-# Start
-pm2 start server.js --name pulsecal
+# Start (reload env from .env)
+pm2 delete pulsecal 2>/dev/null || true
+pm2 start server.js --name pulsecal --update-env
+pm2 save
 sleep 5
 
 # Show status
 pm2 status pulsecal
 pm2 logs pulsecal --lines 20 --nostream
 
-echo ""
-echo "✅ DEPLOYED! Test now."
+echo "🔍 Health check..."
+if curl -sf http://localhost:3001/health > /dev/null; then
+  curl -s http://localhost:3001/health
+  echo ""
+  echo "✅ DEPLOYED! Backend is healthy on port 3001."
+else
+  echo "❌ Backend not responding on :3001. Check: pm2 logs pulsecal"
+  exit 1
+fi
 

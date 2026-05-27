@@ -10,7 +10,7 @@ echo "🚀 Starting PulseCal Backend Deployment to AWS..."
 # Configuration
 AWS_HOST="13.205.127.21"
 AWS_USER="ubuntu"  # Change if different
-BACKEND_DIR="/home/ubuntu/pulsecal/backend"  # Change to your actual path
+BACKEND_DIR="/home/ubuntu/pulsecal.web/backend"
 SSH_KEY="~/.ssh/your-key.pem"  # Update with your actual SSH key path
 
 echo "📦 Step 1: Committing latest changes..."
@@ -23,16 +23,19 @@ ssh -i "$SSH_KEY" "$AWS_USER@$AWS_HOST" << 'ENDSSH'
     set -e
     
     echo "📂 Navigating to backend directory..."
-    cd /home/ubuntu/pulsecal/backend || exit 1
+    cd /home/ubuntu/pulsecal.web/backend || exit 1
     
     echo "⬇️  Pulling latest code..."
     git pull origin main
     
     echo "📦 Installing dependencies..."
-    npm install --production
+    npm ci
     
     echo "🔧 Building TypeScript..."
     npm run build
+    
+    echo "🔍 Validating environment..."
+    npm run verify:env
     
     echo "🔑 Checking environment variables..."
     # Ensure all required env vars are set
@@ -52,8 +55,11 @@ ssh -i "$SSH_KEY" "$AWS_USER@$AWS_HOST" << 'ENDSSH'
     echo "🔄 Restarting backend server..."
     # Using PM2 (recommended)
     if command -v pm2 &> /dev/null; then
-        pm2 restart pulsecal-backend || pm2 start npm --name "pulsecal-backend" -- start
+        pm2 restart pulsecal --update-env || pm2 start server.js --name pulsecal --update-env
         pm2 save
+        
+        sleep 3
+        curl -sf http://localhost:3001/health || (pm2 logs pulsecal --lines 30 --nostream; exit 1)
     else
         # Fallback: kill existing process and start new one
         pkill -f "node server.js" || true

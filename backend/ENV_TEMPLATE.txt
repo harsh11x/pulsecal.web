@@ -29,9 +29,12 @@ CALENDLY_CLIENT_SECRET=your-calendly-client-secret
 CALENDLY_WEBHOOK_SIGNING_KEY=your-webhook-signing-key
 CALENDLY_REDIRECT_URI=https://www.pulsecal.com/api/v1/auth/calendly/callback
 
-# Database
-DATABASE_URL=postgresql://user:password@host:port/database
-DIRECT_URL=postgresql://user:password@host:port/database
+# Database (Supabase)
+# IMPORTANT: If password contains @ encode it as %40 (example: 2004@Singh -> 2004%40Singh)
+# Pooler (app runtime):
+DATABASE_URL=postgresql://postgres.PROJECT_REF:PASSWORD@aws-1-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1
+# Direct (migrations / Prisma directUrl — use db.* host, NOT pooler):
+DIRECT_URL=postgresql://postgres:PASSWORD@db.PROJECT_REF.supabase.co:5432/postgres
 
 # Supabase Client (if needed)
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co

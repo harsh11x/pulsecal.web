@@ -6,8 +6,10 @@ Use this so **Find Doctors** and **Browse Clinics** show all doctors and clinics
 
 On the machine where the backend runs (e.g. EC2), ensure:
 
-- **`DATABASE_URL`** = your **Supabase** Postgres connection string (same project where you see the 14 `doctor_profiles` rows).
-  - In Supabase: Project Settings → Database → Connection string (URI). Use the **URI** and replace the password placeholder with your DB password.
+- **`DATABASE_URL`** = Supabase **pooler** URI (port `6543`, user `postgres.PROJECT_REF`).
+- **`DIRECT_URL`** = Supabase **direct** URI (`db.PROJECT_REF.supabase.co:5432`, user `postgres`).
+- If your DB password contains `@`, encode it as `%40` in both URLs (e.g. `2004@Singh` → `2004%40Singh`).
+- Validate before restart: `npm run verify:env`
 - Optional: `NODE_ENV=production`, `PORT=3001`, Redis/Firebase if you use them.
 
 ## 2. Deploy steps (on the AWS server)
