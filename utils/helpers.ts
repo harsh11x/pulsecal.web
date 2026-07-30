@@ -52,3 +52,11 @@ export const getStatusColor = (status: string): string => {
   }
   return colors[status] || "text-muted-foreground bg-muted"
 }
+
+export const parseAmount = (val: unknown): number => {
+  if (typeof val === "number") return val
+  if (typeof val === "string") return parseFloat(val) || 0
+  if (val != null && typeof (val as any)?.toString === "function")
+    return parseFloat(String((val as any).toString())) || 0
+  return 0
+}

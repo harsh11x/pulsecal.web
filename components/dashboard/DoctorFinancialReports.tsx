@@ -7,9 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Download, FileText, Calendar, DollarSign } from "lucide-react"
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
 import { apiService } from "@/services/api"
-import { format, subDays, subMonths, subYears } from "date-fns"
 import { toast } from "sonner"
 import { formatCurrency } from "@/utils/helpers"
+import { exportRevenuePDF } from "@/utils/pdfExport"
+import { useAppSelector } from "@/app/hooks"
 
 interface FinancialReport {
   period: string
@@ -23,6 +24,7 @@ interface FinancialReport {
 }
 
 export default function DoctorFinancialReports() {
+  const { user } = useAppSelector((state) => state.auth)
   const [reportType, setReportType] = useState<"daily" | "monthly" | "yearly">("monthly")
   const [reportData, setReportData] = useState<FinancialReport | null>(null)
   const [loading, setLoading] = useState(false)
@@ -48,26 +50,44 @@ export default function DoctorFinancialReports() {
     }
   }
 
-  const handleExport = async (exportFormat: "pdf" | "csv" | "excel") => {
+  const handleExportPDF = () => {
     try {
-      const response: any = await apiService.get(
-        `/doctors/financial-reports/export?type=${reportType}&format=${exportFormat}`,
-        { responseType: "blob" }
-      )
+      if (!reportData) {
+        toast.info("No data to export")
+        return
+      }
 
-      const blob = new Blob([response], { type: `application/${exportFormat === "pdf" ? "pdf" : exportFormat === "csv" ? "csv" : "xlsx"}` })
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = `financial-report-${reportType}-${format(new Date(), "yyyy-MM-dd")}.${exportFormat === "pdf" ? "pdf" : exportFormat === "csv" ? "csv" : "xlsx"}`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
+      // Map breakdown data to transactions format for PDF export
+      const breakdown = reportType === "daily"
+        ? reportData.dailyBreakdown
+        : reportData.monthlyBreakdown
 
-      toast.success(`Report exported as ${exportFormat.toUpperCase()}`)
+      const transactions = (breakdown || []).map((item, index) => {
+        const label = reportType === "daily"
+          ? (item as { date: string }).date
+          : (item as { month: string }).month
+        return {
+          id: `${index}`,
+          amount: item.revenue,
+          status: "COMPLETED",
+          description: `${reportType === "daily" ? "Daily" : "Monthly"} Revenue - ${label}`,
+          createdAt: label || new Date().toISOString(),
+        }
+      })
+
+      exportRevenuePDF({
+        transactions,
+        doctorName: `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "Doctor",
+        clinicName: user?.doctorProfile?.clinicName || "PulseCal Clinic",
+        summary: {
+          totalReceived: reportData.totalRevenue,
+          totalPaidOut: 0,
+          netRevenue: reportData.totalRevenue,
+        },
+      })
+      toast.success("PDF exported successfully")
     } catch (error: any) {
-      toast.error(error.message || "Failed to export report")
+      toast.error(error.message || "Failed to export PDF")
     }
   }
 
@@ -123,17 +143,9 @@ export default function DoctorFinancialReports() {
                   <SelectItem value="yearly">Yearly</SelectItem>
                 </SelectContent>
               </Select>
-              <Button variant="outline" onClick={() => handleExport("pdf")}>
+              <Button variant="outline" onClick={handleExportPDF}>
                 <Download className="mr-2 h-4 w-4" />
-                PDF
-              </Button>
-              <Button variant="outline" onClick={() => handleExport("csv")}>
-                <Download className="mr-2 h-4 w-4" />
-                CSV
-              </Button>
-              <Button variant="outline" onClick={() => handleExport("excel")}>
-                <Download className="mr-2 h-4 w-4" />
-                Excel
+                Export PDF
               </Button>
             </div>
           </div>

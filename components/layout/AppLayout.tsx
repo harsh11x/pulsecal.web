@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { useAppSelector } from "@/app/hooks"
 import { Navbar } from "./Navbar"
 import { Sidebar } from "./Sidebar"
@@ -20,6 +20,19 @@ export function AppLayout({ children }: AppLayoutProps) {
   const isPatient = user?.role?.toLowerCase() === "patient"
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const router = useRouter()
+  const pathname = usePathname()
+
+  const handleAddRecord = () => {
+    const isOnMedicalRecordsPage = pathname.includes("/health/medical-records")
+    
+    if (isOnMedicalRecordsPage) {
+      // If already on medical records page, dispatch a custom event to open the dialog
+      window.dispatchEvent(new CustomEvent("open-add-medical-record"))
+    } else {
+      // Otherwise navigate to the page with the action param
+      router.push("/health/medical-records?action=new")
+    }
+  }
 
   return (
     <div className="flex h-screen flex-col">
@@ -51,7 +64,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                     + New Appointment
                   </button>
                   <button
-                    onClick={() => router.push(isPatient ? '/health/medical-records/create' : '/health/medical-records?action=new')}
+                    onClick={handleAddRecord}
                     className="text-sm text-left p-2 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors cursor-pointer w-full"
                   >
                     {isPatient ? "+ Add Medical Record" : "+ Add Patient record"}

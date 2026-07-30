@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CreditCard, Download, Plus, Loader2, AlertCircle, ArrowDownLeft, ArrowUpRight, User } from "lucide-react"
+import { exportRevenuePDF } from "@/utils/pdfExport"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { formatCurrency } from "@/utils/helpers"
+import { formatCurrency, parseAmount } from "@/utils/helpers"
+import { toast } from "sonner"
 import { useEffect, useState } from "react"
 import { apiService } from "@/services/api"
 import { format } from "date-fns"
@@ -25,13 +27,6 @@ export default function Payments() {
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-
-  const parseAmount = (val: unknown): number => {
-    if (typeof val === "number") return val
-    if (typeof val === "string") return parseFloat(val) || 0
-    if (val != null && typeof (val as any)?.toString === "function") return parseFloat(String((val as any).toString())) || 0
-    return 0
-  }
 
   useEffect(() => {
     const fetchData = async () => {
@@ -280,9 +275,33 @@ export default function Payments() {
                         <ArrowDownLeft className="h-5 w-5 text-green-600" />
                         Payments Received
                       </CardTitle>
-                      <Button variant="outline" size="sm">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          try {
+                            if (received.length === 0) {
+                              toast.info("No payments to export")
+                              return
+                            }
+                            exportRevenuePDF({
+                              transactions: received,
+                              doctorName: `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "Doctor",
+                              clinicName: user?.doctorProfile?.clinicName || "PulseCal Clinic",
+                              summary: {
+                                totalReceived: summary.totalReceived,
+                                totalPaidOut: summary.totalPaidOut,
+                                netRevenue: summary.totalReceived - summary.totalPaidOut,
+                              },
+                            })
+                            toast.success("PDF exported successfully")
+                          } catch (err) {
+                            toast.error("Failed to export PDF")
+                          }
+                        }}
+                      >
                         <Download className="mr-2 h-4 w-4" />
-                        Export
+                        Export PDF
                       </Button>
                     </div>
                     <p className="text-sm text-muted-foreground">
@@ -338,9 +357,33 @@ export default function Payments() {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle>Transaction History</CardTitle>
-                    <Button variant="outline" size="sm">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        try {
+                          if (transactions.length === 0) {
+                            toast.info("No transactions to export")
+                            return
+                          }
+                          exportRevenuePDF({
+                            transactions: transactions,
+                            doctorName: `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "Doctor",
+                            clinicName: user?.doctorProfile?.clinicName || "PulseCal Clinic",
+                            summary: {
+                              totalReceived: summary.totalReceived,
+                              totalPaidOut: summary.totalPaidOut,
+                              netRevenue: summary.totalReceived - summary.totalPaidOut,
+                            },
+                          })
+                          toast.success("PDF exported successfully")
+                        } catch (err) {
+                          toast.error("Failed to export PDF")
+                        }
+                      }}
+                    >
                       <Download className="mr-2 h-4 w-4" />
-                      Export
+                      Export PDF
                     </Button>
                   </div>
                 </CardHeader>
