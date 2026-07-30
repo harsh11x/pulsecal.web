@@ -20,20 +20,18 @@ export default function MedicalRecordsPage() {
   const searchParams = useSearchParams()
 
   useEffect(() => {
-    if (searchParams.get("action") === "new" && isDoctor) {
+    if (searchParams.get("action") === "new") {
       setDialogOpen(true)
     }
-  }, [searchParams, isDoctor])
+  }, [searchParams])
 
   useEffect(() => {
     const handleOpenDialog = () => {
-      if (isDoctor) {
-        setDialogOpen(true)
-      }
+      setDialogOpen(true)
     }
     window.addEventListener("open-add-medical-record", handleOpenDialog)
     return () => window.removeEventListener("open-add-medical-record", handleOpenDialog)
-  }, [isDoctor])
+  }, [])
 
   const fetchRecords = async () => {
     try {
