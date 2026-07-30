@@ -65,7 +65,7 @@ export const createMedicalRecordController = async (
 
     // Handle Manual Patient Entry (Find or Create)
     if (!patientId && value.patientDetails) {
-      const { firstName, lastName, phone } = value.patientDetails;
+      const { firstName, lastName, phone, gender, address } = value.patientDetails;
       const phoneStr = String(phone || '').trim();
       if (!firstName || !phoneStr) {
         throw new AppError('Patient first name and phone are required', 400);
@@ -90,6 +90,8 @@ export const createMedicalRecordController = async (
               role: 'PATIENT',
               password: await bcrypt.hash('Pulsecal@123', 10),
               isActive: true,
+              ...(gender && String(gender).trim() ? { gender: String(gender).trim() } : {}),
+              ...(address && String(address).trim() ? { address: String(address).trim() } : {}),
             },
             select: { id: true },
           });

@@ -78,7 +78,7 @@ export const createAppointmentController = async (
 
     // Handle Manual Patient Entry (Find or Create)
     if (value.patientDetails) {
-      const { firstName, lastName, phone, email, dob } = value.patientDetails;
+      const { firstName, lastName, phone, email, dob, gender } = value.patientDetails;
       const emailVal = (email && String(email).trim()) ? String(email).trim() : null;
       const phoneStr = String(phone || '').trim();
       if (!firstName || !phoneStr) {
@@ -108,6 +108,7 @@ export const createAppointmentController = async (
               password: await bcrypt.hash('Pulsecal@123', 10),
               isActive: true,
               dateOfBirth: dob || undefined,
+              ...(gender && String(gender).trim() ? { gender: String(gender).trim() } : {}),
             },
             select: { id: true },
           });

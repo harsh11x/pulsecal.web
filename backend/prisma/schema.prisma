@@ -106,6 +106,8 @@ model User {
   lastName          String
   phone             String?
   dateOfBirth       DateTime?
+  gender            String?
+  address           String?
   role              UserRole  @default(PATIENT)
   isActive          Boolean   @default(true)
   isEmailVerified   Boolean   @default(false)
