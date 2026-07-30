@@ -11,7 +11,7 @@ import { requireDoctor, requireStaff } from '../../middlewares/role.middleware';
 
 const router = Router();
 
-router.post('/', authenticate, requireDoctor, createMedicalRecordController);
+router.post('/', authenticate, requireStaff, createMedicalRecordController);
 router.get('/', authenticate, getMedicalRecordsController);
 router.get('/:id', authenticate, getMedicalRecordByIdController);
 router.put('/:id', authenticate, requireDoctor, updateMedicalRecordController);

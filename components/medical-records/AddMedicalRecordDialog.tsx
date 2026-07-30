@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,7 +9,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
 import { apiService } from "@/services/api"
-import { Loader2 } from "lucide-react"
+import { Loader2, Search, UserPlus, X } from "lucide-react"
+
 
 interface AddMedicalRecordDialogProps {
     open: boolean
@@ -19,7 +20,20 @@ interface AddMedicalRecordDialogProps {
 
 export function AddMedicalRecordDialog({ open, onOpenChange, onSuccess }: AddMedicalRecordDialogProps) {
     const [loading, setLoading] = useState(false)
+    const [searchQuery, setSearchQuery] = useState("")
+    const [searchResults, setSearchResults] = useState<any[]>([])
+    const [isSearching, setIsSearching] = useState(false)
+    const [showResults, setShowResults] = useState(false)
+    const [selectedPatient, setSelectedPatient] = useState<any>(null)
+    const searchRef = useRef<HTMLDivElement>(null)
+    const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
     const [formData, setFormData] = useState({
+        patientFirstName: "",
+        patientLastName: "",
+        patientPhone: "",
+        patientGender: "",
+        patientAddress: "",
         visitDate: "",
         doctorName: "",
         diagnosis: "",
@@ -51,7 +65,19 @@ export function AddMedicalRecordDialog({ open, onOpenChange, onSuccess }: AddMed
                 .map(t => t.trim())
                 .filter(t => t.length > 0)
 
-            await apiService.post("/medical-records", {
+            // Use patientId if an existing patient was selected, otherwise send patientDetails for new patient
+            const payload: any = {
+                ...(selectedPatient ? { patientId: selectedPatient.id } : {
+                    patientDetails: {
+                        firstName: formData.patientFirstName,
+                        lastName: formData.patientLastName,
+                        phone: formData.patientPhone,
+                        gender: formData.patientGender || undefined,
+                        address: formData.patientAddress || undefined,
+                    },
+                }),
+                recordType: "CONSULTATION",
+                title: formData.diagnosis || "Medical Record",
                 visitDate: formData.visitDate,
                 doctorName: formData.doctorName,
                 diagnosis: formData.diagnosis,
@@ -67,7 +93,9 @@ export function AddMedicalRecordDialog({ open, onOpenChange, onSuccess }: AddMed
                 prescribedMedicines: medicines,
                 medicalTests: tests,
                 notes: formData.notes
-            })
+            }
+
+            await apiService.post("/medical-records", payload)
 
             toast.success("Medical record added successfully!")
             onSuccess()
@@ -75,6 +103,11 @@ export function AddMedicalRecordDialog({ open, onOpenChange, onSuccess }: AddMed
 
             // Reset form
             setFormData({
+                patientFirstName: "",
+                patientLastName: "",
+                patientPhone: "",
+                patientGender: "",
+                patientAddress: "",
                 visitDate: "",
                 doctorName: "",
                 diagnosis: "",
@@ -89,12 +122,83 @@ export function AddMedicalRecordDialog({ open, onOpenChange, onSuccess }: AddMed
                 medicalTests: "",
                 notes: ""
             })
+            setSelectedPatient(null)
+            setSearchQuery("")
+            setSearchResults([])
         } catch (error: any) {
             console.error("Failed to add medical record:", error)
             toast.error(error?.response?.data?.message || "Failed to add medical record")
         } finally {
             setLoading(false)
         }
+    }
+
+    // Debounced patient search
+    const searchPatients = useCallback(async (query: string) => {
+        if (query.length < 2) {
+            setSearchResults([])
+            setShowResults(false)
+            return
+        }
+
+        setIsSearching(true)
+        try {
+            const response: any = await apiService.get(`/users?role=patient&search=${encodeURIComponent(query)}&limit=10`)
+            setSearchResults(response.data || [])
+            setShowResults(true)
+        } catch (error) {
+            console.error("Failed to search patients:", error)
+            setSearchResults([])
+        } finally {
+            setIsSearching(false)
+        }
+    }, [])
+
+    useEffect(() => {
+        if (searchTimeoutRef.current) {
+            clearTimeout(searchTimeoutRef.current)
+        }
+        searchTimeoutRef.current = setTimeout(() => {
+            searchPatients(searchQuery)
+        }, 300)
+        return () => {
+            if (searchTimeoutRef.current) {
+                clearTimeout(searchTimeoutRef.current)
+            }
+        }
+    }, [searchQuery, searchPatients])
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+                setShowResults(false)
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside)
+        return () => document.removeEventListener("mousedown", handleClickOutside)
+    }, [])
+
+    const handleSelectPatient = (patient: any) => {
+        setSelectedPatient(patient)
+        setFormData({
+            ...formData,
+            patientFirstName: patient.firstName || "",
+            patientLastName: patient.lastName || "",
+            patientPhone: patient.phone || "",
+        })
+        setSearchQuery("")
+        setShowResults(false)
+    }
+
+    const handleClearPatient = () => {
+        setSelectedPatient(null)
+        setFormData({
+            ...formData,
+            patientFirstName: "",
+            patientLastName: "",
+            patientPhone: "",
+        })
     }
 
     return (
@@ -108,7 +212,171 @@ export function AddMedicalRecordDialog({ open, onOpenChange, onSuccess }: AddMed
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    {/* Basic Information */}
+                    {/* Patient Information */}
+                    <div className="border rounded-lg p-4 space-y-4">
+                        <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Patient Information</h4>
+
+                        {/* Patient Search */}
+                        <div className="relative" ref={searchRef}>
+                            <Label htmlFor="patientSearch">Search Existing Patient</Label>
+                            <div className="relative mt-1">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    id="patientSearch"
+                                    placeholder="Type name or phone to search..."
+                                    value={searchQuery}
+                                    onChange={(e) => {
+                                        setSearchQuery(e.target.value)
+                                        setSelectedPatient(null)
+                                    }}
+                                    onFocus={() => searchQuery.length >= 2 && searchResults.length > 0 && setShowResults(true)}
+                                    className="pl-9 pr-9"
+                                />
+                                {isSearching && (
+                                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                                )}
+                                {!isSearching && searchQuery && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setSearchQuery("")
+                                            setSearchResults([])
+                                            setShowResults(false)
+                                            setSelectedPatient(null)
+                                        }}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Search Results Dropdown */}
+                            {showResults && searchResults.length > 0 && (
+                                <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover text-popover-foreground shadow-md max-h-60 overflow-auto">
+                                    {searchResults.map((patient) => (
+                                        <button
+                                            key={patient.id}
+                                            type="button"
+                                            className="flex w-full items-center gap-3 px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground outline-none transition-colors"
+                                            onClick={() => handleSelectPatient(patient)}
+                                        >
+                                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+                                                <span className="text-xs font-medium text-primary">
+                                                    {(patient.firstName?.[0] || "?").toUpperCase()}{(patient.lastName?.[0] || "").toUpperCase()}
+                                                </span>
+                                            </div>
+                                            <div className="flex-1 text-left">
+                                                <div className="font-medium">{patient.firstName} {patient.lastName}</div>
+                                                {patient.email && (
+                                                    <div className="text-xs text-muted-foreground">{patient.email}</div>
+                                                )}
+                                            </div>
+                                            <UserPlus className="h-4 w-4 text-muted-foreground" />
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            {showResults && searchResults.length === 0 && !isSearching && searchQuery.length >= 2 && (
+                                <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover text-popover-foreground shadow-md p-3">
+                                    <p className="text-sm text-muted-foreground">No patients found. Fill in details below to create a new patient.</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Selected Patient Badge */}
+                        {selectedPatient && (
+                            <div className="flex items-center gap-2 rounded-md bg-primary/5 border border-primary/20 px-3 py-2">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+                                    <span className="text-xs font-medium text-primary">
+                                        {(selectedPatient.firstName?.[0] || "?").toUpperCase()}{(selectedPatient.lastName?.[0] || "").toUpperCase()}
+                                    </span>
+                                </div>
+                                <div className="flex-1">
+                                    <div className="text-sm font-medium">{selectedPatient.firstName} {selectedPatient.lastName}</div>
+                                    {selectedPatient.email && (
+                                        <div className="text-xs text-muted-foreground">{selectedPatient.email}</div>
+                                    )}
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                                    onClick={handleClearPatient}
+                                >
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="patientFirstName">Patient First Name *</Label>
+                                <Input
+                                    id="patientFirstName"
+                                    placeholder="John"
+                                    value={formData.patientFirstName}
+                                    onChange={(e) => setFormData({ ...formData, patientFirstName: e.target.value })}
+                                    readOnly={!!selectedPatient}
+                                    className={selectedPatient ? "bg-muted/50 cursor-not-allowed" : ""}
+                                    required
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="patientLastName">Patient Last Name</Label>
+                                <Input
+                                    id="patientLastName"
+                                    placeholder="Doe"
+                                    value={formData.patientLastName}
+                                    onChange={(e) => setFormData({ ...formData, patientLastName: e.target.value })}
+                                    readOnly={!!selectedPatient}
+                                    className={selectedPatient ? "bg-muted/50 cursor-not-allowed" : ""}
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="patientPhone">Patient Phone *</Label>
+                                <Input
+                                    id="patientPhone"
+                                    placeholder="1234567890"
+                                    value={formData.patientPhone}
+                                    onChange={(e) => setFormData({ ...formData, patientPhone: e.target.value })}
+                                    readOnly={!!selectedPatient}
+                                    className={selectedPatient ? "bg-muted/50 cursor-not-allowed" : ""}
+                                    required
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="patientGender">Gender</Label>
+                                <Select value={formData.patientGender} onValueChange={(value) => setFormData({ ...formData, patientGender: value })}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Male">Male</SelectItem>
+                                        <SelectItem value="Female">Female</SelectItem>
+                                        <SelectItem value="Other">Other</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="patientAddress">Address</Label>
+                                <Input
+                                    id="patientAddress"
+                                    placeholder="123 Main St, City, State"
+                                    value={formData.patientAddress}
+                                    onChange={(e) => setFormData({ ...formData, patientAddress: e.target.value })}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Visit Information */}
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="visitDate">Visit Date *</Label>
