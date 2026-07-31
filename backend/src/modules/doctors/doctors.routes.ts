@@ -7,6 +7,7 @@ import {
   getDoctorAnalyticsController,
   getFinancialReportsController,
   getClinicStaffController,
+  getDoctorPatientsController,
   updateScheduleController,
 } from './doctors.controller';
 import {
@@ -29,6 +30,7 @@ router.get('/schedule', authenticate, requireDoctor, getDoctorAvailabilityContro
 router.get('/analytics', authenticate, requireDoctor, getDoctorAnalyticsController);
 router.get('/financial-reports', authenticate, requireDoctor, getFinancialReportsController);
 router.get('/clinic/staff', authenticate, requireDoctor, getClinicStaffController);
+router.get('/patients', authenticate, requireDoctor, getDoctorPatientsController);
 // Doctor profile, availability, slots - public for patient booking flow
 router.get('/:id', getDoctorByIdController);
 router.get('/:id/availability', getDoctorAvailabilityController);

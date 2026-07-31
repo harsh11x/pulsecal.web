@@ -1,5 +1,5 @@
 import { Response, NextFunction } from 'express';
-import { searchDoctors, getDoctorById, getDoctorAvailability, getDoctorSlots } from './doctors.service';
+import { searchDoctors, getDoctorById, getDoctorAvailability, getDoctorSlots, getDoctorPatients } from './doctors.service';
 import { getDoctorAnalytics, getFinancialReports } from './doctors.analytics.service';
 import { getClinicStaff } from './doctors.staff.service';
 import { sendSuccess } from '../../utils/apiResponse';
@@ -201,6 +201,24 @@ function getSlotsFallback(daysCount: number = 14): { date: string; dayName: stri
   }
   return result;
 }
+
+export const getDoctorPatientsController = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const doctorId = req.user?.id;
+    if (!doctorId) {
+      throw new AppError('User not authenticated', 401);
+    }
+    const result = await getDoctorPatients(doctorId);
+    sendSuccess(res, result, 'Patients retrieved successfully');
+  } catch (err: any) {
+    logger.error({ error: err.message, doctorId: req.user?.id }, 'Error in getDoctorPatientsController');
+    next(err);
+  }
+};
 
 export const getDoctorSlotsController = async (
   req: AuthRequest,

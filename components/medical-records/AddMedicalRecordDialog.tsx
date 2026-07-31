@@ -9,7 +9,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
 import { apiService } from "@/services/api"
-import { Loader2, Search, UserPlus, X } from "lucide-react"
+import { useAppSelector } from "@/app/hooks"
+import { format } from "date-fns"
+import { CalendarDays, FileText, Loader2, Search, UserPlus, X } from "lucide-react"
 
 
 interface AddMedicalRecordDialogProps {
@@ -27,6 +29,12 @@ export function AddMedicalRecordDialog({ open, onOpenChange, onSuccess }: AddMed
     const [selectedPatient, setSelectedPatient] = useState<any>(null)
     const searchRef = useRef<HTMLDivElement>(null)
     const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+    const { user } = useAppSelector((state) => state.auth)
+    const isDoctor = user?.role?.toLowerCase() === "doctor"
+    const [doctorPatients, setDoctorPatients] = useState<any[]>([])
+    const [patientsLoading, setPatientsLoading] = useState(false)
+    const [patientsError, setPatientsError] = useState(false)
 
     const [formData, setFormData] = useState({
         patientFirstName: "",
@@ -51,6 +59,13 @@ export function AddMedicalRecordDialog({ open, onOpenChange, onSuccess }: AddMed
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+
+        // Doctors can only add records for patients who came to them (selected from their own patient list)
+        if (isDoctor && !selectedPatient) {
+            toast.error("Please select a patient from the dropdown")
+            return
+        }
+
         setLoading(true)
 
         try {
@@ -179,6 +194,52 @@ export function AddMedicalRecordDialog({ open, onOpenChange, onSuccess }: AddMed
         return () => document.removeEventListener("mousedown", handleClickOutside)
     }, [])
 
+    // Doctors: load their own patients (only these can be selected) when the dialog opens
+    useEffect(() => {
+        if (open && isDoctor) {
+            const loadDoctorPatients = async () => {
+                setPatientsLoading(true)
+                setPatientsError(false)
+                try {
+                    const response: any = await apiService.get("/doctors/patients")
+                    const patients = Array.isArray(response) ? response : (response?.patients || [])
+                    setDoctorPatients(patients)
+                    setSelectedPatient(null)
+                    setSearchQuery("")
+                } catch (error) {
+                    console.error("Failed to load doctor's patients:", error)
+                    setPatientsError(true)
+                } finally {
+                    setPatientsLoading(false)
+                }
+            }
+            loadDoctorPatients()
+        }
+    }, [open, isDoctor])
+
+    // Auto-fill the doctor's name from the logged-in user (no manual typing needed)
+    useEffect(() => {
+        if (open && isDoctor) {
+            const doctorName = user
+                ? `Dr. ${user.firstName || ""} ${user.lastName || ""}`.trim().replace(/\s+/g, " ")
+                : ""
+            setFormData((prev) => ({ ...prev, doctorName }))
+        }
+    }, [open, isDoctor, user])
+
+    const handleSelectDoctorPatient = (patientId: string) => {
+        const patient = doctorPatients.find((p) => p.id === patientId)
+        if (patient) {
+            setSelectedPatient(patient)
+            setFormData({
+                ...formData,
+                patientFirstName: patient.firstName || "",
+                patientLastName: patient.lastName || "",
+                patientPhone: patient.phone || "",
+            })
+        }
+    }
+
     const handleSelectPatient = (patient: any) => {
         setSelectedPatient(patient)
         setFormData({
@@ -216,9 +277,110 @@ export function AddMedicalRecordDialog({ open, onOpenChange, onSuccess }: AddMed
                     <div className="border rounded-lg p-4 space-y-4">
                         <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Patient Information</h4>
 
-                        {/* Patient Search */}
-                        <div className="relative" ref={searchRef}>
-                            <Label htmlFor="patientSearch">Search Existing Patient</Label>
+                        {isDoctor ? (
+                            <>
+                                {/* Doctor: select from their own patients only */}
+                                <div className="space-y-2">
+                                    <Label htmlFor="doctorPatientSelect">Select Patient *</Label>
+                                    <Select
+                                        value={selectedPatient?.id || ""}
+                                        onValueChange={handleSelectDoctorPatient}
+                                        disabled={patientsLoading || doctorPatients.length === 0}
+                                    >
+                                        <SelectTrigger id="doctorPatientSelect">
+                                            <SelectValue placeholder={patientsLoading ? "Loading patients..." : "Choose a patient..."} />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {doctorPatients.map((patient) => (
+                                                <SelectItem key={patient.id} value={patient.id} className="py-2 items-start">
+                                                    <div className="flex flex-col gap-1 min-w-0">
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <span className="font-medium">
+                                                                {patient.firstName} {patient.lastName}
+                                                            </span>
+                                                            {patient.phone && (
+                                                                <span className="text-xs text-muted-foreground">{patient.phone}</span>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                                            <span className="flex items-center gap-1">
+                                                                <CalendarDays className="h-3 w-3" />
+                                                                {patient.appointmentCount ?? 0} visit{patient.appointmentCount === 1 ? "" : "s"}
+                                                            </span>
+                                                            {patient.lastVisitAt && (
+                                                                <span>
+                                                                    Last: {format(new Date(patient.lastVisitAt), "MMM d, yyyy")}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        {patient.recentRecords?.length > 0 && (
+                                                            <div className="flex flex-col gap-0.5 border-t border-border/60 pt-1 mt-0.5">
+                                                                {patient.recentRecords.map((rec: any, i: number) => (
+                                                                    <span key={i} className="flex items-center gap-1.5 text-xs text-muted-foreground truncate">
+                                                                        <FileText className="h-3 w-3 shrink-0" />
+                                                                        <span className="truncate">
+                                                                            {rec.diagnosis || rec.title}
+                                                                        </span>
+                                                                        {rec.recordDate && (
+                                                                            <span className="shrink-0">
+                                                                                · {format(new Date(rec.recordDate), "MMM d")}
+                                                                            </span>
+                                                                        )}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    {patientsLoading && (
+                                        <p className="text-sm text-muted-foreground flex items-center gap-2">
+                                            <Loader2 className="h-3 w-3 animate-spin" /> Loading your patients...
+                                        </p>
+                                    )}
+                                    {patientsError && (
+                                        <p className="text-sm text-destructive">Failed to load patients. Please try again.</p>
+                                    )}
+                                    {!patientsLoading && !patientsError && doctorPatients.length === 0 && (
+                                        <p className="text-sm text-muted-foreground">
+                                            No patients have visited you yet. Patients who book an appointment with you will appear here.
+                                        </p>
+                                    )}
+                                </div>
+
+                                {/* Selected Patient Badge */}
+                                {selectedPatient && (
+                                    <div className="flex items-center gap-2 rounded-md bg-primary/5 border border-primary/20 px-3 py-2">
+                                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+                                            <span className="text-xs font-medium text-primary">
+                                                {(selectedPatient.firstName?.[0] || "?").toUpperCase()}{(selectedPatient.lastName?.[0] || "").toUpperCase()}
+                                            </span>
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="text-sm font-medium">{selectedPatient.firstName} {selectedPatient.lastName}</div>
+                                            {selectedPatient.email && (
+                                                <div className="text-xs text-muted-foreground">{selectedPatient.email}</div>
+                                            )}
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                                            onClick={handleClearPatient}
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                {/* Patient Search */}
+                                <div className="relative" ref={searchRef}>
+                                    <Label htmlFor="patientSearch">Search Existing Patient</Label>
                             <div className="relative mt-1">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                 <Input
@@ -374,6 +536,8 @@ export function AddMedicalRecordDialog({ open, onOpenChange, onSuccess }: AddMed
                                 />
                             </div>
                         </div>
+                            </>
+                        )}
                     </div>
 
                     {/* Visit Information */}
@@ -396,6 +560,8 @@ export function AddMedicalRecordDialog({ open, onOpenChange, onSuccess }: AddMed
                                 placeholder="Dr. John Smith"
                                 value={formData.doctorName}
                                 onChange={(e) => setFormData({ ...formData, doctorName: e.target.value })}
+                                readOnly={isDoctor}
+                                className={isDoctor ? "bg-muted/50 cursor-not-allowed" : ""}
                                 required
                             />
                         </div>

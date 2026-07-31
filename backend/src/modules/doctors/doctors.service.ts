@@ -413,6 +413,107 @@ export const getDoctorAvailability = async (doctorId: string, date: Date) => {
 };
 
 /**
+ * Get all patients who have booked appointments with this doctor.
+ * Used by the "Add Medical Record" dialog — a doctor can only add a
+ * record for a patient who has actually come to them.
+ */
+export const getDoctorPatients = async (doctorId: string) => {
+  const appointments = await prisma.appointment.findMany({
+    where: {
+      doctorId,
+      deletedAt: null,
+      // Only patients who actually visited the doctor (exclude cancelled / no-shows)
+      status: { notIn: ['CANCELLED', 'NO_SHOW'] },
+    },
+    select: {
+      patientId: true,
+      scheduledAt: true,
+    },
+    orderBy: { scheduledAt: 'desc' },
+  });
+
+  // Distinct patients, plus per-patient visit stats
+  const visitStats = new Map<string, { count: number; lastVisitAt: Date }>();
+  const patientIds: string[] = [];
+  for (const apt of appointments) {
+    if (!visitStats.has(apt.patientId)) {
+      patientIds.push(apt.patientId);
+      visitStats.set(apt.patientId, { count: 0, lastVisitAt: apt.scheduledAt });
+    }
+    const stat = visitStats.get(apt.patientId)!;
+    stat.count += 1;
+    if (apt.scheduledAt > stat.lastVisitAt) stat.lastVisitAt = apt.scheduledAt;
+  }
+
+  if (patientIds.length === 0) {
+    return { patients: [], total: 0 };
+  }
+
+  const [patients, recentRecords] = await Promise.all([
+    prisma.user.findMany({
+      where: {
+        id: { in: patientIds },
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        gender: true,
+        dateOfBirth: true,
+        address: true,
+        profileImage: true,
+      },
+      orderBy: { firstName: 'asc' },
+    }),
+    prisma.medicalRecord.findMany({
+      where: {
+        patientId: { in: patientIds },
+        doctorId,
+        deletedAt: null,
+      },
+      select: {
+        patientId: true,
+        title: true,
+        diagnosis: true,
+        recordDate: true,
+      },
+      orderBy: { recordDate: 'desc' },
+      take: 200, // cap query; we'll trim per patient below
+    }),
+  ]);
+
+  // Group recent records per patient (up to 3 each)
+  const recordsByPatient = new Map<string, { title: string; diagnosis: string; recordDate: Date }[]>();
+  for (const rec of recentRecords) {
+    const list = recordsByPatient.get(rec.patientId) || [];
+    if (list.length < 3) {
+      list.push({ title: rec.title, diagnosis: rec.diagnosis || '', recordDate: rec.recordDate });
+      recordsByPatient.set(rec.patientId, list);
+    }
+  }
+
+  const enriched = patients.map((p) => {
+    const stats = visitStats.get(p.id);
+    const records = recordsByPatient.get(p.id) || [];
+    return {
+      ...p,
+      appointmentCount: stats?.count || 0,
+      lastVisitAt: stats?.lastVisitAt ? stats.lastVisitAt.toISOString() : null,
+      recentRecords: records.map((r) => ({
+        title: r.title,
+        diagnosis: r.diagnosis,
+        recordDate: r.recordDate.toISOString(),
+      })),
+    };
+  });
+
+  return { patients: enriched, total: enriched.length };
+};
+
+/**
  * Get available slots for multiple days (for patient booking).
  * Always returns at least 14 days of slots (9am–6pm default) so booking never shows "no availability".
  */
