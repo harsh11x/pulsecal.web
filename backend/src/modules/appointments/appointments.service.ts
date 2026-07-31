@@ -114,7 +114,7 @@ export const getAppointments = async (req: {
   const where: {
     patientId?: string;
     doctorId?: string;
-    status?: string;
+    status?: string | { in: string[] };
     scheduledAt?: { gte?: Date; lte?: Date; lt?: Date };
     deletedAt?: null;
     doctor?: { clinicId?: string };
@@ -172,7 +172,14 @@ export const getAppointments = async (req: {
   }
 
   if (req.query.status) {
-    where.status = req.query.status as string;
+    // Support comma-separated statuses (e.g. 'SCHEDULED,CONFIRMED') which the
+    // mobile app sends for its "Upcoming" appointments tab. Passing the raw
+    // comma-separated string to Prisma as a single enum value caused a 500.
+    const statuses = (req.query.status as string)
+      .split(',')
+      .map((s) => s.trim().toUpperCase())
+      .filter((s) => s.length > 0);
+    where.status = statuses.length === 1 ? statuses[0] : { in: statuses };
   }
 
   // Handle 'date=today' query for dashboard

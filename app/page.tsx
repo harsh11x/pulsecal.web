@@ -65,8 +65,14 @@ export default function Home() {
 
               <div className="flex flex-col gap-4 sm:flex-row animate-in fade-in slide-in-from-bottom-10 duration-700 delay-200">
                 <GetStartedAction className="text-base shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105" />
-                <Button size="lg" variant="outline" className="text-base bg-transparent border-2 hover:border-primary hover:text-primary transition-all duration-200">
-                  Watch demo
+                <Button asChild size="lg" variant="outline" className="text-base bg-transparent border-2 hover:border-primary hover:text-primary transition-all duration-200">
+                  <a
+                    href="https://www.instagram.com/reel/DbdElZhhtA7/?igsh=NzB5MXFyaWtvdGJo"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Watch demo
+                  </a>
                 </Button>
               </div>
 
