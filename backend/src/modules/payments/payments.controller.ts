@@ -511,12 +511,21 @@ export const getSubscriptionStatusController = async (
     const plan = storedPlan === 'STARTER' ? 'BASIC' : storedPlan;
     const status = clinic?.subscriptionStatus || doctorProfile?.subscriptionStatus || 'PENDING';
     const expiresAt = doctorProfile?.subscriptionExpiresAt;
+    // Auto-pay is only real when a genuine Razorpay subscription (sub_...) exists
+    const razorpaySubscriptionId =
+      doctorProfile?.razorpaySubscriptionId?.startsWith('sub_')
+        ? doctorProfile.razorpaySubscriptionId
+        : null;
+    const autoRenew = Boolean(razorpaySubscriptionId && status === 'ACTIVE');
+    const nextBillingDate = autoRenew && expiresAt ? expiresAt.toISOString() : null;
 
     sendSuccess(res, {
       plan,
       status,
       expiresAt: expiresAt ? expiresAt.toISOString() : null,
-      autoRenew: Boolean(doctorProfile?.razorpaySubscriptionId && status === 'ACTIVE'),
+      autoRenew,
+      razorpaySubscriptionId,
+      nextBillingDate,
       lastPaymentAmount: lastSubscriptionPayment ? Number(lastSubscriptionPayment.amount) : null,
       lastPaymentDate: lastSubscriptionPayment?.createdAt ? lastSubscriptionPayment.createdAt.toISOString() : null,
     }, 'Subscription status retrieved');
@@ -726,31 +735,52 @@ export const cancelSubscriptionStatusController = async (
 
     const profile = await prisma.doctorProfile.findUnique({
       where: { userId },
-      select: { razorpaySubscriptionId: true },
+      select: { razorpaySubscriptionId: true, subscriptionExpiresAt: true },
     });
 
-    if (profile?.razorpaySubscriptionId) {
+    const subscriptionId =
+      profile?.razorpaySubscriptionId?.startsWith('sub_')
+        ? profile.razorpaySubscriptionId
+        : undefined;
+
+    // Cancel the real Razorpay subscription (if one exists) at the end of the
+    // current billing cycle so the doctor keeps access until the paid period ends.
+    if (subscriptionId) {
       try {
-        await razorpay.subscriptions.cancel(profile.razorpaySubscriptionId, false);
-      } catch (err) {
-        console.error('Failed to cancel Razorpay subscription', err);
-        throw new AppError('Failed to cancel auto-payment at Razorpay', 502);
+        await razorpay.subscriptions.cancel(subscriptionId, true);
+      } catch (err: any) {
+        // If it's already cancelled/halted on Razorpay's side, keep going — the
+        // important part is our local state.
+        const msg = err?.error?.description || err?.message || '';
+        if (msg && !/already|cancel/i.test(msg)) {
+          console.error('Failed to cancel Razorpay subscription', err);
+          throw new AppError('Failed to cancel auto-payment at Razorpay', 502);
+        }
       }
     }
 
+    // Mark as CANCELLED but keep the current plan/expiry so features stay enabled
+    // until the end of the paid period (webhook flips it to EXPIRED later).
     await prisma.doctorProfile.updateMany({
       where: { userId },
-      data: { subscriptionStatus: 'PENDING', subscriptionPlan: 'BASIC' },
+      data: { subscriptionStatus: 'CANCELLED' },
     });
 
     if (req.user?.clinicId) {
       await prisma.clinic.update({
         where: { id: req.user.clinicId },
-        data: { subscriptionStatus: 'PENDING', subscriptionPlan: 'BASIC' },
+        data: { subscriptionStatus: 'CANCELLED' },
       });
     }
 
-    sendSuccess(res, { status: 'CANCELLED' }, 'Monthly auto-payment cancellation scheduled');
+    sendSuccess(
+      res,
+      {
+        status: 'CANCELLED',
+        cancelsAt: profile?.subscriptionExpiresAt?.toISOString() ?? null,
+      },
+      'Auto-payment cancelled. Your plan stays active until the end of the current billing period.'
+    );
   } catch (err: any) {
     next(new AppError(err.message || 'Failed to cancel subscription', 500));
   }
@@ -950,6 +980,10 @@ const syncSubscriptionState = async (data: {
       .join(', ')
     : undefined;
 
+  // Only store a real Razorpay subscription id (sub_...) — order ids (order_...) are NOT
+  // cancellable subscriptions and must not be mistaken for auto-pay.
+  const isRealSubscription = data.subscriptionId?.startsWith('sub_') ? data.subscriptionId : undefined;
+
   await prisma.doctorProfile.upsert({
     where: { userId: data.userId },
     create: {
@@ -959,7 +993,7 @@ const syncSubscriptionState = async (data: {
       subscriptionPlan: data.plan,
       subscriptionStatus: data.status || 'ACTIVE',
       subscriptionExpiresAt: data.expiresAt || oneMonthFrom(new Date()),
-      razorpaySubscriptionId: data.subscriptionId,
+      ...(isRealSubscription ? { razorpaySubscriptionId: isRealSubscription } : {}),
       ...(data.clinicDetails ? {
         clinicName: data.clinicDetails.name,
         clinicAddress,
@@ -971,7 +1005,7 @@ const syncSubscriptionState = async (data: {
       subscriptionPlan: data.plan,
       subscriptionStatus: data.status || 'ACTIVE',
       subscriptionExpiresAt: data.expiresAt || oneMonthFrom(new Date()),
-      razorpaySubscriptionId: data.subscriptionId,
+      ...(isRealSubscription ? { razorpaySubscriptionId: isRealSubscription } : {}),
       ...(data.clinicDetails ? {
         clinicName: data.clinicDetails.name,
         clinicAddress,
@@ -1042,6 +1076,9 @@ export const createRazorpaySubscriptionController = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    // Normalize legacy STARTER -> BASIC (STARTER is the onboarding default and maps to the paid Basic tier)
+    if (req.body?.plan === 'STARTER') req.body.plan = 'BASIC';
+
     const { error, value } = createRazorpaySubscriptionSchema.validate(req.body);
     if (error) {
       throw new AppError(error.details[0].message, 400);
@@ -1050,6 +1087,37 @@ export const createRazorpaySubscriptionController = async (
       throw new AppError('User not authenticated', 401);
     }
     await ensureCanManageSubscription(req);
+
+    // Avoid double-charging: if the doctor already has a real Razorpay subscription
+    // that is still active/authenticated, cancel it before creating a new one.
+    try {
+      const existingProfile = await prisma.doctorProfile.findUnique({
+        where: { userId: req.user.id },
+        select: { razorpaySubscriptionId: true },
+      });
+      const existingSubId = existingProfile?.razorpaySubscriptionId?.startsWith('sub_')
+        ? existingProfile.razorpaySubscriptionId
+        : undefined;
+      if (existingSubId) {
+        try {
+          const existingSub = await (razorpay.subscriptions.fetch(existingSubId) as Promise<any>);
+          const activeStates = ['active', 'authenticated', 'created', 'paused', 'past_due'];
+          if (existingSub?.id && activeStates.includes(existingSub?.status)) {
+            // Cancel immediately so the old plan stops auto-debiting; the new
+            // subscription below is what the doctor is actively choosing now.
+            await razorpay.subscriptions.cancel(existingSubId, false);
+            logger.info(
+              { userId: req.user.id, existingSubId, status: existingSub.status },
+              'Cancelled existing Razorpay subscription before creating a new one'
+            );
+          }
+        } catch (fetchErr: any) {
+          logger.warn({ err: fetchErr, existingSubId }, 'Could not verify existing Razorpay subscription; proceeding');
+        }
+      }
+    } catch (profileErr) {
+      logger.warn({ err: profileErr, userId: req.user.id }, 'Could not check existing subscription before create');
+    }
 
     // Prefer Razorpay Subscriptions (true monthly auto-debit) when the account supports it.
     try {

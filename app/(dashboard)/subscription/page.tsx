@@ -4,7 +4,7 @@ import { ProtectedRoute } from "@/routes/ProtectedRoute"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Check, Loader2, RefreshCw, TrendingUp, IndianRupee, Calendar, ShieldX } from "lucide-react"
+import { Check, Loader2, RefreshCw, TrendingUp, IndianRupee, Calendar, ShieldX, Zap, CircleSlash } from "lucide-react"
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { apiService } from "@/services/api"
@@ -20,6 +20,8 @@ export default function SubscriptionPage() {
         plan: string
         status: string
         expiresAt: string | null
+        autoRenew: boolean
+        nextBillingDate: string | null
         lastPaymentAmount: number | null
         lastPaymentDate: string | null
     } | null>(null)
@@ -42,6 +44,8 @@ export default function SubscriptionPage() {
                 plan: data?.plan === "STARTER" ? "BASIC" : (data?.plan || "BASIC"),
                 status: data?.status || "PENDING",
                 expiresAt: data?.expiresAt || null,
+                autoRenew: data?.autoRenew === true,
+                nextBillingDate: data?.nextBillingDate || null,
                 lastPaymentAmount: data?.lastPaymentAmount ?? null,
                 lastPaymentDate: data?.lastPaymentDate || null,
             })
@@ -51,6 +55,8 @@ export default function SubscriptionPage() {
                 plan: "BASIC",
                 status: "PENDING",
                 expiresAt: null,
+                autoRenew: false,
+                nextBillingDate: null,
                 lastPaymentAmount: null,
                 lastPaymentDate: null,
             })
@@ -59,16 +65,19 @@ export default function SubscriptionPage() {
         }
     }
 
-    const handleSubscribe = async (planId: string, action: "renew" | "upgrade" | "downgrade" = "upgrade") => {
+    const handleSubscribe = async (planId: string) => {
         setProcessing(planId)
         try {
             const payablePlanId = planId === "STARTER" ? "BASIC" : planId
-            const data: any = await apiService.post("/payments/subscription/create", {
-                planId: payablePlanId,
-                duration: 1,
+
+            // Use the auto-debit subscription flow first (Razorpay charges the same
+            // calendar day each month). Falls back to a one-time order server-side.
+            const data: any = await apiService.post("/payments/create-subscription", {
+                plan: payablePlanId,
             })
-            const { key, orderId, amount } = data ?? {}
-            if (!key || !orderId) {
+            const isSubscriptionCheckout = data?.mode === "subscription" || Boolean(data?.subscriptionId)
+
+            if (!data?.key || (!data?.subscriptionId && !data?.orderId)) {
                 toast.error("Invalid response from server. Please try again.")
                 setProcessing(null)
                 return
@@ -81,20 +90,30 @@ export default function SubscriptionPage() {
             }
 
             const options: Record<string, unknown> = {
-                key,
+                key: data.key,
                 currency: "INR",
                 name: "PulseCal",
-                description: `${payablePlanId} plan renewal (1 month)`,
-                order_id: orderId,
-                amount,
+                description: isSubscriptionCheckout
+                    ? `${payablePlanId} monthly auto-payment subscription`
+                    : `${payablePlanId} plan (1 month)`,
                 handler: async (rzpResponse: any) => {
                     try {
-                        await apiService.post("/payments/subscription/verify", {
-                            razorpay_order_id: rzpResponse.razorpay_order_id,
-                            razorpay_payment_id: rzpResponse.razorpay_payment_id,
-                            razorpay_signature: rzpResponse.razorpay_signature,
-                        })
-                        toast.success("Subscription renewed successfully!")
+                        if (isSubscriptionCheckout) {
+                            await apiService.post("/payments/verify-subscription", {
+                                razorpay_payment_id: rzpResponse.razorpay_payment_id,
+                                razorpay_subscription_id: rzpResponse.razorpay_subscription_id,
+                                razorpay_signature: rzpResponse.razorpay_signature,
+                                plan: payablePlanId,
+                            })
+                            toast.success("Subscription activated! Auto-pay will charge on the same day each month.")
+                        } else {
+                            await apiService.post("/payments/subscription/verify", {
+                                razorpay_order_id: rzpResponse.razorpay_order_id,
+                                razorpay_payment_id: rzpResponse.razorpay_payment_id,
+                                razorpay_signature: rzpResponse.razorpay_signature,
+                            })
+                            toast.success("Subscription renewed successfully!")
+                        }
                         await fetchSubscriptionStatus()
                     } catch (verifyError: any) {
                         toast.error(verifyError.response?.data?.message || "Payment verification failed")
@@ -104,6 +123,13 @@ export default function SubscriptionPage() {
                 },
                 modal: { ondismiss: () => setProcessing(null) },
                 theme: { color: "#0F172A" }
+            }
+
+            if (isSubscriptionCheckout) {
+                options.subscription_id = data.subscriptionId
+            } else {
+                options.order_id = data.orderId
+                options.amount = data.amount
             }
 
             const rzp = new (window as any).Razorpay(options)
@@ -120,12 +146,12 @@ export default function SubscriptionPage() {
     }
 
     const handleCancel = async () => {
-        if (!confirm("Are you sure you want to cancel your subscription? You will revert to the Basic plan.")) return
+        if (!confirm("Are you sure you want to cancel auto-pay? Your plan stays active until the end of the current billing period, then expires.")) return
 
         setProcessing("CANCEL")
         try {
             await apiService.post("/payments/subscription/cancel", {})
-            toast.success("Subscription cancelled successfully")
+            toast.success("Auto-pay cancelled. No further charges will be made.")
             await fetchSubscriptionStatus()
         } catch (error: any) {
             toast.error(error.response?.data?.message || "Failed to cancel subscription")
@@ -139,7 +165,7 @@ export default function SubscriptionPage() {
         const planIdx = planOrder.indexOf(plan.id as any)
         const isHigher = planIdx > currentPlanIndex
 
-        if (isCurrent) return "Extend Plan" // Changed from "Current Plan" to allow extension
+        if (isCurrent) return "Extend Plan"
         if (isHigher) return "Upgrade"
         if (planIdx < currentPlanIndex) return "Change Plan"
         return "Renew"
@@ -214,6 +240,31 @@ export default function SubscriptionPage() {
                         </div>
                     </CardHeader>
                     <CardContent>
+                        {/* Auto-pay banner */}
+                        {currentSubscription?.autoRenew ? (
+                            <div className="flex items-start gap-3 rounded-lg border border-green-500/30 bg-green-500/10 p-4 mb-4">
+                                <Zap className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                                <div>
+                                    <p className="text-sm font-semibold text-green-700">Auto-pay is ON</p>
+                                    <p className="text-sm text-muted-foreground mt-0.5">
+                                        {currentSubscription.nextBillingDate
+                                            ? <>Your next charge of <span className="font-medium">₹{PLAN_AMOUNTS[normalizedCurrentPlan]?.toLocaleString("en-IN")}</span> will be on <span className="font-medium">{format(new Date(currentSubscription.nextBillingDate), "MMM d, yyyy")}</span>.</>
+                                            : "You will be charged on the same calendar day each month automatically."}
+                                    </p>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 mb-4">
+                                <CircleSlash className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                                <div>
+                                    <p className="text-sm font-semibold text-amber-700">Auto-pay is OFF</p>
+                                    <p className="text-sm text-muted-foreground mt-0.5">
+                                        Your plan will not renew automatically. Renew manually to avoid interruption.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
                         <p className="text-sm font-medium mb-2">Plan Features:</p>
                         <ul className="space-y-1.5 text-sm text-muted-foreground">
                             {(planFeaturesMap[normalizedCurrentPlan] || planFeaturesMap.BASIC).map((f, i) => (
@@ -225,17 +276,16 @@ export default function SubscriptionPage() {
                         </ul>
                     </CardContent>
                     <CardFooter className="flex flex-wrap gap-2">
-                        {currentSubscription?.status === 'ACTIVE' && (
+                        {(currentSubscription?.status === 'ACTIVE' || currentSubscription?.autoRenew) && (
                             <Button variant="destructive" onClick={handleCancel} disabled={!!processing}>
                                 {processing === "CANCEL" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Cancel Subscription
+                                Cancel Auto-pay
                             </Button>
                         )}
-                        {/* Allow extension at any time if plan is active */}
-                        {currentSubscription?.plan && (
+                        {currentSubscription?.plan && !currentSubscription?.autoRenew && (
                             <Button
                                 variant="outline"
-                                onClick={() => handleSubscribe(currentSubscription.plan, "renew")}
+                                onClick={() => handleSubscribe(currentSubscription.plan)}
                                 disabled={!!processing}
                             >
                                 {processing === currentSubscription.plan ? (
@@ -253,7 +303,7 @@ export default function SubscriptionPage() {
                 <div>
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                         <h2 className="text-xl font-semibold">Available Plans</h2>
-                        <Badge variant="outline">Secure Razorpay checkout</Badge>
+                        <Badge variant="outline">Secure Razorpay checkout · Auto-debits monthly</Badge>
                     </div>
 
                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -295,11 +345,14 @@ export default function SubscriptionPage() {
                                         <Button
                                             className="w-full"
                                             variant={isUpgrade ? "default" : "outline"}
-                                            onClick={() => handleSubscribe(plan.id, label === "Upgrade" ? "upgrade" : (label === "Renew" || label === "Extend Plan") ? "renew" : "downgrade")}
-                                            disabled={!!processing} // Removed check for label === "Current Plan"
+                                            onClick={() => handleSubscribe(plan.id)}
+                                            disabled={!!processing || (isCurrent && currentSubscription?.autoRenew)}
+                                            title={isCurrent && currentSubscription?.autoRenew ? "Auto-pay already active for this plan" : undefined}
                                         >
                                             {processing === plan.id ? (
                                                 <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : isCurrent && currentSubscription?.autoRenew ? (
+                                                "Active"
                                             ) : (
                                                 label
                                             )}
