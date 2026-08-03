@@ -518,19 +518,21 @@ export default function DoctorOnboarding() {
           yearsOfExperience: parseInt(formData.yearsOfExperience) || 0,
           consultationFee: parseFloat(formData.consultationFee) || 0,
           bio: formData.bio,
-          clinicPhone: formData.clinicPhone,
-          clinicEmail: formData.clinicEmail,
           services: formData.services,
           workingHours: formData.workingHours,
         }
 
+        // Only send clinic contact details when the doctor actually entered
+        // them — payment verification already persisted them from clinicDetails,
+        // and sending empty strings here would wipe them out.
+        if (formData.clinicPhone) doctorProfileData.clinicPhone = formData.clinicPhone;
+        if (formData.clinicEmail) doctorProfileData.clinicEmail = formData.clinicEmail;
+
         if (clinicMode === 'create') {
-          doctorProfileData.clinicName = formData.clinicName;
-          doctorProfileData.clinicAddress = `${formData.clinicAddress}, ${formData.clinicCity}, ${formData.clinicState} ${formData.clinicZipCode}`;
-          doctorProfileData.clinicCity = formData.clinicCity;
-          doctorProfileData.clinicState = formData.clinicState;
-          doctorProfileData.clinicZipCode = formData.clinicZipCode;
-          doctorProfileData.clinicCountry = formData.clinicCountry;
+          // Payment verification (step 6) already created the clinic AND the
+          // doctor profile, so we only sync the pin + professional details here.
+          // The clinic address fields live on the clinic record and aren't
+          // accepted by the update endpoint — sending them would 400.
           doctorProfileData.clinicLatitude = formData.clinicLatitude ? parseFloat(formData.clinicLatitude) : null;
           doctorProfileData.clinicLongitude = formData.clinicLongitude ? parseFloat(formData.clinicLongitude) : null;
         } else if (clinicMode === 'join' && selectedClinicId) {
@@ -538,8 +540,12 @@ export default function DoctorOnboarding() {
           // If joining, we don't send clinic name/address as they are derived from ID
         }
 
-        // Use the new endpoint for doctor profiles
-        const doctorPromise = apiService.post("/doctor-profiles", doctorProfileData)
+        // Create mode: POST /doctor-profiles would 400 with "Doctor profile
+        // already exists" because payment verification created it — update the
+        // existing profile instead. Join mode (no payment) still creates a new one.
+        const doctorPromise = clinicMode === 'join'
+          ? apiService.post("/doctor-profiles", doctorProfileData)
+          : apiService.put("/doctor-profiles/me", doctorProfileData)
         const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("Request timeout")), 10000)
         )
