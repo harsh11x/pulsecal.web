@@ -509,6 +509,7 @@ export const getDoctorPatients = async (doctorId: string) => {
   // Group recent records per patient (up to 3 each)
   const recordsByPatient = new Map<string, { title: string; diagnosis: string; recordDate: Date }[]>();
   for (const rec of recentRecords) {
+    if (!rec.patientId) continue;
     const list = recordsByPatient.get(rec.patientId) || [];
     if (list.length < 3) {
       list.push({ title: rec.title, diagnosis: rec.diagnosis || '', recordDate: rec.recordDate });

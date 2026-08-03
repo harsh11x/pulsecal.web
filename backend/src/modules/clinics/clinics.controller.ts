@@ -109,7 +109,6 @@ export const updateClinicController = async (
       state: Joi.string().optional(),
       zipCode: Joi.string().optional(),
       country: Joi.string().optional(),
-      country: Joi.string().optional(),
       phone: Joi.string().optional(),
       email: Joi.string().email().optional(),
       website: Joi.string().uri().optional().allow(''),
