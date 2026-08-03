@@ -103,13 +103,108 @@ export const getClinics = async (req: {
       email: string | null;
       latitude: unknown;
       longitude: unknown;
+      ownerId: string | null;
     }>>`
-      SELECT id, name, address, city, state, "zipCode", country, phone, email, latitude, longitude
+      SELECT id, name, address, city, state, "zipCode", country, phone, email, latitude, longitude, "ownerId"
       FROM clinics
       WHERE "isActive" = true AND "deletedAt" IS NULL
       ORDER BY name ASC
       LIMIT ${limitNum} OFFSET ${skip}
     `;
+
+    const clinicIds = raw.map((c) => c.id);
+    const ownerIds = raw.map((c) => c.ownerId).filter(Boolean) as string[];
+
+    const staffUsers = clinicIds.length
+      ? await prisma.user.findMany({
+          where: {
+            clinicId: { in: clinicIds },
+            role: 'DOCTOR',
+            isActive: true,
+            deletedAt: null,
+          },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            clinicId: true,
+            doctorProfile: {
+              select: {
+                specialization: true,
+                consultationFee: true,
+                services: true,
+                workingHours: true,
+                clinicLatitude: true,
+                clinicLongitude: true,
+              },
+            },
+          },
+        })
+      : [];
+
+    // Include owner doctors not yet linked via clinicId
+    const missingOwnerIds = ownerIds.filter(
+      (oid) => !staffUsers.some((s) => s.id === oid)
+    );
+    const ownerDoctors = missingOwnerIds.length
+      ? await prisma.user.findMany({
+          where: {
+            id: { in: missingOwnerIds },
+            role: 'DOCTOR',
+            isActive: true,
+            deletedAt: null,
+          },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            clinicId: true,
+            doctorProfile: {
+              select: {
+                specialization: true,
+                consultationFee: true,
+                services: true,
+                workingHours: true,
+                clinicLatitude: true,
+                clinicLongitude: true,
+              },
+            },
+          },
+        })
+      : [];
+
+    const staffByClinic = new Map<string, any[]>();
+    for (const s of staffUsers) {
+      if (!s.clinicId) continue;
+      const list = staffByClinic.get(s.clinicId) || [];
+      list.push(s);
+      staffByClinic.set(s.clinicId, list);
+    }
+    for (const c of raw) {
+      if (!c.ownerId) continue;
+      const owner = ownerDoctors.find((o) => o.id === c.ownerId);
+      if (!owner) continue;
+      const list = staffByClinic.get(c.id) || [];
+      if (!list.some((s) => s.id === owner.id)) {
+        list.unshift(owner);
+        staffByClinic.set(c.id, list);
+      }
+    }
+
+    const mapStaff = (list: any[]) =>
+      (list || []).map((s: any) => ({
+        ...s,
+        doctorProfile: s.doctorProfile
+          ? {
+              ...s.doctorProfile,
+              consultationFee:
+                s.doctorProfile.consultationFee != null
+                  ? Number(s.doctorProfile.consultationFee)
+                  : 0,
+            }
+          : null,
+      }));
+
     const clinics = raw.map((c) => ({
       id: c.id,
       name: c.name,
@@ -122,7 +217,7 @@ export const getClinics = async (req: {
       email: c.email ?? null,
       latitude: c.latitude != null ? Number(c.latitude) : null,
       longitude: c.longitude != null ? Number(c.longitude) : null,
-      staff: [] as any[],
+      staff: mapStaff(staffByClinic.get(c.id) || []),
     }));
     return {
       clinics,
@@ -255,7 +350,69 @@ export const getClinicById = async (clinicId: string) => {
     throw new AppError('Clinic not found', 404);
   }
 
-  return clinic;
+  // Heal: include owner doctor even if user.clinicId was never linked
+  let staff = [...(clinic.staff || [])];
+  if (clinic.ownerId && !staff.some((s) => s.id === clinic.ownerId)) {
+    const owner = await prisma.user.findFirst({
+      where: {
+        id: clinic.ownerId,
+        role: 'DOCTOR',
+        isActive: true,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        profileImage: true,
+        clinicId: true,
+        doctorProfile: {
+          select: {
+            specialization: true,
+            consultationFee: true,
+            services: true,
+            workingHours: true,
+            bio: true,
+          },
+        },
+      },
+    });
+    if (owner) {
+      staff = [owner, ...staff];
+      // Best-effort link so future staff queries work
+      if (!owner.clinicId) {
+        try {
+          await prisma.$executeRaw`
+            UPDATE users
+            SET "clinicId" = ${clinic.id}, "updatedAt" = NOW()
+            WHERE id = ${owner.id}
+          `;
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+  }
+
+  return {
+    ...clinic,
+    latitude: clinic.latitude != null ? Number(clinic.latitude) : null,
+    longitude: clinic.longitude != null ? Number(clinic.longitude) : null,
+    staff: staff.map((s: any) => ({
+      ...s,
+      doctorProfile: s.doctorProfile
+        ? {
+            ...s.doctorProfile,
+            consultationFee:
+              s.doctorProfile.consultationFee != null
+                ? Number(s.doctorProfile.consultationFee)
+                : 0,
+          }
+        : null,
+    })),
+  };
 };
 
 export const updateClinic = async (
@@ -266,12 +423,13 @@ export const updateClinic = async (
     city?: string;
     state?: string;
     zipCode?: string;
+    country?: string;
     phone?: string;
     email?: string;
     website?: string;
     description?: string;
-    latitude?: number;
-    longitude?: number;
+    latitude?: number | null;
+    longitude?: number | null;
     isActive?: boolean;
   }
 ) => {

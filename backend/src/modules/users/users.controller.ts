@@ -18,9 +18,9 @@ const createUserSchema = Joi.object({
   lastName: Joi.string().required(),
   email: Joi.string().email().required(),
   phone: Joi.string().optional(),
-  password: Joi.string().min(6).optional(),
+  password: Joi.string().min(6).required(),
   role: Joi.string().valid('PATIENT', 'DOCTOR', 'RECEPTIONIST', 'ADMIN').required(),
-  clinicId: Joi.string().optional(),
+  clinicId: Joi.string().optional().allow(null, ''),
   isActive: Joi.boolean().optional(),
   isEmailVerified: Joi.boolean().optional(),
 });
@@ -50,8 +50,11 @@ export const createUserController = async (
     }
 
     // Force clinicId if creator is a doctor/staff
-    if (req.user?.clinicId && !value.clinicId) {
+    if (req.user?.clinicId && (!value.clinicId || value.clinicId === '')) {
       value.clinicId = req.user.clinicId;
+    }
+    if (!value.clinicId) {
+      value.clinicId = undefined;
     }
 
     const user = await createUser(value);
@@ -134,12 +137,15 @@ export const getUserByIdController = async (
 };
 
 export const updateUserStatusController = async (
-  req: Request,
+  req: AuthRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
     const { isActive } = req.body;
+    if (typeof isActive !== 'boolean') {
+      throw new AppError('isActive must be a boolean', 400);
+    }
     const user = await updateUserStatus(req.params.id, isActive);
     sendSuccess(res, user, 'User status updated successfully');
   } catch (err) {

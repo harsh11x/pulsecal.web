@@ -299,14 +299,22 @@ export default function DoctorOnboarding() {
       console.log("✅ Token refreshed");
       await new Promise(resolve => setTimeout(resolve, 800));
 
-      // Create Razorpay subscription for monthly auto-debit.
-      console.log("🛒 Creating monthly auto-payment subscription...");
-      const orderResponse: any = await apiService.post("/payments/create-subscription", {
-        plan: formData.subscriptionPlan,
-        billingCycle: formData.billingCycle
-      });
+      // Monthly → Razorpay Subscriptions (true autopay). Yearly handled server-side
+      // as a one-time order when billingCycle=YEARLY.
+      const payablePlanId =
+        formData.subscriptionPlan === "STARTER" ? "BASIC" : formData.subscriptionPlan
+      console.log(
+        formData.billingCycle === "YEARLY"
+          ? "🛒 Creating yearly subscription order..."
+          : "🛒 Creating monthly auto-payment subscription..."
+      );
 
-      const orderData = orderResponse.data || orderResponse;
+      const orderResponse: any = await apiService.post("/payments/create-subscription", {
+        plan: payablePlanId,
+        billingCycle: formData.billingCycle,
+      })
+      const orderData = orderResponse?.data || orderResponse
+
       const isSubscriptionCheckout =
         orderData?.mode === "subscription" || Boolean(orderData?.subscriptionId);
 
@@ -334,11 +342,11 @@ export default function DoctorOnboarding() {
         email: clinicEmail,
         latitude: formData.clinicLatitude ? parseFloat(formData.clinicLatitude) : null,
         longitude: formData.clinicLongitude ? parseFloat(formData.clinicLongitude) : null,
-        subscriptionPlan: formData.subscriptionPlan
+        subscriptionPlan: payablePlanId
       };
 
       // 2. Open Razorpay
-      const payablePlanName = formData.subscriptionPlan === "STARTER" ? "BASIC" : formData.subscriptionPlan
+      const payablePlanName = payablePlanId
       const options: Record<string, unknown> = {
         key: orderData.key,
         currency: "INR",
@@ -360,7 +368,7 @@ export default function DoctorOnboarding() {
                   razorpay_subscription_id: response.razorpay_subscription_id,
                   razorpay_signature: response.razorpay_signature,
                   clinicDetails: clinicData,
-                  plan: formData.subscriptionPlan
+                  plan: payablePlanId
                 })
               : await apiService.post("/payments/subscription/verify", {
                   razorpay_order_id: response.razorpay_order_id,

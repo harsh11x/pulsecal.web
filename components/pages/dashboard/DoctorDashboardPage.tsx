@@ -72,7 +72,14 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
           const profile: any = await apiService.get("/auth/profile")
           if (profile && profile.clinicId) {
             console.log("Refreshing user profile to get clinicId:", profile.clinicId)
-            dispatch(setUser(profile))
+            dispatch(setUser({
+              ...user,
+              ...profile,
+              role: (profile.role || user.role || "doctor").toLowerCase() as any,
+              clinicId: profile.clinicId,
+              canManageSubscription: profile.canManageSubscription ?? user.canManageSubscription ?? true,
+              doctorProfile: profile.doctorProfile || user.doctorProfile,
+            }))
           }
         } catch (error) {
           console.error("Failed to refresh user profile:", error)
@@ -502,7 +509,7 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
 
         {canManage && (
           <TabsContent value="clinic">
-            <ClinicManager clinicId={user.clinicId} />
+            <ClinicManager clinicId={user?.clinicId} />
           </TabsContent>
         )}
 

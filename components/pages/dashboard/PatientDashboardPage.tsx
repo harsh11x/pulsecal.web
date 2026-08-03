@@ -6,8 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Calendar, MapPin, Stethoscope, FileText, Clock, User, Plus, Heart, Activity, Building2, IndianRupee, Search } from "lucide-react"
 import Link from "next/link"
-import { DoctorDiscoveryMap } from "@/components/doctors/DoctorDiscoveryMap"
-import { ErrorBoundary } from "@/components/common/ErrorBoundary"
+import { PatientBookFlow } from "@/components/appointments/PatientBookFlow"
 import { useEffect, useState } from "react"
 import { apiService } from "@/services/api"
 import { toast } from "sonner"
@@ -601,20 +600,8 @@ export default function PatientDashboardPage({ user }: PatientDashboardPageProps
         </TabsContent>
 
         {/* Find Doctors Tab */}
-        <TabsContent value="doctors" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Find Doctors Near You</CardTitle>
-              <CardDescription>Discover and book appointments with doctors in your area</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[600px] rounded-lg overflow-hidden border">
-                <ErrorBoundary>
-                  <DoctorDiscoveryMap />
-                </ErrorBoundary>
-              </div>
-            </CardContent>
-          </Card>
+        <TabsContent value="doctors" className="space-y-4 mt-0">
+          <PatientBookFlow />
         </TabsContent>
       </Tabs>
     </div>

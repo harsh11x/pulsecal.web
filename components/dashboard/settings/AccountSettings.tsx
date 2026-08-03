@@ -1,12 +1,12 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { AlertTriangle, Trash2, Loader2 } from "lucide-react"
-import { useAppSelector } from "@/app/hooks"
+import { Trash2, Loader2 } from "lucide-react"
+import { useAppDispatch, useAppSelector } from "@/app/hooks"
 import { toast } from "sonner"
 import {
     AlertDialog,
@@ -21,23 +21,40 @@ import {
 } from "@/components/ui/alert-dialog"
 import { userService } from "@/services/user.service"
 import { useRouter } from "next/navigation"
+import { logout } from "@/app/features/authSlice"
+import { logOut } from "@/lib/firebaseAuth"
 
 export default function AccountSettings() {
     const user = useAppSelector((state) => state.auth.user)
+    const dispatch = useAppDispatch()
     const [loading, setLoading] = useState(false)
     const router = useRouter()
 
     const handleDeleteAccount = async () => {
+        if (!user?.id) {
+            toast.error("You must be signed in to delete your account")
+            return
+        }
+
         setLoading(true)
         try {
-            if (user?.id) {
-                await userService.deleteUser(user.id)
-                toast.success("Account deleted successfully")
-                router.push("/auth/login")
+            await userService.deleteUser(user.id)
+            toast.success("Account deleted successfully")
+            try {
+                await logOut()
+            } catch {
+                /* ignore firebase logout errors after account delete */
             }
+            dispatch(logout())
+            router.push("/auth/login")
         } catch (error: any) {
             console.error("Delete account error:", error)
-            toast.error("Failed to delete account")
+            const message =
+                error.response?.data?.message ||
+                error.response?.data?.error ||
+                error.message ||
+                "Failed to delete account"
+            toast.error(message)
             setLoading(false)
         }
     }

@@ -1,11 +1,15 @@
 "use client"
 
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
-import { Calendar, DollarSign, TrendingUp, TrendingDown, Users, Clock, XCircle, Download } from "lucide-react"
+import { Calendar, DollarSign, TrendingUp, TrendingDown, Users, Clock, XCircle, Download, Loader2 } from "lucide-react"
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
 import { formatCurrency } from "@/utils/helpers"
+import { exportAnalyticsPDF } from "@/utils/pdfExport"
+import { useAppSelector } from "@/app/hooks"
+import { toast } from "sonner"
 
 interface AnalyticsData {
   today: {
@@ -38,12 +42,36 @@ interface AnalyticsData {
 }
 
 export function DoctorAnalytics({ data }: { data: AnalyticsData }) {
+  const user = useAppSelector((state) => state.auth.user)
+  const [exporting, setExporting] = useState(false)
   const revenueChange = data.yesterday.revenue > 0
     ? ((data.today.revenue - data.yesterday.revenue) / data.yesterday.revenue) * 100
     : (data.today.revenue > 0 ? 100 : 0)
   const appointmentsChange = data.yesterday.appointments > 0
     ? ((data.today.appointments - data.yesterday.appointments) / data.yesterday.appointments) * 100
     : (data.today.appointments > 0 ? 100 : 0)
+
+  const handleExport = () => {
+    try {
+      setExporting(true)
+      const doctorName = `${user?.firstName || ""} ${user?.lastName || ""}`.trim()
+      const clinicName =
+        (user as any)?.doctorProfile?.clinicName ||
+        (user as any)?.clinic?.name ||
+        "PulseCal Clinic"
+      exportAnalyticsPDF({
+        ...data,
+        doctorName,
+        clinicName,
+      })
+      toast.success("Analytics report downloaded")
+    } catch (error) {
+      console.error("Analytics export failed:", error)
+      toast.error("Failed to export analytics report")
+    } finally {
+      setExporting(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -52,8 +80,12 @@ export function DoctorAnalytics({ data }: { data: AnalyticsData }) {
           <h2 className="text-2xl font-bold">Analytics Dashboard</h2>
           <p className="text-muted-foreground">Track your practice performance and growth</p>
         </div>
-        <Button variant="outline">
-          <Download className="mr-2 h-4 w-4" />
+        <Button variant="outline" onClick={handleExport} disabled={exporting}>
+          {exporting ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Download className="mr-2 h-4 w-4" />
+          )}
           Export Report
         </Button>
       </div>

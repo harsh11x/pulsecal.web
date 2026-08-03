@@ -1,17 +1,17 @@
-
 "use client"
 
 import { useEffect, useState } from "react"
 import { useRouter, useParams } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Calendar, Clock, MapPin, User, Loader2, CreditCard, Phone } from "lucide-react"
+import { ArrowLeft, Calendar, Clock, User, Loader2, CreditCard, Phone, FileText } from "lucide-react"
 import { apiService } from "@/services/api"
 import { format } from "date-fns"
 import { useAppSelector } from "@/app/hooks"
 import { formatCurrency } from "@/utils/helpers"
 import { toast } from "sonner"
+import { AddMedicalRecordDialog, type MedicalRecordPrefill } from "@/components/medical-records/AddMedicalRecordDialog"
 
 export default function AppointmentDetail() {
   const router = useRouter()
@@ -21,6 +21,8 @@ export default function AppointmentDetail() {
   const [appointment, setAppointment] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [processingPayment, setProcessingPayment] = useState(false)
+  const [noteDialogOpen, setNoteDialogOpen] = useState(false)
+  const [notePrefill, setNotePrefill] = useState<MedicalRecordPrefill | null>(null)
 
   useEffect(() => {
     if (id) fetchAppointment()
@@ -29,23 +31,20 @@ export default function AppointmentDetail() {
   const fetchAppointment = async () => {
     if (!id) return
     try {
-      console.log("Fetching appointment with ID:", id)
       const response: any = await apiService.get(`/appointments/${id}`)
-      console.log("Appointment response:", response)
       const apt = response?.data ?? response?.appointment ?? response
 
       if (!apt) {
-        console.error("Appointment data missing in response:", response)
         throw new Error("Appointment data missing")
       }
 
-      setAppointment(apt && typeof apt === 'object' && apt.id ? apt : null)
+      setAppointment(apt && typeof apt === "object" && apt.id ? apt : null)
     } catch (error: any) {
       console.error("Failed to fetch appointment:", error)
       const errorMessage = error.response?.data?.message || error.message || "Failed to load appointment details"
       const statusCode = error.response?.status
 
-      toast.error(`Error ${statusCode ? `(${statusCode})` : ''}: ${errorMessage}`)
+      toast.error(`Error ${statusCode ? `(${statusCode})` : ""}: ${errorMessage}`)
       setAppointment(null)
     } finally {
       setLoading(false)
@@ -59,7 +58,7 @@ export default function AppointmentDetail() {
       const orderResponse: any = await apiService.post("/payments/create-order", {
         appointmentId: appointment.id,
         amount,
-        currency: "INR"
+        currency: "INR",
       })
 
       const options = {
@@ -74,7 +73,7 @@ export default function AppointmentDetail() {
             await apiService.post("/payments/verify", {
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature
+              razorpay_signature: response.razorpay_signature,
             })
             toast.success("Payment successful!")
             fetchAppointment()
@@ -82,7 +81,7 @@ export default function AppointmentDetail() {
             toast.error(verifyError.message || "Payment verification failed")
           }
         },
-        theme: { color: "#0F172A" }
+        theme: { color: "#0F172A" },
       }
 
       const rzp = new (window as any).Razorpay(options)
@@ -111,15 +110,29 @@ export default function AppointmentDetail() {
       <div className="container mx-auto py-8 flex flex-col items-center justify-center gap-4">
         <p className="text-center text-muted-foreground text-lg">Appointment not found</p>
         <p className="text-sm text-muted-foreground">ID: {id}</p>
-        <Button onClick={() => router.push('/appointments/list')} variant="outline">
+        <Button onClick={() => router.push("/appointments/list")} variant="outline">
           Back to Appointments
         </Button>
       </div>
     )
   }
 
-  const isPatient = (user?.role as string) === 'PATIENT';
-  const showPayButton = isPatient && appointment.paymentStatus === 'PENDING' && appointment.status !== 'CANCELLED';
+  const isPatient = (user?.role as string)?.toLowerCase() === "patient"
+  const isDoctor = (user?.role as string)?.toLowerCase() === "doctor"
+  const showPayButton = isPatient && appointment.paymentStatus === "PENDING" && appointment.status !== "CANCELLED"
+
+  const openClinicalNote = () => {
+    const patientName = `${appointment.patient?.firstName || ""} ${appointment.patient?.lastName || ""}`.trim()
+    setNotePrefill({
+      appointmentId: appointment.id,
+      patientId: appointment.patientId || appointment.patient?.id,
+      patientName: patientName || undefined,
+      patientPhone: appointment.patient?.phone,
+      visitDate: appointment.scheduledAt,
+      reason: appointment.reason || undefined,
+    })
+    setNoteDialogOpen(true)
+  }
 
   return (
     <div className="container mx-auto py-8 max-w-3xl">
@@ -130,27 +143,33 @@ export default function AppointmentDetail() {
 
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-start">
+          <div className="flex justify-between items-start gap-3">
             <div>
               <CardTitle className="text-2xl">Appointment Details</CardTitle>
               <CardDescription className="flex items-center gap-2 mt-1">
                 Status:
-                <Badge variant={appointment.status === 'CONFIRMED' ? 'default' : 'secondary'}>
+                <Badge variant={appointment.status === "CONFIRMED" ? "default" : "secondary"}>
                   {appointment.status}
                 </Badge>
               </CardDescription>
             </div>
-            {showPayButton && (
-              <Button onClick={handlePayment} disabled={processingPayment}>
-                {processingPayment && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Pay Now
-              </Button>
-            )}
+            <div className="flex flex-col sm:flex-row gap-2">
+              {isDoctor && (
+                <Button variant="outline" onClick={openClinicalNote}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  Add clinical note
+                </Button>
+              )}
+              {showPayButton && (
+                <Button onClick={handlePayment} disabled={processingPayment}>
+                  {processingPayment && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Pay Now
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-
-          {/* Doctor/Patient Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="border p-4 rounded-lg">
               <h3 className="font-semibold mb-2 flex items-center gap-2">
@@ -159,12 +178,16 @@ export default function AppointmentDetail() {
               </h3>
               {isPatient ? (
                 <>
-                  <p className="text-lg font-medium">Dr. {appointment.doctor?.firstName} {appointment.doctor?.lastName}</p>
+                  <p className="text-lg font-medium">
+                    Dr. {appointment.doctor?.firstName} {appointment.doctor?.lastName}
+                  </p>
                   <p className="text-muted-foreground">{appointment.doctor?.specialization}</p>
                 </>
               ) : (
                 <>
-                  <p className="text-lg font-medium">{appointment.patient?.firstName} {appointment.patient?.lastName}</p>
+                  <p className="text-lg font-medium">
+                    {appointment.patient?.firstName} {appointment.patient?.lastName}
+                  </p>
                   {(appointment.patient?.phone || (appointment as any).patientPhone) && (
                     <p className="text-muted-foreground flex items-center gap-1 mt-1">
                       <Phone className="h-3 w-3" />
@@ -180,7 +203,9 @@ export default function AppointmentDetail() {
                 <Calendar className="h-4 w-4" />
                 Schedule
               </h3>
-              <p className="text-lg font-medium">{format(new Date(appointment.scheduledAt), "EEEE, MMMM d, yyyy")}</p>
+              <p className="text-lg font-medium">
+                {format(new Date(appointment.scheduledAt), "EEEE, MMMM d, yyyy")}
+              </p>
               <p className="text-muted-foreground flex items-center gap-1">
                 <Clock className="h-3 w-3" />
                 {format(new Date(appointment.scheduledAt), "h:mm a")} ({appointment.duration} mins)
@@ -200,7 +225,6 @@ export default function AppointmentDetail() {
             )}
           </div>
 
-          {/* Payment Details */}
           <div className="border p-4 rounded-lg bg-muted/20">
             <h3 className="font-semibold mb-2 flex items-center gap-2">
               <CreditCard className="h-4 w-4" />
@@ -212,17 +236,18 @@ export default function AppointmentDetail() {
             </div>
             <div className="flex justify-between items-center mt-2">
               <span>Payment Status</span>
-              <Badge variant={appointment.paymentStatus === 'COMPLETED' ? 'outline' : 'destructive'}>
-                {appointment.paymentStatus || 'PENDING'}
+              <Badge variant={appointment.paymentStatus === "COMPLETED" ? "outline" : "destructive"}>
+                {appointment.paymentStatus || "PENDING"}
               </Badge>
             </div>
           </div>
 
-          {/* Notes/Reason */}
           <div className="space-y-4">
             <div>
               <h3 className="font-semibold mb-1">Reason for Visit</h3>
-              <p className="text-muted-foreground bg-muted p-3 rounded-md">{appointment.reason || "No reason provided."}</p>
+              <p className="text-muted-foreground bg-muted p-3 rounded-md">
+                {appointment.reason || "No reason provided."}
+              </p>
             </div>
             {appointment.notes && (
               <div>
@@ -231,9 +256,15 @@ export default function AppointmentDetail() {
               </div>
             )}
           </div>
-
         </CardContent>
       </Card>
+
+      <AddMedicalRecordDialog
+        open={noteDialogOpen}
+        onOpenChange={setNoteDialogOpen}
+        onSuccess={() => toast.success("Clinical note linked to this appointment")}
+        prefill={notePrefill}
+      />
     </div>
   )
 }

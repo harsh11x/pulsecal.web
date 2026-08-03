@@ -40,7 +40,7 @@ interface Doctor {
   nextAvailableSlot?: string
 }
 
-export function DoctorDiscoveryMap() {
+export function DoctorDiscoveryMap({ embedded = false }: { embedded?: boolean } = {}) {
   const [doctors, setDoctors] = useState<Doctor[]>([])
   const [filteredDoctors, setFilteredDoctors] = useState<Doctor[]>([])
   const [loading, setLoading] = useState(true)
@@ -225,17 +225,19 @@ export function DoctorDiscoveryMap() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className={embedded ? "flex h-full min-h-0 flex-col gap-4 overflow-hidden" : "space-y-6"}>
+      {!embedded && (
       <div>
         <h1 className="text-3xl font-bold">Find Doctors Near You</h1>
         <p className="text-muted-foreground">Discover healthcare providers in your area</p>
       </div>
+      )}
 
       {/* Search and Filters */}
-      <Card>
-        <CardHeader>
+      <Card className={embedded ? "flex-none shrink-0" : undefined}>
+        <CardHeader className={embedded ? "py-3" : undefined}>
           <div className="flex items-center justify-between">
-            <CardTitle>Search & Filter</CardTitle>
+            <CardTitle>{embedded ? "Search doctors" : "Search & Filter"}</CardTitle>
             <Button
               variant="outline"
               size="sm"
@@ -346,16 +348,22 @@ export function DoctorDiscoveryMap() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-3 h-[calc(100vh-200px)] min-h-[600px]">
+      <div
+        className={
+          embedded
+            ? "grid min-h-0 flex-1 gap-3 overflow-hidden grid-rows-[minmax(240px,1.1fr)_minmax(260px,1fr)] lg:grid-rows-1 lg:grid-cols-3"
+            : "grid gap-4 lg:grid-cols-3 h-[calc(100vh-200px)] min-h-[600px]"
+        }
+      >
         {/* Map */}
-        <Card className="lg:col-span-2 h-full flex flex-col">
-          <CardHeader className="flex-none">
+        <Card className={`lg:col-span-2 flex flex-col min-h-0 overflow-hidden ${embedded ? "order-2 lg:order-1" : "h-full"}`}>
+          <CardHeader className="flex-none py-3">
             <CardTitle>Map View</CardTitle>
             <CardDescription>
               {filteredDoctors.length} doctor{filteredDoctors.length !== 1 ? "s" : ""} found
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex-1 p-0 relative min-h-[400px]">
+          <CardContent className={`flex-1 p-0 relative min-h-0 ${embedded ? "min-h-[180px]" : "min-h-[400px]"}`}>
             <div className="absolute inset-0">
               <LeafletMap
                 center={mapCenter}
@@ -369,21 +377,21 @@ export function DoctorDiscoveryMap() {
         </Card>
 
         {/* Doctor List */}
-        <Card className="h-full flex flex-col">
-          <CardHeader className="flex-none">
+        <Card className={`flex flex-col min-h-0 overflow-hidden ${embedded ? "order-1 lg:order-2" : "h-full"}`}>
+          <CardHeader className="flex-none py-3">
             <CardTitle>Doctors List</CardTitle>
-            <CardDescription>Click to view details</CardDescription>
+            <CardDescription>Click to view details · scroll for more</CardDescription>
           </CardHeader>
-          <CardContent className="flex-1 overflow-hidden p-0">
+          <CardContent className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y p-3 space-y-3">
             {loading ? (
-              <div className="h-full flex items-center justify-center p-8 text-muted-foreground">
+              <div className="flex items-center justify-center p-8 text-muted-foreground">
                 <div className="flex flex-col items-center gap-2">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                   <p>Loading doctors...</p>
                 </div>
               </div>
             ) : filteredDoctors.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center p-8 text-center text-muted-foreground">
+              <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground">
                 <Search className="h-12 w-12 mb-4 opacity-20" />
                 <p className="text-lg font-medium">No doctors found</p>
                 <p className="text-sm">Try adjusting your filters or search area</p>
@@ -402,7 +410,7 @@ export function DoctorDiscoveryMap() {
                 </Button>
               </div>
             ) : (
-              <div className="h-full overflow-y-auto p-4 space-y-4">
+              <>
                 {filteredDoctors.map((doctor) => (
                   <Card
                     key={doctor.id}
@@ -454,7 +462,7 @@ export function DoctorDiscoveryMap() {
                     </CardContent>
                   </Card>
                 ))}
-              </div>
+              </>
             )}
           </CardContent>
         </Card>

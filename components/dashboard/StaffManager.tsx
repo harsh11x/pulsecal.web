@@ -17,6 +17,7 @@ import { PLAN_LIMITS } from "@/lib/planConfig"
 
 export default function StaffManager() {
     const currentUser = useAppSelector((state: any) => state.auth.user)
+    const [clinicId, setClinicId] = useState<string>(currentUser?.clinicId || "")
     const [staff, setStaff] = useState<User[]>([])
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState("")
@@ -33,12 +34,31 @@ export default function StaffManager() {
     const [actionLoading, setActionLoading] = useState(false)
 
     useEffect(() => {
-        if (currentUser?.clinicId) {
-            fetchStaff()
-        } else {
-            setLoading(false)
+        let cancelled = false
+        const resolveClinicAndLoad = async () => {
+            let resolved = currentUser?.clinicId || ""
+            if (!resolved) {
+                try {
+                    const { apiService } = await import("@/services/api")
+                    const mine = await apiService.get<any>("/clinics/mine")
+                    resolved = mine?.id || mine?.data?.id || ""
+                } catch {
+                    resolved = ""
+                }
+            }
+            if (cancelled) return
+            setClinicId(resolved)
+            if (resolved) {
+                await fetchStaff()
+            } else {
+                setLoading(false)
+            }
         }
-    }, [currentUser])
+        resolveClinicAndLoad()
+        return () => {
+            cancelled = true
+        }
+    }, [currentUser?.id, currentUser?.clinicId])
 
     const fetchStaff = async () => {
         try {
@@ -73,22 +93,22 @@ export default function StaffManager() {
             return
         }
 
+        if (!clinicId && !currentUser?.clinicId) {
+            toast.error("Clinic is not linked to your account yet. Save clinic details first.")
+            return
+        }
+
         setActionLoading(true)
         try {
             const payload = {
                 ...newStaff,
-                clinicId: currentUser.clinicId,
+                clinicId: clinicId || currentUser.clinicId,
                 role: newStaff.role.toUpperCase(), // Backend expects uppercase
                 isActive: true,
                 isEmailVerified: true
             } as any
 
-
-            console.log("Creating staff member with payload:", payload)
-            const response: any = await userService.createUser(payload)
-            console.log("Create staff response:", response)
-
-            const createdUser = response
+            await userService.createUser(payload)
 
             toast.success(`${newStaff.role === 'doctor' ? 'Doctor' : 'Receptionist'} added successfully`)
             setIsAddDialogOpen(false)
@@ -99,7 +119,7 @@ export default function StaffManager() {
                 phone: "",
                 password: "",
                 role: "receptionist",
-                clinicId: currentUser?.clinicId || ""
+                clinicId: clinicId || currentUser?.clinicId || ""
             })
             await fetchStaff()
         } catch (error: any) {

@@ -228,3 +228,145 @@ export function exportRevenuePDF(data: ExportData) {
   const fileName = `revenue-report-${format(new Date(), "yyyy-MM-dd")}.pdf`
   doc.save(fileName)
 }
+
+interface AnalyticsExportData {
+  doctorName?: string
+  clinicName?: string
+  today: {
+    appointments: number
+    revenue: number
+    patients: number
+    cancellations: number
+  }
+  yesterday: {
+    appointments: number
+    revenue: number
+    patients: number
+    cancellations: number
+  }
+  thisWeek: {
+    appointments: number
+    revenue: number
+    patients: number
+    cancellations: number
+  }
+  thisMonth: {
+    appointments: number
+    revenue: number
+    patients: number
+    cancellations: number
+  }
+  revenueData: Array<{ date: string; revenue: number; appointments: number }>
+  patientGrowth: Array<{ month: string; patients: number }>
+  cancellationRate: number
+}
+
+export function exportAnalyticsPDF(data: AnalyticsExportData) {
+  const doc = new jsPDF()
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const primaryColor: [number, number, number] = [16, 185, 129]
+  const darkColor: [number, number, number] = [15, 23, 42]
+  const mutedColor: [number, number, number] = [100, 116, 139]
+
+  doc.setFillColor(...primaryColor)
+  doc.rect(0, 0, pageWidth, 4, "F")
+
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(20)
+  doc.setTextColor(...darkColor)
+  doc.text(data.clinicName || "PulseCal Clinic", pageWidth / 2, 22, { align: "center" })
+
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(11)
+  doc.setTextColor(...mutedColor)
+  doc.text("Practice Analytics Report", pageWidth / 2, 30, { align: "center" })
+
+  doc.setDrawColor(226, 232, 240)
+  doc.line(20, 35, pageWidth - 20, 35)
+
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(11)
+  doc.setTextColor(...darkColor)
+  doc.text(data.doctorName ? `Dr. ${data.doctorName}` : "Doctor", 20, 45)
+
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(9)
+  doc.setTextColor(...mutedColor)
+  doc.text(format(new Date(), "MMMM dd, yyyy · h:mm a"), pageWidth - 20, 45, { align: "right" })
+
+  const periods = [
+    { label: "Today", value: data.today },
+    { label: "Yesterday", value: data.yesterday },
+    { label: "This Week", value: data.thisWeek },
+    { label: "This Month", value: data.thisMonth },
+  ]
+
+  autoTable(doc, {
+    startY: 55,
+    head: [["Period", "Appointments", "Revenue", "Patients", "Cancellations"]],
+    body: periods.map((p) => [
+      p.label,
+      String(p.value.appointments),
+      "₹" + Number(p.value.revenue || 0).toLocaleString("en-IN"),
+      String(p.value.patients),
+      String(p.value.cancellations),
+    ]),
+    theme: "grid",
+    headStyles: {
+      fillColor: primaryColor,
+      textColor: [255, 255, 255],
+      fontStyle: "bold",
+      fontSize: 9,
+    },
+    bodyStyles: { fontSize: 9, textColor: darkColor },
+    margin: { left: 20, right: 20 },
+  })
+
+  const afterSummaryY = (doc as any).lastAutoTable.finalY + 12
+
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(12)
+  doc.setTextColor(...darkColor)
+  doc.text("Cancellation Rate", 20, afterSummaryY)
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(11)
+  doc.text(`${Number(data.cancellationRate || 0).toFixed(1)}%`, 20, afterSummaryY + 8)
+
+  autoTable(doc, {
+    startY: afterSummaryY + 16,
+    head: [["Date", "Revenue", "Appointments"]],
+    body: (data.revenueData || []).map((row) => [
+      row.date,
+      "₹" + Number(row.revenue || 0).toLocaleString("en-IN"),
+      String(row.appointments),
+    ]),
+    theme: "grid",
+    headStyles: {
+      fillColor: primaryColor,
+      textColor: [255, 255, 255],
+      fontStyle: "bold",
+      fontSize: 9,
+    },
+    bodyStyles: { fontSize: 9, textColor: darkColor },
+    margin: { left: 20, right: 20 },
+  })
+
+  const afterRevenueY = (doc as any).lastAutoTable.finalY + 12
+
+  autoTable(doc, {
+    startY: afterRevenueY,
+    head: [["Month", "Patients"]],
+    body: (data.patientGrowth || []).map((row) => [row.month, String(row.patients)]),
+    theme: "grid",
+    headStyles: {
+      fillColor: primaryColor,
+      textColor: [255, 255, 255],
+      fontStyle: "bold",
+      fontSize: 9,
+    },
+    bodyStyles: { fontSize: 9, textColor: darkColor },
+    margin: { left: 20, right: 20 },
+  })
+
+  doc.save(`analytics-report-${format(new Date(), "yyyy-MM-dd")}.pdf`)
+}

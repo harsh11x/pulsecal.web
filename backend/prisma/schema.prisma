@@ -269,10 +269,11 @@ model Appointment {
 
 model MedicalRecord {
   id                String   @id @default(uuid())
-  patientId         String
+  patientId         String?  // Optional — Halaxy-style notes can use free-text patientName
+  patientName       String?  // Display / sort name when no linked patient account
   doctorId           String?
   appointmentId      String?
-  recordType         String   // e.g., "Lab Result", "X-Ray", "Diagnosis"
+  recordType         String   // e.g., "Lab Result", "X-Ray", "Diagnosis", "CLINICAL_NOTE"
   title              String
   description        String?
   diagnosis          String?
@@ -285,12 +286,13 @@ model MedicalRecord {
   updatedAt          DateTime @updatedAt
   deletedAt         DateTime?
 
-  patient            User     @relation(fields: [patientId], references: [id])
+  patient            User?    @relation(fields: [patientId], references: [id])
   appointment        Appointment? @relation(fields: [appointmentId], references: [id])
 
   @@index([patientId])
   @@index([doctorId])
   @@index([recordDate])
+  @@index([patientName])
   @@map("medical_records")
 }
 

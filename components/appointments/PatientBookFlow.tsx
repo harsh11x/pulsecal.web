@@ -9,7 +9,6 @@ import { Search, Stethoscope, Loader2, Calendar, Building2, IndianRupee } from "
 import { apiService } from "@/services/api"
 import { toast } from "sonner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 interface Doctor {
@@ -129,30 +128,67 @@ export function PatientBookFlow() {
     }
   }
 
-  const openClinic = (clinic: any) => {
-    setSelectedClinic(clinic)
-    setSelectedDoctor(null)
-    const staff = clinic?.staff ?? []
-    const docs = staff.map((s: any) => ({
+  const [loadingClinicDoctors, setLoadingClinicDoctors] = useState(false)
+
+  const mapClinicStaff = (clinic: any, staff: any[]) =>
+    (staff || []).map((s: any) => ({
       id: s.id,
       user: { id: s.id, firstName: s.firstName, lastName: s.lastName },
-      specialization: s.doctorProfile?.specialization ?? "General",
-      consultationFee: Number(s.doctorProfile?.consultationFee ?? 0),
+      specialization: s.doctorProfile?.specialization ?? s.specialization ?? "General",
+      consultationFee: Number(s.doctorProfile?.consultationFee ?? s.consultationFee ?? 0),
       clinicName: clinic.name,
+      services: s.doctorProfile?.services ?? s.services ?? [],
     }))
-    setClinicDoctors(docs)
+
+  const extractClinicStaff = (payload: any): any[] => {
+    if (!payload) return []
+    if (Array.isArray(payload.staff)) return payload.staff
+    if (Array.isArray(payload.data?.staff)) return payload.data.staff
+    if (Array.isArray(payload.doctors)) return payload.doctors
+    return []
+  }
+
+  const openClinic = async (clinic: any) => {
+    setSelectedClinic(clinic)
+    setSelectedDoctor(null)
+    setClinicDoctors(mapClinicStaff(clinic, extractClinicStaff(clinic)))
+    setLoadingClinicDoctors(true)
+    try {
+      // apiService already unwraps { success, data }; tolerate either shape
+      const detail: any = await apiService.get(`/clinics/${clinic.id}`)
+      const full =
+        detail?.id || detail?.name
+          ? detail
+          : detail?.data && typeof detail.data === "object"
+            ? detail.data
+            : detail
+      const staff = extractClinicStaff(full).length
+        ? extractClinicStaff(full)
+        : extractClinicStaff(detail)
+      if (full && (full.id || full.name)) {
+        setSelectedClinic({ ...clinic, ...full })
+      }
+      setClinicDoctors(mapClinicStaff({ ...clinic, ...full }, staff))
+    } catch (e: any) {
+      console.error("Failed to load clinic doctors:", e)
+      if (!extractClinicStaff(clinic).length) {
+        toast.error(e?.response?.data?.message || "Could not load doctors for this clinic")
+      }
+    } finally {
+      setLoadingClinicDoctors(false)
+    }
   }
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-8rem)] space-y-6 max-w-4xl mx-auto">
-      <Tabs defaultValue="symptom" className="flex flex-col flex-1">
+    <div className="flex flex-col space-y-6 max-w-4xl mx-auto pb-8">
+      <Tabs defaultValue="symptom" className="flex flex-col">
         <TabsList className="grid w-full grid-cols-2 flex-shrink-0">
           <TabsTrigger value="symptom">Find Doctors</TabsTrigger>
           <TabsTrigger value="clinic" onClick={() => fetchClinics()}>Browse Clinics</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="symptom" className="flex flex-col flex-1 mt-4 space-y-4 data-[state=active]:flex">
-      <Card className="flex flex-col flex-1 min-h-0">
+        <TabsContent value="symptom" className="mt-4 space-y-4">
+      <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Stethoscope className="h-5 w-5" />
@@ -162,8 +198,7 @@ export function PatientBookFlow() {
             All doctors and clinics are shown (no location filter). Search by name, specialty, or clinic.
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col flex-1 min-h-0 space-y-4">
-            <div className="space-y-4">
+        <CardContent className="space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Search by name, specialty, or clinic</label>
               <div className="flex gap-2">
@@ -182,14 +217,9 @@ export function PatientBookFlow() {
                 </Button>
               </div>
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Search (optional)</label>
-              <p className="text-xs text-muted-foreground">All doctors and clinics are listed. Use the search box above to filter by name or specialty.</p>
-            </div>
-          </div>
 
-          <div className="flex flex-col flex-1 min-h-0 space-y-3">
-            <label className="text-sm font-medium flex-shrink-0">Select Doctor</label>
+          <div className="space-y-3">
+            <label className="text-sm font-medium">Select Doctor</label>
             {doctorsError ? (
               <div className="text-center py-8 rounded-lg border border-destructive/50 bg-destructive/5 p-4">
                 <p className="text-sm text-destructive font-medium">{doctorsError}</p>
@@ -207,8 +237,8 @@ export function PatientBookFlow() {
                 </p>
               </div>
             ) : (
-              <ScrollArea className="h-[70vh] min-h-[400px] rounded-lg border p-2">
-                <div className="space-y-3 pr-4">
+              <div className="rounded-lg border p-2 sm:p-3">
+                <div className="space-y-3 pb-4">
                   {doctors.map((doc) => {
                     const isSelected = selectedDoctor && doctorId(selectedDoctor) === doctorId(doc)
                     const fullName = `Dr. ${doc.user?.firstName ?? doc.firstName ?? ""} ${doc.user?.lastName ?? doc.lastName ?? ""}`.trim()
@@ -265,7 +295,7 @@ export function PatientBookFlow() {
                     )
                   })}
                 </div>
-              </ScrollArea>
+              </div>
             )}
           </div>
 
@@ -315,12 +345,16 @@ export function PatientBookFlow() {
               </CardHeader>
               <CardContent>
                 <h4 className="font-medium mb-3">Select Doctor</h4>
-                {clinicDoctors.length === 0 ? (
+                {loadingClinicDoctors ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : clinicDoctors.length === 0 ? (
                   <p className="text-muted-foreground text-sm py-4">No doctors at this clinic.</p>
                 ) : (
                   <div className="space-y-4">
-                    <ScrollArea className="h-[320px] rounded-lg border p-2">
-                      <div className="space-y-3 pr-4">
+                    <div className="max-h-[min(60vh,420px)] overflow-y-auto rounded-lg border p-2">
+                      <div className="space-y-3 pr-1">
                         {clinicDoctors.map((doc) => {
                           const isSelected = selectedDoctor && doctorId(selectedDoctor) === doctorId(doc)
                           const fullName = `Dr. ${doc.user?.firstName ?? doc.firstName ?? ""} ${doc.user?.lastName ?? doc.lastName ?? ""}`.trim()
@@ -351,7 +385,7 @@ export function PatientBookFlow() {
                           )
                         })}
                       </div>
-                    </ScrollArea>
+                    </div>
                     {selectedDoctor && clinicDoctors.some((d) => doctorId(d) === doctorId(selectedDoctor)) && (
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border-2 border-primary/20 rounded-lg bg-primary/5">
                         <div>
@@ -401,19 +435,24 @@ export function PatientBookFlow() {
                     </p>
                   </div>
                 ) : (
-                  <ScrollArea className="h-[70vh] min-h-[400px] rounded-md border p-2">
-                    <div className="space-y-2 pr-4">
+                  <div className="max-h-[min(65vh,560px)] min-h-[280px] overflow-y-auto rounded-md border p-2 overscroll-contain">
+                    <div className="space-y-2 pr-1">
                       {clinics.map((c: any) => (
                         <Card key={c.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => openClinic(c)}>
                           <CardContent className="p-4">
                             <p className="font-semibold">{c.name}</p>
                             <p className="text-sm text-muted-foreground">{c.address}, {c.city}</p>
                             {c.distance != null && <p className="text-xs text-muted-foreground">{c.distance} km away</p>}
+                            {Array.isArray(c.staff) && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {c.staff.length} doctor{c.staff.length === 1 ? "" : "s"}
+                              </p>
+                            )}
                           </CardContent>
                         </Card>
                       ))}
                     </div>
-                  </ScrollArea>
+                  </div>
                 )}
               </CardContent>
             </Card>

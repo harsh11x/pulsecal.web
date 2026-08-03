@@ -1,18 +1,17 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import dynamic from "next/dynamic"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Building2, Save, Loader2, MapPin, Crosshair } from "lucide-react"
 import { toast } from "sonner"
 import { apiService } from "@/services/api"
-import { Clinic } from "@/types"
-
-import { useAppSelector } from "@/app/hooks"
+import { useAppDispatch, useAppSelector } from "@/app/hooks"
+import { setUser } from "@/app/features/authSlice"
+import type { User } from "@/types"
 
 // Dynamically import the Leaflet map with SSR disabled (Leaflet needs the browser)
 const LocationPickerMap = dynamic(() => import("@/components/onboarding/LocationPickerMap"), {
@@ -25,17 +24,16 @@ const LocationPickerMap = dynamic(() => import("@/components/onboarding/Location
 })
 
 interface ClinicManagerProps {
-    clinicId: string
+    clinicId?: string
 }
 
-export default function ClinicManager({ clinicId }: ClinicManagerProps) {
+export default function ClinicManager({ clinicId: clinicIdProp }: ClinicManagerProps) {
+    const dispatch = useAppDispatch()
     const { user } = useAppSelector((state) => state.auth)
-    // Head doctor has canManageSubscription=true (usually) or check if they are the creator. 
-    // Simplified: Role based check or specific flag. 
-    // The requirement: "Only head doctor can see ... Edit Clinic".
-    // If this component renders the edit form, we should check permission.
-    const canEdit = user?.role === "admin" || (user?.role === "doctor" && (user as any)?.canManageSubscription === true)
+    const role = user?.role?.toLowerCase()
+    const canEdit = role === "admin" || (role === "doctor" && user?.canManageSubscription === true)
 
+    const [resolvedClinicId, setResolvedClinicId] = useState<string | undefined>(clinicIdProp || user?.clinicId)
     const [loading, setLoading] = useState(false)
     const [fetching, setFetching] = useState(true)
     const [verifyingLocation, setVerifyingLocation] = useState(false)
@@ -53,43 +51,109 @@ export default function ClinicManager({ clinicId }: ClinicManagerProps) {
         longitude: ""
     })
 
-    useEffect(() => {
-        if (clinicId) {
-            fetchClinicDetails()
-        } else {
-            setFetching(false)
-        }
-    }, [clinicId])
-
-    const fetchClinicDetails = async () => {
-        try {
-            const response: any = await apiService.get(`/clinics/${clinicId}`)
-            const clinic = response
-
-            if (clinic) {
-                setFormData({
-                    name: clinic.name || "",
-                    address: clinic.address || "",
-                    city: clinic.city || "",
-                    state: clinic.state || "",
-                    zipCode: clinic.zipCode || "",
-                    country: clinic.country || "",
-                    phone: clinic.phone || "",
-                    email: clinic.email || "",
-                    latitude: clinic.latitude != null ? String(clinic.latitude) : "",
-                    longitude: clinic.longitude != null ? String(clinic.longitude) : ""
-                })
-                if (clinic.latitude != null && clinic.longitude != null) {
-                    setShowMap(true)
-                }
-            }
-        } catch (error) {
-            console.warn("Failed to fetch clinic details:", error)
-            toast.error("Failed to load clinic details")
-        } finally {
-            setFetching(false)
+    const applyClinicToForm = (clinic: any) => {
+        if (!clinic) return
+        setFormData({
+            name: clinic.name || "",
+            address: clinic.address || "",
+            city: clinic.city || "",
+            state: clinic.state || "",
+            zipCode: clinic.zipCode || "",
+            country: clinic.country || "",
+            phone: clinic.phone || "",
+            email: clinic.email || "",
+            latitude: clinic.latitude != null ? String(clinic.latitude) : "",
+            longitude: clinic.longitude != null ? String(clinic.longitude) : ""
+        })
+        if (clinic.latitude != null && clinic.longitude != null) {
+            setShowMap(true)
         }
     }
+
+    const syncClinicIdToRedux = useCallback((id: string) => {
+        if (!user || user.clinicId === id) return
+        dispatch(setUser({
+            ...user,
+            clinicId: id,
+            role: (user.role || "doctor").toLowerCase() as User["role"],
+            canManageSubscription: user.canManageSubscription ?? true,
+        }))
+    }, [dispatch, user])
+
+    const syncProfileToRedux = useCallback((profile: any, clinicIdFallback?: string) => {
+        if (!profile) return
+        dispatch(setUser({
+            id: profile.id,
+            email: profile.email,
+            firstName: profile.firstName,
+            lastName: profile.lastName,
+            phone: profile.phone,
+            dateOfBirth: profile.dateOfBirth,
+            role: (profile.role || "doctor").toLowerCase() as User["role"],
+            isActive: profile.isActive !== false,
+            isEmailVerified: profile.isEmailVerified || false,
+            profileImage: profile.profileImage,
+            onboardingCompleted: profile.onboardingCompleted || false,
+            clinicId: profile.clinicId || clinicIdFallback || user?.clinicId,
+            ...(profile.doctorProfile && { doctorProfile: profile.doctorProfile }),
+            canManageSubscription: profile.canManageSubscription ?? user?.canManageSubscription ?? true,
+        }))
+    }, [dispatch, user?.clinicId, user?.canManageSubscription])
+
+    const resolveClinicId = useCallback(async (): Promise<string | undefined> => {
+        const fromPropOrUser = clinicIdProp || user?.clinicId
+        if (fromPropOrUser) {
+            setResolvedClinicId(fromPropOrUser)
+            return fromPropOrUser
+        }
+
+        try {
+            const mine: any = await apiService.get("/clinics/mine")
+            const id = mine?.id
+            if (id) {
+                setResolvedClinicId(id)
+                syncClinicIdToRedux(id)
+                return id
+            }
+        } catch {
+            // fall through to profile refresh
+        }
+
+            try {
+                const profile: any = await apiService.get("/auth/profile")
+                if (profile?.clinicId) {
+                    setResolvedClinicId(profile.clinicId)
+                    syncProfileToRedux(profile)
+                    return profile.clinicId
+                }
+            } catch (error) {
+                console.warn("Failed to resolve clinic id from profile:", error)
+            }
+
+        return undefined
+    }, [clinicIdProp, user?.clinicId, syncClinicIdToRedux, syncProfileToRedux])
+
+    useEffect(() => {
+        let cancelled = false
+        const load = async () => {
+            setFetching(true)
+            try {
+                const id = await resolveClinicId()
+                if (cancelled) return
+                if (id) {
+                    const clinic: any = await apiService.get(`/clinics/${id}`)
+                    if (!cancelled) applyClinicToForm(clinic)
+                }
+            } catch (error) {
+                console.warn("Failed to fetch clinic details:", error)
+                if (!cancelled) toast.error("Failed to load clinic details")
+            } finally {
+                if (!cancelled) setFetching(false)
+            }
+        }
+        load()
+        return () => { cancelled = true }
+    }, [clinicIdProp, user?.clinicId]) // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleVerifyLocation = async () => {
         if (!formData.address || !formData.city) {
@@ -130,26 +194,50 @@ export default function ClinicManager({ clinicId }: ClinicManagerProps) {
             return
         }
 
-        if (!clinicId) {
-            toast.error("Clinic ID is missing")
+        if (!formData.name?.trim() || !formData.address?.trim() || !formData.city?.trim() || !formData.state?.trim() || !formData.zipCode?.trim() || !formData.phone?.trim()) {
+            toast.error("Please fill clinic name, address, city, state, zip code, and phone")
             return
         }
-        setLoading(true)
 
+        let clinicId = resolvedClinicId || clinicIdProp || user?.clinicId
+        if (!clinicId) {
+            clinicId = await resolveClinicId()
+        }
+
+        setLoading(true)
         try {
             const payload: Record<string, unknown> = {
-                ...formData,
+                name: formData.name.trim(),
+                address: formData.address.trim(),
+                city: formData.city.trim(),
+                state: formData.state.trim(),
+                zipCode: formData.zipCode.trim(),
+                country: formData.country?.trim() || "India",
+                phone: formData.phone.trim(),
+                email: formData.email?.trim() || user?.email || undefined,
                 latitude: formData.latitude ? parseFloat(formData.latitude) : null,
                 longitude: formData.longitude ? parseFloat(formData.longitude) : null,
             }
-            console.log("Updating clinic details:", payload)
-            const response = await apiService.put(`/clinics/${clinicId}`, payload)
-            console.log("Update response:", response)
 
-            // Keep the doctor discovery map in sync by updating the owner's profile coordinates too
+            // If Redux/profile has no clinic yet (common after payment before onboarding finishes),
+            // create the clinic and link it instead of failing with "Clinic ID is missing".
+            if (!clinicId) {
+                const created: any = await apiService.post("/clinics", payload)
+                clinicId = created?.id
+                if (!clinicId) {
+                    throw new Error("Clinic was created but no ID was returned")
+                }
+                toast.success("Clinic created successfully")
+            } else {
+                await apiService.put(`/clinics/${clinicId}`, payload)
+                toast.success("Clinic details updated successfully")
+            }
+
             if (payload.latitude != null && payload.longitude != null) {
                 try {
                     await apiService.put("/doctor-profiles/me", {
+                        clinicName: payload.name,
+                        clinicAddress: [payload.address, payload.city, payload.state, payload.zipCode].filter(Boolean).join(", "),
                         clinicLatitude: payload.latitude,
                         clinicLongitude: payload.longitude,
                     })
@@ -158,10 +246,20 @@ export default function ClinicManager({ clinicId }: ClinicManagerProps) {
                 }
             }
 
-            toast.success("Clinic details updated successfully")
+            setResolvedClinicId(clinicId)
+            try {
+                const profile: any = await apiService.get("/auth/profile")
+                if (profile) {
+                    syncProfileToRedux(profile, clinicId)
+                } else {
+                    syncClinicIdToRedux(clinicId)
+                }
+            } catch {
+                syncClinicIdToRedux(clinicId)
+            }
         } catch (error: any) {
-            console.error("Failed to update clinic:", error)
-            const errorMessage = error.response?.data?.message || error.message || "Failed to update clinic details"
+            console.error("Failed to save clinic:", error)
+            const errorMessage = error.response?.data?.message || error.message || "Failed to save clinic details"
             toast.error(errorMessage)
         } finally {
             setLoading(false)
@@ -211,7 +309,11 @@ export default function ClinicManager({ clinicId }: ClinicManagerProps) {
         <Card>
             <CardHeader>
                 <CardTitle>Clinic Information</CardTitle>
-                <CardDescription>Manage your clinic's public details and contact information</CardDescription>
+                <CardDescription>
+                    {resolvedClinicId || clinicIdProp || user?.clinicId
+                        ? "Manage your clinic's public details and contact information"
+                        : "No clinic is linked yet — fill in the details below to create and save your clinic"}
+                </CardDescription>
             </CardHeader>
             <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-6">
@@ -360,7 +462,7 @@ export default function ClinicManager({ clinicId }: ClinicManagerProps) {
                         ) : (
                             <>
                                 <Save className="mr-2 h-4 w-4" />
-                                Update Information
+                                {resolvedClinicId || clinicIdProp || user?.clinicId ? "Update Information" : "Save Clinic"}
                             </>
                         )}
                     </Button>

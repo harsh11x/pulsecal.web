@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Calendar, Clock, MapPin, Plus, User, Phone, Loader2 } from "lucide-react"
+import { Calendar, Clock, MapPin, Plus, User, Phone, Loader2, FileText } from "lucide-react"
 import { apiService } from "@/services/api"
 import { toast } from "sonner"
 import { format } from "date-fns"
@@ -224,9 +224,34 @@ export default function AppointmentsListPage() {
                       )}
                     </div>
 
-                    {canCancelAppointment(appointment) && (
-                      <div className="flex gap-2 pt-2">
-                        {!isDoctor && (
+                    <div className="flex gap-2 pt-2">
+                        {isDoctor && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              const patientName = appointment.patient?.firstName
+                                ? `${appointment.patient.firstName} ${appointment.patient.lastName || ""}`.trim()
+                                : (appointment.patientName || "")
+                              const params = new URLSearchParams({
+                                action: "new",
+                                appointmentId: appointment.id,
+                              })
+                              if (patientName) params.set("patientName", patientName)
+                              if (appointment.patientId || appointment.patient?.id) {
+                                params.set("patientId", appointment.patientId || appointment.patient.id)
+                              }
+                              if (appointment.scheduledAt) params.set("visitDate", appointment.scheduledAt)
+                              if (appointment.reason) params.set("reason", appointment.reason)
+                              router.push(`/health/medical-records?${params.toString()}`)
+                            }}
+                          >
+                            <FileText className="mr-1.5 h-3.5 w-3.5" />
+                            Add note
+                          </Button>
+                        )}
+                        {canCancelAppointment(appointment) && !isDoctor && (
                           <Button
                             variant="outline"
                             size="sm"
@@ -238,19 +263,20 @@ export default function AppointmentsListPage() {
                             Reschedule
                           </Button>
                         )}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-destructive hover:text-destructive"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setCancelId(appointment.id)
-                          }}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    )}
+                        {canCancelAppointment(appointment) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setCancelId(appointment.id)
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        )}
+                    </div>
                   </CardContent>
                 </Card>
               ))}

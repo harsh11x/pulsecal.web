@@ -72,9 +72,9 @@ export default function SubscriptionPage() {
             const payablePlanId = planId === "STARTER" ? "BASIC" : planId
             const billingCycle = cycle
 
-            // Use the auto-debit subscription flow first (Razorpay charges the same
-            // calendar day each month). Falls back to a one-time order server-side.
-            // Yearly billing is always a one-time upfront order (12 months at 20% off).
+            // Monthly → Razorpay Subscriptions (true autopay). Yearly → one-time order
+            // (handled server-side when billingCycle=YEARLY). If Subscriptions API fails,
+            // backend falls back to a one-time order and still returns checkout data.
             const data: any = await apiService.post("/payments/create-subscription", {
                 plan: payablePlanId,
                 billingCycle,
@@ -149,7 +149,11 @@ export default function SubscriptionPage() {
             })
             rzp.open()
         } catch (error: any) {
-            const msg = error.response?.data?.message || error.message || "Failed to initiate subscription"
+            const msg =
+                error.response?.data?.message ||
+                error.detailedMessage ||
+                error.message ||
+                "Failed to initiate subscription"
             toast.error(msg)
             setProcessing(null)
         }
@@ -286,7 +290,7 @@ export default function SubscriptionPage() {
                         </ul>
                     </CardContent>
                     <CardFooter className="flex flex-wrap gap-2">
-                        {(currentSubscription?.status === 'ACTIVE' || currentSubscription?.autoRenew) && (
+                        {currentSubscription?.autoRenew && (
                             <Button variant="destructive" onClick={handleCancel} disabled={!!processing}>
                                 {processing === "CANCEL" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 Cancel Auto-pay

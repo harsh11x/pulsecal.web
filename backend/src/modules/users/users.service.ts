@@ -3,6 +3,23 @@ import admin from '../../config/firebase';
 import { AppError } from '../../middlewares/error.middleware';
 import { logger } from '../../utils/logger';
 
+const SAFE_USER_SELECT = {
+  id: true,
+  email: true,
+  firstName: true,
+  lastName: true,
+  phone: true,
+  role: true,
+  clinicId: true,
+  isActive: true,
+  isEmailVerified: true,
+  firebaseUid: true,
+  onboardingCompleted: true,
+  createdAt: true,
+  updatedAt: true,
+  deletedAt: true,
+} as const;
+
 export const createUser = async (data: {
   firstName: string;
   lastName: string;
@@ -14,9 +31,14 @@ export const createUser = async (data: {
   isActive?: boolean;
   isEmailVerified?: boolean;
 }) => {
-  // 1. Check if user exists in DB
+  if (!data.password || data.password.length < 6) {
+    throw new AppError('Password must be at least 6 characters', 400);
+  }
+
+  // 1. Check if user exists in DB (explicit select avoids missing-column schema drift)
   const existingUser = await prisma.user.findUnique({
     where: { email: data.email },
+    select: { id: true },
   });
 
   if (existingUser) {
@@ -43,26 +65,46 @@ export const createUser = async (data: {
     if (error.code === 'auth/email-already-exists') {
       const userRecord = await admin.auth().getUserByEmail(data.email);
       firebaseUid = userRecord.uid;
+      if (data.password) {
+        await admin.auth().updateUser(firebaseUid, {
+          password: data.password,
+          disabled: data.isActive === false,
+          displayName: `${data.firstName} ${data.lastName}`,
+        });
+      }
+      await admin.auth().setCustomUserClaims(firebaseUid, { role: data.role });
     } else {
       throw new AppError(`Failed to create Firebase user: ${error.message}`, 500);
     }
   }
 
   // 3. Create user in Prisma
-  const user = await prisma.user.create({
-    data: {
-      email: data.email,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      phone: data.phone,
-      role: data.role,
-      clinicId: data.clinicId,
-      isActive: data.isActive !== false,
-      isEmailVerified: data.isEmailVerified || false,
-      firebaseUid,
-      onboardingCompleted: true,
-    },
-  });
+  let user;
+  try {
+    user = await prisma.user.create({
+      data: {
+        email: data.email,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        phone: data.phone,
+        role: data.role,
+        clinicId: data.clinicId,
+        isActive: data.isActive !== false,
+        isEmailVerified: data.isEmailVerified || false,
+        firebaseUid,
+        onboardingCompleted: true,
+      },
+      select: SAFE_USER_SELECT,
+    });
+  } catch (error: any) {
+    // Roll back Firebase user if DB insert fails for a newly created account
+    try {
+      await admin.auth().deleteUser(firebaseUid);
+    } catch {
+      /* ignore */
+    }
+    throw error;
+  }
 
   // 4. Create Profile based on role
   if (data.role === 'DOCTOR') {
@@ -184,13 +226,39 @@ export const getProfile = async (userId: string) => {
 
     const { ...safeUser } = user;
 
+    // Heal missing user.clinicId when this doctor already owns a clinic (common after
+    // onboarding/payment races) so dashboard clinic edits don't fail with "Clinic ID is missing".
+    let resolvedClinicId = user.clinicId;
+    if (user.role === 'DOCTOR' && !resolvedClinicId) {
+      try {
+        const ownedClinic = await prisma.clinic.findFirst({
+          where: { ownerId: userId, deletedAt: null },
+          orderBy: { createdAt: 'asc' },
+          select: { id: true },
+        });
+        if (ownedClinic?.id) {
+          await prisma.$executeRaw`
+            UPDATE users
+            SET "clinicId" = ${ownedClinic.id},
+                "updatedAt" = NOW()
+            WHERE id = ${userId}
+          `;
+          resolvedClinicId = ownedClinic.id;
+          safeUser.clinicId = ownedClinic.id;
+          logger.info({ userId, clinicId: ownedClinic.id }, 'Synced missing user.clinicId from owned clinic');
+        }
+      } catch (e: any) {
+        logger.warn({ error: e.message, userId }, 'Could not heal missing clinicId from owned clinic');
+      }
+    }
+
     let canManageSubscription = false;
     if (user.role === 'DOCTOR' || user.role === 'ADMIN') {
       if (user.role === 'ADMIN') canManageSubscription = true;
-      else if (!user.clinicId) canManageSubscription = true;
+      else if (!resolvedClinicId) canManageSubscription = true;
       else {
         try {
-          const clinic = await prisma.clinic.findUnique({ where: { id: user.clinicId }, select: { ownerId: true } });
+          const clinic = await prisma.clinic.findUnique({ where: { id: resolvedClinicId }, select: { ownerId: true } });
 
           if (clinic?.ownerId) {
             canManageSubscription = clinic.ownerId === userId;
@@ -198,7 +266,7 @@ export const getProfile = async (userId: string) => {
             // No owner set. Identify the owner by earliest creation time (assumed HEAD doctor).
             // This handles legacy clinics where ownerId might not be set.
             const doctors = await prisma.user.findMany({
-              where: { clinicId: user.clinicId, role: 'DOCTOR' },
+              where: { clinicId: resolvedClinicId, role: 'DOCTOR' },
               orderBy: { createdAt: 'asc' },
               take: 1
             });
@@ -207,12 +275,12 @@ export const getProfile = async (userId: string) => {
               const owner = doctors[0];
               // Set the owner for future checks
               await prisma.clinic.update({
-                where: { id: user.clinicId },
+                where: { id: resolvedClinicId },
                 data: { ownerId: owner.id }
               });
 
               canManageSubscription = owner.id === userId;
-              logger.info({ userId, clinicId: user.clinicId, newOwnerId: owner.id }, 'Clinic owner auto-assigned based on earliest creation date');
+              logger.info({ userId, clinicId: resolvedClinicId, newOwnerId: owner.id }, 'Clinic owner auto-assigned based on earliest creation date');
             } else {
               // Should theoretically not happen if the current user is a doctor in this clinic
               canManageSubscription = false;
@@ -227,7 +295,7 @@ export const getProfile = async (userId: string) => {
     }
 
     logger.info({ userId, role: user.role }, 'Profile retrieved successfully');
-    return { ...safeUser, canManageSubscription };
+    return { ...safeUser, clinicId: resolvedClinicId ?? safeUser.clinicId, canManageSubscription };
   } catch (error: any) {
     if (error instanceof AppError) {
       throw error;
@@ -474,10 +542,37 @@ export const updateUserStatus = async (
   userId: string,
   isActive: boolean
 ) => {
+  const existing = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, firebaseUid: true, email: true },
+  });
+
+  if (!existing) {
+    throw new AppError('User not found', 404);
+  }
+
   const user = await prisma.user.update({
     where: { id: userId },
-    data: { isActive },
+    data: {
+      isActive,
+      deletedAt: isActive ? null : new Date(),
+    },
+    select: SAFE_USER_SELECT,
   });
+
+  // Keep Firebase auth in sync so deactivated/deleted accounts cannot sign in
+  if (existing.firebaseUid) {
+    try {
+      await admin.auth().updateUser(existing.firebaseUid, {
+        disabled: !isActive,
+      });
+    } catch (error: any) {
+      logger.warn(
+        { userId, error: error.message },
+        'Failed to sync Firebase disabled state during status update'
+      );
+    }
+  }
 
   return user;
 };

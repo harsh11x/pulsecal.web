@@ -41,7 +41,10 @@ export default function ClinicDetailPage() {
     if (params?.id) {
       apiService
         .get(`/clinics/${params.id}`)
-        .then((data: any) => setClinic(data))
+        .then((data: any) => {
+          const clinic = data?.data ?? data
+          setClinic(clinic)
+        })
         .catch(() => toast.error("Failed to load clinic"))
         .finally(() => setLoading(false))
     }
@@ -55,7 +58,7 @@ export default function ClinicDetailPage() {
     )
   }
 
-  const doctors = clinic.staff ?? []
+  const doctors = Array.isArray(clinic.staff) ? clinic.staff : []
 
   return (
     <div className="container mx-auto py-8 max-w-4xl">

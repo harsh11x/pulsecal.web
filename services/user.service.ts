@@ -50,8 +50,7 @@ export const userService = {
   },
 
   deleteUser: async (id: string): Promise<void> => {
-    // Backend uses soft delete via status update
-    // Note: This requires ADMIN role, doctors may not have permission
+    // Soft-delete via status update (self, clinic owner, or admin)
     await apiService.patch(`/users/${id}/status`, { isActive: false })
   },
 

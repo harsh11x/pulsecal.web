@@ -11,10 +11,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const router = useRouter()
     const pathname = usePathname()
     const { isAuthenticated, user, isLoading } = useAppSelector((state) => state.auth)
+    const isLoginPage = pathname === "/admin/login"
 
     useEffect(() => {
         // Skip check if on login page
-        if (pathname === "/admin/login") return
+        if (isLoginPage) return
 
         if (!isLoading && (!isAuthenticated || !user)) {
             router.push("/admin/login")
@@ -22,7 +23,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             // Non-admin trying to access admin - redirect to their dashboard
             router.push("/dashboard")
         }
-    }, [isLoading, isAuthenticated, user, router, pathname])
+    }, [isLoading, isAuthenticated, user, router, pathname, isLoginPage])
+
+    // Login must always render — never block behind auth loading spinner
+    if (isLoginPage) {
+        return <>{children}</>
+    }
 
     if (isLoading) {
         return (
@@ -30,11 +36,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
             </div>
         )
-    }
-
-    // Don't wrap login page in AppLayout (Sidebar)
-    if (pathname === "/admin/login") {
-        return <>{children}</>
     }
 
     return <AppLayout>{children}</AppLayout>
