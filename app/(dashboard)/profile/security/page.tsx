@@ -4,16 +4,16 @@ import type React from "react"
 
 import { useState } from "react"
 import { userService } from "@/services/user.service"
+import { getPasswordChangeErrorMessage } from "@/lib/firebaseAuth"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Lock, ArrowLeft } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import Link from "next/link"
 
 export default function SecurityPage() {
-  const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     currentPassword: "",
@@ -25,32 +25,26 @@ export default function SecurityPage() {
     e.preventDefault()
 
     if (formData.newPassword !== formData.confirmPassword) {
-      toast({
-        title: "Error",
-        description: "New passwords do not match",
-        variant: "destructive",
-      })
+      toast.error("New passwords do not match")
+      return
+    }
+
+    if (formData.newPassword.length < 8) {
+      toast.error("Password must be at least 8 characters")
       return
     }
 
     try {
       setLoading(true)
       await userService.changePassword(formData.currentPassword, formData.newPassword)
-      toast({
-        title: "Success",
-        description: "Password changed successfully",
-      })
+      toast.success("Password changed successfully")
       setFormData({
         currentPassword: "",
         newPassword: "",
         confirmPassword: "",
       })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to change password",
-        variant: "destructive",
-      })
+    } catch (error: any) {
+      toast.error(getPasswordChangeErrorMessage(error))
     } finally {
       setLoading(false)
     }
@@ -81,6 +75,7 @@ export default function SecurityPage() {
               value={formData.currentPassword}
               onChange={(e) => setFormData({ ...formData, currentPassword: e.target.value })}
               required
+              autoComplete="current-password"
             />
           </div>
           <div className="space-y-2">
@@ -92,6 +87,7 @@ export default function SecurityPage() {
               onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
               required
               minLength={8}
+              autoComplete="new-password"
             />
           </div>
           <div className="space-y-2">
@@ -103,6 +99,7 @@ export default function SecurityPage() {
               onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
               required
               minLength={8}
+              autoComplete="new-password"
             />
           </div>
           <Button type="submit" disabled={loading}>

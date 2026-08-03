@@ -19,29 +19,45 @@ export const userService = {
   },
 
   changePassword: async (currentPassword: string, newPassword: string): Promise<void> => {
-    await apiService.post("/users/password/change", {
-      currentPassword,
-      newPassword,
-    })
+    // Prefer Firebase client change (works for all roles; no Admin SDK needed).
+    // Fall back to backend endpoint if client auth session is unavailable.
+    try {
+      const { changePassword } = await import("@/lib/firebaseAuth")
+      await changePassword(currentPassword, newPassword)
+      return
+    } catch (clientErr: any) {
+      // If Firebase session missing, try backend; otherwise rethrow client error
+      if (
+        clientErr?.code &&
+        clientErr.code !== "auth/no-current-user" &&
+        clientErr.code !== "auth/network-request-failed"
+      ) {
+        throw clientErr
+      }
+      try {
+        await apiService.post("/users/password/change", {
+          currentPassword,
+          newPassword,
+        })
+      } catch {
+        throw clientErr
+      }
+    }
   },
 
   getAllUsers: async (role?: string): Promise<User[]> => {
-    // Backend returns paginated response { success, data: User[], pagination }
-    // After unwrap, we get the data array directly
-    const response = await apiService.get<User[] | { users: User[], pagination: any }>("/users", { params: { role } })
-    // Handle both direct array (after unwrap) and paginated structure
-    if (Array.isArray(response)) {
-      return response
-    }
-    // If still wrapped (shouldn't happen after unwrap, but handle it)
-    return (response as any).users || []
+    const response = await apiService.get<User[] | { users: User[] }>("/users", {
+      params: { role, limit: 200 },
+    })
+    if (Array.isArray(response)) return response
+    return (response as any).users || (response as any).data || []
   },
 
   getUserById: async (id: string): Promise<User> => {
     return await apiService.get<User>(`/users/${id}`)
   },
 
-  createUser: async (data: Partial<User>): Promise<User> => {
+  createUser: async (data: Partial<User> & Record<string, unknown>): Promise<User> => {
     return await apiService.post<User>("/users", data)
   },
 
@@ -49,12 +65,34 @@ export const userService = {
     return await apiService.put<User>(`/users/${id}`, data)
   },
 
+  /** Soft-delete user (hidden from lists). Admin preferred path. */
   deleteUser: async (id: string): Promise<void> => {
-    // Soft-delete via status update (self, clinic owner, or admin)
-    await apiService.patch(`/users/${id}/status`, { isActive: false })
+    try {
+      await apiService.patch(`/admin/users/${id}/status`, { isActive: false, permanent: true })
+    } catch {
+      await apiService.patch(`/users/${id}/status`, { isActive: false, permanent: true })
+    }
   },
 
-  getClinicStaff: async (): Promise<{ doctors: User[], receptionists: User[], totalStaff: number }> => {
-    return await apiService.get<{ doctors: User[], receptionists: User[], totalStaff: number }>("/doctors/clinic/staff")
+  suspendUser: async (id: string): Promise<void> => {
+    try {
+      await apiService.patch(`/admin/users/${id}/status`, { isActive: false, permanent: false })
+    } catch {
+      await apiService.patch(`/users/${id}/status`, { isActive: false, permanent: false })
+    }
+  },
+
+  activateUser: async (id: string): Promise<void> => {
+    try {
+      await apiService.patch(`/admin/users/${id}/status`, { isActive: true })
+    } catch {
+      await apiService.patch(`/users/${id}/status`, { isActive: true })
+    }
+  },
+
+  getClinicStaff: async (): Promise<{ doctors: User[]; receptionists: User[]; totalStaff: number }> => {
+    return await apiService.get<{ doctors: User[]; receptionists: User[]; totalStaff: number }>(
+      "/doctors/clinic/staff"
+    )
   },
 }

@@ -1,44 +1,100 @@
 "use client"
 
+import { useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Download, FileText, TrendingUp, Users, DollarSign } from "lucide-react"
+import { Download, FileText, TrendingUp, Users, DollarSign, Loader2 } from "lucide-react"
+import { adminService } from "@/services/admin.service"
+import { toast } from "sonner"
 
 export default function ReportsPage() {
+  const [busy, setBusy] = useState<string | null>(null)
+
   const reports = [
     {
-      id: 1,
-      title: "Appointments Report",
-      description: "Detailed report of all appointments",
+      id: "system",
+      title: "System Overview Report",
+      description: "Users, clinics, appointments and records snapshot",
       icon: FileText,
       color: "bg-primary",
     },
     {
-      id: 2,
-      title: "Revenue Report",
-      description: "Financial performance and revenue analytics",
+      id: "clinics",
+      title: "Clinics Revenue Report",
+      description: "Per-clinic bookings, doctors and revenue",
       icon: DollarSign,
-      color: "bg-success",
+      color: "bg-emerald-600",
     },
     {
-      id: 3,
+      id: "growth",
       title: "User Growth Report",
-      description: "User registration and growth trends",
+      description: "Patient, doctor and total user counts",
       icon: Users,
-      color: "bg-secondary",
+      color: "bg-violet-600",
     },
     {
-      id: 4,
+      id: "performance",
       title: "Performance Metrics",
-      description: "System performance and usage statistics",
+      description: "Active appointments and record volume",
       icon: TrendingUp,
-      color: "bg-accent",
+      color: "bg-amber-600",
     },
   ]
 
-  const handleDownload = (reportTitle: string) => {
-    console.log("[v0] Downloading report:", reportTitle)
-    alert(`Downloading ${reportTitle}...`)
+  const downloadJson = (filename: string, payload: unknown) => {
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleDownload = async (reportId: string, reportTitle: string) => {
+    try {
+      setBusy(reportId)
+      const [stats, clinics] = await Promise.all([
+        adminService.getStats(),
+        adminService.getClinics(),
+      ])
+
+      const generatedAt = new Date().toISOString()
+      let payload: unknown = { generatedAt, stats }
+
+      if (reportId === "clinics") {
+        payload = {
+          generatedAt,
+          totalClinics: clinics.length,
+          totalRevenue: clinics.reduce((s: number, c: any) => s + (c.totalRevenue || 0), 0),
+          clinics,
+        }
+      } else if (reportId === "growth") {
+        payload = {
+          generatedAt,
+          totalUsers: stats?.totalUsers || 0,
+          totalPatients: stats?.totalPatients || 0,
+          totalDoctors: stats?.totalDoctors || 0,
+          totalClinics: stats?.totalClinics || 0,
+        }
+      } else if (reportId === "performance") {
+        payload = {
+          generatedAt,
+          totalAppointments: stats?.totalAppointments || 0,
+          activeAppointments: stats?.activeAppointments || 0,
+          totalMedicalRecords: stats?.totalMedicalRecords || 0,
+          totalPrescriptions: stats?.totalPrescriptions || 0,
+        }
+      }
+
+      downloadJson(`${reportId}-report-${Date.now()}.json`, payload)
+      toast.success(`${reportTitle} downloaded`)
+    } catch (error) {
+      console.error(error)
+      toast.error("Failed to generate report")
+    } finally {
+      setBusy(null)
+    }
   }
 
   return (
@@ -60,8 +116,16 @@ export default function ReportsPage() {
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold mb-1">{report.title}</h3>
                   <p className="text-sm text-muted-foreground mb-4">{report.description}</p>
-                  <Button size="sm" onClick={() => handleDownload(report.title)}>
-                    <Download className="mr-2 h-4 w-4" />
+                  <Button
+                    size="sm"
+                    disabled={busy === report.id}
+                    onClick={() => handleDownload(report.id, report.title)}
+                  >
+                    {busy === report.id ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="mr-2 h-4 w-4" />
+                    )}
                     Download Report
                   </Button>
                 </div>

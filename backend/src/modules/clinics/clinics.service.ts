@@ -444,9 +444,24 @@ export const updateClinic = async (
 export const deleteClinic = async (clinicId: string) => {
   await prisma.clinic.update({
     where: { id: clinicId },
-    data: { deletedAt: new Date() },
+    data: { deletedAt: new Date(), isActive: false },
   });
 
   return { message: 'Clinic deleted successfully' };
+};
+
+export const setClinicActiveStatus = async (clinicId: string, isActive: boolean) => {
+  const existing = await prisma.clinic.findFirst({
+    where: { id: clinicId, deletedAt: null },
+    select: { id: true },
+  });
+  if (!existing) {
+    throw new AppError('Clinic not found', 404);
+  }
+
+  return prisma.clinic.update({
+    where: { id: clinicId },
+    data: { isActive },
+  });
 };
 

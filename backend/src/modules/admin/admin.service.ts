@@ -1,6 +1,9 @@
 import prisma from '../../config/database';
 import { getPaginationParams, getSortParams } from '../../utils/helpers';
 import { AuditAction } from '@prisma/client';
+import { AppError } from '../../middlewares/error.middleware';
+import { deleteClinic, setClinicActiveStatus } from '../clinics/clinics.service';
+import { updateUserStatus } from '../users/users.service';
 
 export const getAuditLogs = async (req: {
   query: {
@@ -371,4 +374,31 @@ export const getClinicDetails = async (clinicId: string) => {
     futureAppointments,
     recentPayments: payments,
   };
+};
+
+export const adminSetClinicStatus = async (clinicId: string, isActive: boolean) => {
+  return setClinicActiveStatus(clinicId, isActive);
+};
+
+export const adminDeleteClinic = async (clinicId: string) => {
+  const existing = await prisma.clinic.findFirst({
+    where: { id: clinicId, deletedAt: null },
+    select: { id: true, name: true },
+  });
+  if (!existing) {
+    throw new AppError('Clinic not found', 404);
+  }
+  return deleteClinic(clinicId);
+};
+
+export const adminSetUserStatus = async (
+  actorId: string,
+  userId: string,
+  isActive: boolean,
+  permanent = false
+) => {
+  if (actorId === userId && !isActive) {
+    throw new AppError('You cannot suspend or delete your own account', 400);
+  }
+  return updateUserStatus(userId, isActive, { permanent });
 };

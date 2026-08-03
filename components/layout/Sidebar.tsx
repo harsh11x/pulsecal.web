@@ -93,6 +93,12 @@ const navItems: NavItem[] = [
     permission: "VIEW_ADMIN_DASHBOARD",
   },
   {
+    title: "Users",
+    href: "/admin/users",
+    icon: Users,
+    permission: "VIEW_ADMIN_DASHBOARD",
+  },
+  {
     title: "Clinics",
     href: "/admin/clinics",
     icon: Building2,
@@ -102,6 +108,18 @@ const navItems: NavItem[] = [
     title: "Doctor Payouts",
     href: "/admin/doctors/payouts",
     icon: Wallet,
+    permission: "VIEW_ADMIN_DASHBOARD",
+  },
+  {
+    title: "Reports",
+    href: "/admin/reports",
+    icon: FileText,
+    permission: "VIEW_ADMIN_DASHBOARD",
+  },
+  {
+    title: "Analytics",
+    href: "/admin/analytics",
+    icon: BarChart,
     permission: "VIEW_ADMIN_DASHBOARD",
   },
   {
@@ -135,24 +153,11 @@ export function Sidebar({ className }: SidebarProps) {
         "/admin/clinics",
         "/admin/users",
         "/admin/reports",
+        "/admin/analytics",
         "/admin/doctors/payouts",
-        "/dashboard/analytics",
-        "/dashboard"
       ];
-      // Allow strictly admin paths + analytics
-      if (adminAllowed.includes(item.href)) return true;
-
-      // Hide patient/doctor specific modules
-      const hiddenForAdmin = [
-        "/appointments/calendar",
-        "/health/medical-records",
-        "/health/prescriptions",
-        "/services/insurance",
-        "/services/payments",
-        "/chat/rooms",
-        "/queue/status"
-      ];
-      if (hiddenForAdmin.includes(item.href)) return false;
+      // Admins only see admin panel links — never doctor/clinic-owner tools
+      return adminAllowed.includes(item.href);
     }
 
     // Hide Subscription link for non-owner doctors (joining doctors)

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { apiService } from "@/services/api"
 import {
     Card,
     CardContent,
@@ -33,17 +32,23 @@ import {
     Activity,
     CreditCard,
     ArrowLeft,
-    Loader2
+    Loader2,
+    UserCheck,
+    Ban,
+    CheckCircle2,
+    Trash2,
 } from "lucide-react"
 import { formatCurrency, formatDate } from "@/utils/helpers"
 import { toast } from "sonner"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { adminService } from "@/services/admin.service"
 
 export default function ClinicDetailsPage() {
     const { id } = useParams()
     const router = useRouter()
     const [clinic, setClinic] = useState<any>(null)
     const [loading, setLoading] = useState(true)
+    const [actionLoading, setActionLoading] = useState(false)
 
     useEffect(() => {
         if (id) {
@@ -54,13 +59,47 @@ export default function ClinicDetailsPage() {
     const fetchClinicDetails = async () => {
         try {
             setLoading(true)
-            const response: any = await apiService.get(`/admin/clinics/${id}`)
-            setClinic(response.data || response)
+            const data = await adminService.getClinic(String(id))
+            setClinic(data)
         } catch (error) {
             console.error("Failed to fetch clinic details:", error)
             toast.error("Failed to load clinic details")
         } finally {
             setLoading(false)
+        }
+    }
+
+    const handleSuspendToggle = async () => {
+        if (!clinic) return
+        const next = !clinic.isActive
+        const msg = next
+            ? `Activate "${clinic.name}"?`
+            : `Suspend "${clinic.name}"? Booking for this clinic will be blocked while suspended.`
+        if (!confirm(msg)) return
+        try {
+            setActionLoading(true)
+            if (next) await adminService.activateClinic(clinic.id)
+            else await adminService.suspendClinic(clinic.id)
+            toast.success(next ? "Clinic activated" : "Clinic suspended")
+            await fetchClinicDetails()
+        } catch (error: any) {
+            toast.error(error?.response?.data?.message || "Failed to update clinic status")
+        } finally {
+            setActionLoading(false)
+        }
+    }
+
+    const handleDelete = async () => {
+        if (!clinic) return
+        if (!confirm(`Delete "${clinic.name}"? This soft-deletes the clinic from the platform.`)) return
+        try {
+            setActionLoading(true)
+            await adminService.deleteClinic(clinic.id)
+            toast.success("Clinic deleted")
+            router.push("/admin/clinics")
+        } catch (error: any) {
+            toast.error(error?.response?.data?.message || "Failed to delete clinic")
+            setActionLoading(false)
         }
     }
 
@@ -115,8 +154,27 @@ export default function ClinicDetailsPage() {
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline">Edit Details</Button>
-                    <Button variant="destructive">Suspend Clinic</Button>
+                    <Button
+                        variant="outline"
+                        disabled={actionLoading}
+                        onClick={handleSuspendToggle}
+                    >
+                        {clinic.isActive ? (
+                            <>
+                                <Ban className="mr-2 h-4 w-4" />
+                                Suspend Clinic
+                            </>
+                        ) : (
+                            <>
+                                <CheckCircle2 className="mr-2 h-4 w-4" />
+                                Activate Clinic
+                            </>
+                        )}
+                    </Button>
+                    <Button variant="destructive" disabled={actionLoading} onClick={handleDelete}>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete Clinic
+                    </Button>
                 </div>
             </div>
 
@@ -157,7 +215,7 @@ export default function ClinicDetailsPage() {
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Receptionists</CardTitle>
-                        <UserCheckIcon className="h-4 w-4 text-orange-600" />
+                        <UserCheck className="h-4 w-4 text-orange-600" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{clinic.stats.totalReceptionists}</div>

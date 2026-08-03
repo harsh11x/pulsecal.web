@@ -11,38 +11,36 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ArrowLeft, Save } from "lucide-react"
 import Link from "next/link"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 
 export default function CreateUserPage() {
   const router = useRouter()
-  const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
-    name: "",
+    firstName: "",
+    lastName: "",
     email: "",
     password: "",
-    role: "patient",
+    role: "PATIENT",
     phone: "",
-    dateOfBirth: "",
-    address: "",
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
       setLoading(true)
-      await userService.createUser(formData)
-      toast({
-        title: "Success",
-        description: "User created successfully",
+      await userService.createUser({
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        email: formData.email.trim(),
+        password: formData.password,
+        role: formData.role as any,
+        phone: formData.phone.trim() || undefined,
       })
+      toast.success("User created successfully")
       router.push("/admin/users")
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to create user",
-        variant: "destructive",
-      })
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to create user")
     } finally {
       setLoading(false)
     }
@@ -66,11 +64,20 @@ export default function CreateUserPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Full Name *</Label>
+              <Label htmlFor="firstName">First Name *</Label>
               <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                id="firstName"
+                value={formData.firstName}
+                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lastName">Last Name *</Label>
+              <Input
+                id="lastName"
+                value={formData.lastName}
+                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                 required
               />
             </div>
@@ -92,7 +99,7 @@ export default function CreateUserPage() {
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 required
-                minLength={8}
+                minLength={6}
               />
             </div>
             <div className="space-y-2">
@@ -104,10 +111,10 @@ export default function CreateUserPage() {
                 className="w-full px-3 py-2 border border-border rounded-md bg-background"
                 required
               >
-                <option value="patient">Patient</option>
-                <option value="doctor">Doctor</option>
-                <option value="receptionist">Receptionist</option>
-                <option value="admin">Admin</option>
+                <option value="PATIENT">Patient</option>
+                <option value="DOCTOR">Doctor</option>
+                <option value="RECEPTIONIST">Receptionist</option>
+                <option value="ADMIN">Admin</option>
               </select>
             </div>
             <div className="space-y-2">
@@ -118,23 +125,6 @@ export default function CreateUserPage() {
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="dateOfBirth">Date of Birth</Label>
-              <Input
-                id="dateOfBirth"
-                type="date"
-                value={formData.dateOfBirth}
-                onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="address">Address</Label>
-            <Input
-              id="address"
-              value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-            />
           </div>
           <div className="flex gap-4">
             <Button type="submit" disabled={loading}>

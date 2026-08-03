@@ -7,6 +7,7 @@ import {
   updateUserStatusController,
   createUserController,
   uploadProfilePictureController,
+  changePasswordController,
 } from './users.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
 import { requireStaff } from '../../middlewares/role.middleware';
@@ -51,6 +52,7 @@ router.post('/', authenticate, requireStaff, ensureClinicOwnerOrAdmin, createUse
 router.get('/profile', authenticate, getProfileController);
 router.put('/profile', authenticate, updateProfileController);
 router.post('/profile/picture', authenticate, upload.single('file'), uploadProfilePictureController);
+router.post('/password/change', authenticate, changePasswordController);
 router.get('/', authenticate, requireStaff, ensureClinicOwnerOrAdmin, getAllUsersController);
 router.get('/:id', authenticate, requireStaff, ensureClinicOwnerOrAdmin, getUserByIdController);
 

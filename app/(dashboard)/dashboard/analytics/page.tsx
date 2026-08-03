@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { DoctorAnalytics } from "@/components/dashboard/DoctorAnalytics"
 import { apiService } from "@/services/api"
 import { toast } from "sonner"
@@ -8,13 +9,22 @@ import { Loader2, Star, MessageSquare, ThumbsUp } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { format } from "date-fns"
+import { useAppSelector } from "@/app/hooks"
 
 export default function AnalyticsPage() {
+    const router = useRouter()
+    const { user } = useAppSelector((state) => state.auth)
     const [stats, setStats] = useState<any>(null)
     const [reviews, setReviews] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
+        // Admins use the platform analytics page, not doctor practice analytics
+        if (String(user?.role || "").toUpperCase() === "ADMIN") {
+            router.replace("/admin/analytics")
+            return
+        }
+
         const fetchData = async () => {
             try {
                 setLoading(true)
@@ -31,7 +41,7 @@ export default function AnalyticsPage() {
                         rating: r.rating,
                         comment: r.comment,
                         date: r.createdAt,
-                        appointmentType: "Appointment" // You might need to fetch this if not in review object
+                        appointmentType: "Appointment"
                     })))
                 } else {
                     setReviews([])
@@ -45,10 +55,10 @@ export default function AnalyticsPage() {
             }
         }
 
-        fetchData()
-    }, [])
+        if (user) fetchData()
+    }, [user, router])
 
-    if (loading) {
+    if (loading || String(user?.role || "").toUpperCase() === "ADMIN") {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />

@@ -1,14 +1,16 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { apiService } from "@/services/api"
 import { Card } from "@/components/ui/card"
-import { Users, Calendar, DollarSign, TrendingUp, Loader2 } from "lucide-react"
+import { Users, Calendar, Building2, TrendingUp, Loader2, Stethoscope } from "lucide-react"
 import { StatsCard } from "@/components/dashboard/StatsCard"
 import { formatCurrency } from "@/utils/helpers"
+import { adminService } from "@/services/admin.service"
+import { toast } from "sonner"
 
 export default function AnalyticsPage() {
   const [stats, setStats] = useState<any>(null)
+  const [clinicRevenue, setClinicRevenue] = useState(0)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -17,11 +19,17 @@ export default function AnalyticsPage() {
 
   const fetchStats = async () => {
     try {
-      // Reuse existing admin stats endpoint which has totalRevenue etc.
-      const response: any = await apiService.get("/admin/stats")
-      setStats(response?.data || response)
+      const [systemStats, clinics] = await Promise.all([
+        adminService.getStats(),
+        adminService.getClinics(),
+      ])
+      setStats(systemStats)
+      setClinicRevenue(
+        clinics.reduce((sum: number, c: any) => sum + (Number(c.totalRevenue) || 0), 0)
+      )
     } catch (error) {
       console.error("Failed to load analytics:", error)
+      toast.error("Failed to load analytics")
     } finally {
       setLoading(false)
     }
@@ -35,14 +43,6 @@ export default function AnalyticsPage() {
     )
   }
 
-  // Calculate generic growth/trends if data is missing (placeholder logic)
-  // For now, we show 0 or actuals if available
-  const revenue = stats?.totalRevenue || 0 // Note: API might need to return revenue in root object
-  // Actually admin/stats returns totalUsers, totalPatients etc.
-  // It effectively maps to the dashboard stats. 
-  // If revenue is not in /admin/stats, we might strictly need to fetch from /admin/clinics aggregation or similar.
-  // But for now, let's show 0 instead of fake data.
-
   return (
     <div className="space-y-6">
       <div>
@@ -53,51 +53,46 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatsCard
           title="Total Revenue"
-          value={formatCurrency(0)} // Placeholder until we aggregate global revenue
-          icon={DollarSign}
+          value={formatCurrency(clinicRevenue)}
+          icon={TrendingUp}
           color="purple"
-          trend={{ value: 0, isPositive: true, label: "from last month" }}
-          description="Total platform revenue"
+          description="Lifetime clinic revenue"
         />
         <StatsCard
-          title="New Patients"
+          title="Patients"
           value={stats?.totalPatients || 0}
           icon={Users}
           color="green"
-          trend={{ value: 0, isPositive: true, label: "this month" }}
-          description="New registrations"
+          description="Registered patients"
         />
         <StatsCard
-          title="Appointments"
-          value={stats?.totalAppointments || 0}
-          icon={Calendar}
+          title="Doctors"
+          value={stats?.totalDoctors || 0}
+          icon={Stethoscope}
           color="blue"
-          trend={{ value: 0, isPositive: true, label: "this month" }}
-          description="Total appointments"
+          description="Active doctors"
         />
         <StatsCard
-          title="Growth Rate"
-          value="0%"
-          icon={TrendingUp}
+          title="Clinics"
+          value={stats?.totalClinics || 0}
+          icon={Building2}
           color="indigo"
-          trend={{ value: 0, isPositive: true, label: "monthly growth" }}
-          description="Platform growth"
+          description="Registered clinics"
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="p-6 flex items-center justify-center min-h-[300px]">
-          <div className="text-center">
-            <h3 className="text-lg font-semibold mb-2">Monthly Performance</h3>
-            <p className="text-muted-foreground">Not enough data to display chart</p>
-          </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="p-6">
+          <h3 className="text-sm font-medium text-muted-foreground">Total Appointments</h3>
+          <p className="text-3xl font-bold mt-2">{stats?.totalAppointments || 0}</p>
         </Card>
-
-        <Card className="p-6 flex items-center justify-center min-h-[300px]">
-          <div className="text-center">
-            <h3 className="text-lg font-semibold mb-2">User Distribution</h3>
-            <p className="text-muted-foreground">Not enough data to display chart</p>
-          </div>
+        <Card className="p-6">
+          <h3 className="text-sm font-medium text-muted-foreground">Active Appointments</h3>
+          <p className="text-3xl font-bold mt-2">{stats?.activeAppointments || 0}</p>
+        </Card>
+        <Card className="p-6">
+          <h3 className="text-sm font-medium text-muted-foreground">Medical Records</h3>
+          <p className="text-3xl font-bold mt-2">{stats?.totalMedicalRecords || 0}</p>
         </Card>
       </div>
     </div>

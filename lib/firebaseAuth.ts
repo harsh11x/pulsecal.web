@@ -6,6 +6,9 @@ import {
   signOut,
   sendPasswordResetEmail,
   updateProfile,
+  updatePassword,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
   User,
   UserCredential,
   fetchSignInMethodsForEmail
@@ -250,6 +253,81 @@ export const getCurrentUser = (): User | null => {
     return authInstance.currentUser;
   } catch {
     return null;
+  }
+};
+
+/**
+ * Change password for the currently signed-in email/password user.
+ * Uses Firebase client SDK (works for all roles: patient/doctor/receptionist/admin).
+ */
+export const changePassword = async (
+  currentPassword: string,
+  newPassword: string
+): Promise<void> => {
+  const authInstance = getAuthInstance();
+  const user = authInstance.currentUser;
+
+  if (!user || !user.email) {
+    throw Object.assign(new Error('No user logged in. Please sign in again.'), {
+      code: 'auth/no-current-user',
+    });
+  }
+
+  if (!newPassword || newPassword.length < 8) {
+    throw Object.assign(new Error('New password must be at least 8 characters.'), {
+      code: 'auth/weak-password',
+    });
+  }
+
+  if (currentPassword === newPassword) {
+    throw Object.assign(new Error('New password must be different from your current password.'), {
+      code: 'auth/same-password',
+    });
+  }
+
+  const hasPasswordProvider = user.providerData.some((p) => p.providerId === 'password');
+  if (!hasPasswordProvider) {
+    throw Object.assign(
+      new Error('You signed in with Google. Password changes are not available for Google accounts.'),
+      { code: 'auth/operation-not-allowed' }
+    );
+  }
+
+  const credential = EmailAuthProvider.credential(user.email, currentPassword);
+  await reauthenticateWithCredential(user, credential);
+  await updatePassword(user, newPassword);
+};
+
+/** Map Firebase auth errors to user-friendly messages for password change UI. */
+export const getPasswordChangeErrorMessage = (error: any): string => {
+  const code = String(error?.code || '');
+  const apiMessage =
+    error?.response?.data?.message ||
+    error?.response?.data?.error ||
+    error?.message;
+
+  switch (code) {
+    case 'auth/wrong-password':
+    case 'auth/invalid-credential':
+    case 'auth/invalid-login-credentials':
+      return 'Current password is incorrect';
+    case 'auth/requires-recent-login':
+      return 'Please sign out and sign in again before changing your password';
+    case 'auth/weak-password':
+      return error?.message || 'Password is too weak. Use at least 8 characters.';
+    case 'auth/too-many-requests':
+      return 'Too many attempts. Please try again later.';
+    case 'auth/network-request-failed':
+      return 'Network error. Check your connection and try again.';
+    case 'auth/operation-not-allowed':
+    case 'auth/no-current-user':
+    case 'auth/same-password':
+      return error?.message || 'Unable to change password';
+    default:
+      if (typeof apiMessage === 'string' && apiMessage.trim()) {
+        return apiMessage;
+      }
+      return 'Failed to change password';
   }
 };
 

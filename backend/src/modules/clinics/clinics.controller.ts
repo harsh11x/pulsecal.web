@@ -115,6 +115,7 @@ export const updateClinicController = async (
       description: Joi.string().optional().allow(''),
       latitude: Joi.number().optional().allow(null),
       longitude: Joi.number().optional().allow(null),
+      isActive: Joi.boolean().optional(),
     }).min(1);
 
     const { error, value } = updateSchema.validate(req.body);

@@ -6,11 +6,13 @@ import {
   getUserById,
   updateUserStatus,
   createUser,
+  changePassword,
 } from './users.service';
 import { sendSuccess, sendPaginated } from '../../utils/apiResponse';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { AppError } from '../../middlewares/error.middleware';
 import { logger } from '../../utils/logger';
+import { changePasswordSchema } from '../auth/auth.validation';
 import Joi from 'joi';
 
 const createUserSchema = Joi.object({
@@ -106,7 +108,7 @@ export const updateProfileController = async (
 };
 
 export const getAllUsersController = async (
-  req: Request,
+  req: AuthRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
@@ -142,12 +144,50 @@ export const updateUserStatusController = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { isActive } = req.body;
+    const { isActive, permanent } = req.body;
     if (typeof isActive !== 'boolean') {
       throw new AppError('isActive must be a boolean', 400);
     }
-    const user = await updateUserStatus(req.params.id, isActive);
-    sendSuccess(res, user, 'User status updated successfully');
+
+    // Prevent admin from suspending/deleting their own account
+    if (req.user?.id === req.params.id && isActive === false) {
+      throw new AppError('You cannot suspend or delete your own account', 400);
+    }
+
+    const user = await updateUserStatus(req.params.id, isActive, {
+      permanent: permanent === true,
+    });
+    sendSuccess(
+      res,
+      user,
+      isActive
+        ? 'User activated successfully'
+        : permanent
+          ? 'User deleted successfully'
+          : 'User suspended successfully'
+    );
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const changePasswordController = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user?.id) {
+      throw new AppError('User not authenticated', 401);
+    }
+
+    const { error, value } = changePasswordSchema.validate(req.body);
+    if (error) {
+      throw new AppError(error.details[0].message, 400);
+    }
+
+    await changePassword(req.user.id, value.currentPassword, value.newPassword);
+    sendSuccess(res, null, 'Password changed successfully');
   } catch (err) {
     next(err);
   }

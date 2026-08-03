@@ -11,7 +11,7 @@ class ApiService {
   constructor() {
     this.api = axios.create({
       baseURL: API_BASE_URL,
-      timeout: 10000,
+      timeout: 30000,
       headers: {
         "Content-Type": "application/json",
       },
@@ -84,7 +84,8 @@ class ApiService {
 
         // Handle 403 Forbidden (insufficient permissions)
         if (error.response?.status === 403) {
-          console.error("Insufficient permissions for this action")
+          // Expected for role-gated pages — don't spam Next.js issue overlay
+          console.debug("Insufficient permissions for this action")
           // Try refreshing token once in case role was just updated
           if (!originalRequest._permissionRetry) {
             originalRequest._permissionRetry = true
@@ -96,7 +97,7 @@ class ApiService {
                 return this.api(originalRequest)
               }
             } catch (refreshError) {
-              console.error("Permission refresh failed:", refreshError)
+              console.debug("Permission refresh failed:", refreshError)
             }
           }
         }
@@ -114,10 +115,13 @@ class ApiService {
           error.networkError = true
           error.detailedMessage = `Cannot connect to ${error.config?.baseURL}${error.config?.url}. Please check if the backend server is running.`
         }
-        // Log all errors for debugging
+        // Log API errors (skip noisy expected auth/permission failures)
         if (error.response) {
-          console.error("API Error Response:", {
-            status: error.response?.status,
+          const status = error.response?.status
+          const quiet = status === 401 || status === 403 || status === 404
+          const logger = quiet ? console.debug : console.error
+          logger("API Error Response:", {
+            status,
             statusText: error.response?.statusText,
             data: error.response?.data,
             url: error.config?.url,

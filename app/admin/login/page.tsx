@@ -45,7 +45,7 @@ export default function AdminLoginPage() {
                 }
             )
 
-            if (user?.role !== "ADMIN") {
+            if (String(user?.role || "").toUpperCase() !== "ADMIN") {
                 toast.error("Access Denied: You must be an administrator to log in here.")
                 // Optionally sign out from firebase if not admin
                 await auth.signOut()

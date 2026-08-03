@@ -2,7 +2,8 @@ import prisma from '../../config/database';
 import admin from '../../config/firebase';
 import { AppError } from '../../middlewares/error.middleware';
 import { logger } from '../../utils/logger';
-import { createFirebaseUserViaRest } from '../../utils/firebaseAuthRest';
+import { createFirebaseUserViaRest, changeFirebasePasswordViaRest } from '../../utils/firebaseAuthRest';
+import { hashPassword } from '../../utils/encrypt';
 
 const SAFE_USER_SELECT = {
   id: true,
@@ -481,16 +482,19 @@ export const updateProfile = async (
 
 export const getAllUsers = async (req: any) => {
   try {
-    const { page = 1, limit = 10 } = req.query || {};
-    const { role, search, sortBy = 'createdAt', order = 'desc' } = req.query || {};
+    const { page = 1, limit = 50 } = req.query || {};
+    const { role, search, sortBy = 'createdAt', order = 'desc', includeDeleted } = req.query || {};
 
     const pageNum = Math.max(1, parseInt(page as string, 10) || 1);
-    const limitNum = Math.min(100, Math.max(1, parseInt(limit as string, 10) || 10));
+    const limitNum = Math.min(200, Math.max(1, parseInt(limit as string, 10) || 50));
     const skip = (pageNum - 1) * limitNum;
 
     const where: any = {};
+    // Soft-deleted users are hidden unless explicitly requested
+    if (String(includeDeleted) !== 'true') {
+      where.deletedAt = null;
+    }
     if (role) {
-      // Handle case-insensitive role matching
       where.role = (role as string).toUpperCase();
     }
     if (search) {
@@ -499,6 +503,11 @@ export const getAllUsers = async (req: any) => {
         { lastName: { contains: search as string, mode: 'insensitive' } },
         { email: { contains: search as string, mode: 'insensitive' } },
       ];
+    }
+
+    // Clinic owners only see their clinic staff; admins see everyone
+    if (req.user?.role !== 'ADMIN' && req.user?.clinicId) {
+      where.clinicId = req.user.clinicId;
     }
 
     const orderBy: any = {};
@@ -521,10 +530,12 @@ export const getAllUsers = async (req: any) => {
           email: true,
           firstName: true,
           lastName: true,
+          phone: true,
           role: true,
           isActive: true,
-          createdAt: true,
           clinicId: true,
+          createdAt: true,
+          deletedAt: true,
         },
       }),
       prisma.user.count({ where }),
@@ -576,22 +587,27 @@ export const getUserById = async (userId: string) => {
 
 export const updateUserStatus = async (
   userId: string,
-  isActive: boolean
+  isActive: boolean,
+  options?: { permanent?: boolean }
 ) => {
   const existing = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, firebaseUid: true, email: true },
+    select: { id: true, firebaseUid: true, email: true, role: true },
   });
 
   if (!existing) {
     throw new AppError('User not found', 404);
   }
 
+  // Suspend: deactivate but keep recoverable (deletedAt null)
+  // Delete (permanent soft-delete): deactivate + set deletedAt
+  // Activate: clear deletedAt
+  const permanent = options?.permanent === true;
   const user = await prisma.user.update({
     where: { id: userId },
     data: {
       isActive,
-      deletedAt: isActive ? null : new Date(),
+      deletedAt: isActive ? null : permanent ? new Date() : null,
     },
     select: SAFE_USER_SELECT,
   });
@@ -611,4 +627,70 @@ export const updateUserStatus = async (
   }
 
   return user;
+};
+
+/**
+ * Change password for the authenticated user.
+ * Verifies current password via Firebase Identity Toolkit, then updates.
+ * Also syncs optional DB password hash when present.
+ */
+export const changePassword = async (
+  userId: string,
+  currentPassword: string,
+  newPassword: string
+): Promise<void> => {
+  if (!newPassword || newPassword.length < 8) {
+    throw new AppError('New password must be at least 8 characters', 400);
+  }
+  if (currentPassword === newPassword) {
+    throw new AppError('New password must be different from your current password', 400);
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, email: true, firebaseUid: true, password: true },
+  });
+
+  if (!user?.email) {
+    throw new AppError('User not found', 404);
+  }
+
+  try {
+    await changeFirebasePasswordViaRest({
+      email: user.email,
+      currentPassword,
+      newPassword,
+    });
+  } catch (err: any) {
+    const message = String(err?.message || '');
+    if (
+      message.includes('INVALID_PASSWORD') ||
+      message.includes('INVALID_LOGIN_CREDENTIALS') ||
+      message.includes('EMAIL_NOT_FOUND')
+    ) {
+      throw new AppError('Current password is incorrect', 400);
+    }
+    if (message.includes('WEAK_PASSWORD')) {
+      throw new AppError('Password is too weak. Use at least 8 characters.', 400);
+    }
+    if (message.includes('TOO_MANY_ATTEMPTS')) {
+      throw new AppError('Too many attempts. Please try again later.', 429);
+    }
+    logger.error({ userId, message }, 'Password change failed');
+    throw new AppError('Failed to change password', 500);
+  }
+
+  // Best-effort: keep legacy DB password hash in sync (Firebase is source of truth)
+  try {
+    const hashed = await hashPassword(newPassword);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashed },
+    });
+  } catch (syncErr: any) {
+    logger.warn(
+      { userId, error: syncErr?.message },
+      'Firebase password updated but DB hash sync failed'
+    );
+  }
 };
