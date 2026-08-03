@@ -11,7 +11,7 @@ import { apiService } from "@/services/api"
 import { useAppSelector } from "@/app/hooks"
 import { toast } from "sonner"
 import { format } from "date-fns"
-import { PLANS, PLAN_AMOUNTS, PLAN_FEATURES, PLAN_ORDER } from "@/lib/planConfig"
+import { PLANS, PLAN_AMOUNTS, PLAN_YEARLY_AMOUNTS, PLAN_FEATURES, PLAN_ORDER } from "@/lib/planConfig"
 
 export default function SubscriptionPage() {
     const { user } = useAppSelector((state) => state.auth)
@@ -26,6 +26,7 @@ export default function SubscriptionPage() {
         lastPaymentDate: string | null
     } | null>(null)
     const [processing, setProcessing] = useState<string | null>(null)
+    const [billingCycle, setBillingCycle] = useState<"MONTHLY" | "YEARLY">("MONTHLY")
 
     const planFeaturesMap = PLAN_FEATURES
     const plans = PLANS.map((p) => ({ ...p, price: `${p.price}`, amount: p.amount, period: "/month" }))
@@ -65,15 +66,18 @@ export default function SubscriptionPage() {
         }
     }
 
-    const handleSubscribe = async (planId: string) => {
+    const handleSubscribe = async (planId: string, cycle: "MONTHLY" | "YEARLY" = billingCycle) => {
         setProcessing(planId)
         try {
             const payablePlanId = planId === "STARTER" ? "BASIC" : planId
+            const billingCycle = cycle
 
             // Use the auto-debit subscription flow first (Razorpay charges the same
             // calendar day each month). Falls back to a one-time order server-side.
+            // Yearly billing is always a one-time upfront order (12 months at 20% off).
             const data: any = await apiService.post("/payments/create-subscription", {
                 plan: payablePlanId,
+                billingCycle,
             })
             const isSubscriptionCheckout = data?.mode === "subscription" || Boolean(data?.subscriptionId)
 
@@ -95,7 +99,9 @@ export default function SubscriptionPage() {
                 name: "PulseCal",
                 description: isSubscriptionCheckout
                     ? `${payablePlanId} monthly auto-payment subscription`
-                    : `${payablePlanId} plan (1 month)`,
+                    : billingCycle === "YEARLY"
+                        ? `${payablePlanId} yearly plan (12 months, 20% off)`
+                        : `${payablePlanId} plan (1 month)`,
                 handler: async (rzpResponse: any) => {
                     try {
                         if (isSubscriptionCheckout) {
@@ -112,7 +118,11 @@ export default function SubscriptionPage() {
                                 razorpay_payment_id: rzpResponse.razorpay_payment_id,
                                 razorpay_signature: rzpResponse.razorpay_signature,
                             })
-                            toast.success("Subscription renewed successfully!")
+                            toast.success(
+                                billingCycle === "YEARLY"
+                                    ? "Yearly subscription activated! Access for 12 months."
+                                    : "Subscription renewed successfully!"
+                            )
                         }
                         await fetchSubscriptionStatus()
                     } catch (verifyError: any) {
@@ -285,7 +295,7 @@ export default function SubscriptionPage() {
                         {currentSubscription?.plan && !currentSubscription?.autoRenew && (
                             <Button
                                 variant="outline"
-                                onClick={() => handleSubscribe(currentSubscription.plan)}
+                                onClick={() => handleSubscribe(currentSubscription.plan, "MONTHLY")}
                                 disabled={!!processing}
                             >
                                 {processing === currentSubscription.plan ? (
@@ -303,7 +313,25 @@ export default function SubscriptionPage() {
                 <div>
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                         <h2 className="text-xl font-semibold">Available Plans</h2>
-                        <Badge variant="outline">Secure Razorpay checkout · Auto-debits monthly</Badge>
+                        <Badge variant="outline">Secure Razorpay checkout</Badge>
+                    </div>
+
+                    <div className="flex items-center justify-center gap-2 bg-muted/30 p-1.5 rounded-full w-fit mx-auto mb-8 border border-border">
+                        <button
+                            onClick={() => setBillingCycle("MONTHLY")}
+                            className={`relative px-5 py-2 rounded-full text-sm font-medium transition-all duration-200 ${billingCycle === "MONTHLY" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                        >
+                            Monthly
+                        </button>
+                        <button
+                            onClick={() => setBillingCycle("YEARLY")}
+                            className={`relative px-5 py-2 rounded-full text-sm font-medium transition-all duration-200 ${billingCycle === "YEARLY" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                        >
+                            Yearly
+                            <span className="absolute -top-2 -right-2 text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full border border-green-200 font-bold">
+                                -20%
+                            </span>
+                        </button>
                     </div>
 
                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -313,8 +341,9 @@ export default function SubscriptionPage() {
                             const planIdx = planOrder.indexOf(plan.id)
                             const isUpgrade = planIdx > currentPlanIndex
 
-                            const baseAmount = PLAN_AMOUNTS[plan.id]
-                            const priceDisplay = `Rs. ${baseAmount.toLocaleString("en-IN")}`
+                            const isYearly = billingCycle === "YEARLY"
+                            const amount = isYearly ? PLAN_YEARLY_AMOUNTS[plan.id] : PLAN_AMOUNTS[plan.id]
+                            const priceDisplay = `₹${amount.toLocaleString("en-IN")}`
 
                             return (
                                 <Card key={plan.id} className={`relative flex flex-col ${plan.recommended ? 'border-primary shadow-lg md:scale-105' : ''}`}>
@@ -330,7 +359,10 @@ export default function SubscriptionPage() {
                                     <CardContent className="flex-1">
                                         <div className="mb-6">
                                             <span className="text-4xl font-bold">{priceDisplay}</span>
-                                            <span className="text-muted-foreground"> / month</span>
+                                            <span className="text-muted-foreground">{isYearly ? " / year" : " / month"}</span>
+                                            {isYearly && (
+                                                <div className="text-xs text-green-600 font-semibold mt-1">Save 20% vs monthly</div>
+                                            )}
                                         </div>
                                         <ul className="space-y-3">
                                             {plan.features.map((feature, i) => (

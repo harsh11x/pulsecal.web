@@ -163,6 +163,8 @@ export const getProfile = async (userId: string) => {
             specialization: true,
             clinicName: true,
             clinicAddress: true,
+            clinicLatitude: true,
+            clinicLongitude: true,
             consultationFee: true,
             services: true,
             workingHours: true,
@@ -259,6 +261,8 @@ export const updateProfile = async (
     services?: string[];
     workingHours?: any;
     clinicName?: string;
+    clinicLatitude?: number | null;
+    clinicLongitude?: number | null;
     bankAccountDetails?: string | null;
     upiId?: string | null;
   }
@@ -275,6 +279,8 @@ export const updateProfile = async (
       services,
       workingHours,
       clinicName,
+      clinicLatitude,
+      clinicLongitude,
       bankAccountDetails,
       upiId,
       ...userData
@@ -308,6 +314,8 @@ export const updateProfile = async (
         services !== undefined ||
         workingHours !== undefined ||
         clinicName !== undefined ||
+        clinicLatitude !== undefined ||
+        clinicLongitude !== undefined ||
         bankAccountDetails !== undefined ||
         upiId !== undefined)
     ) {
@@ -326,6 +334,8 @@ export const updateProfile = async (
             services,
             workingHours,
             clinicName,
+            clinicLatitude,
+            clinicLongitude,
             bankAccountDetails,
             upiId,
           },
@@ -339,6 +349,8 @@ export const updateProfile = async (
             specialization: specialization || 'General',
             clinicName: clinicName || 'My Clinic',
             clinicAddress,
+            clinicLatitude,
+            clinicLongitude,
             bio,
             consultationFee: consultationFee || 0,
             services: services || [],

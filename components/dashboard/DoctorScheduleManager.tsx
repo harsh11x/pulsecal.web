@@ -32,6 +32,8 @@ export default function DoctorScheduleManager() {
   const [workingHours, setWorkingHours] = useState({
     start: "09:00",
     end: "17:00",
+    breakStart: "",
+    breakEnd: "",
   })
   const [slotDuration, setSlotDuration] = useState(30) // minutes
   const [blockedSlots, setBlockedSlots] = useState<TimeSlot[]>([])
@@ -55,7 +57,9 @@ export default function DoctorScheduleManager() {
         if (defaults.workingHours) {
           setWorkingHours({
             start: defaults.workingHours.start,
-            end: defaults.workingHours.end
+            end: defaults.workingHours.end,
+            breakStart: defaults.workingHours.breakStart || "",
+            breakEnd: defaults.workingHours.breakEnd || "",
           })
         }
         if (defaults.slotDuration) {
@@ -68,12 +72,14 @@ export default function DoctorScheduleManager() {
         if (daySchedule) {
           setWorkingHours({
             start: daySchedule.start,
-            end: daySchedule.end
+            end: daySchedule.end,
+            breakStart: daySchedule.breakStart || "",
+            breakEnd: daySchedule.breakEnd || "",
           })
         }
       } else {
         // Fallback if no workingHours set at all
-        setWorkingHours({ start: "09:00", end: "17:00" });
+        setWorkingHours({ start: "09:00", end: "17:00", breakStart: "", breakEnd: "" });
         setSlotDuration(30);
       }
 
@@ -116,10 +122,30 @@ export default function DoctorScheduleManager() {
     const [startHour, startMin] = start.split(":").map(Number)
     const [endHour, endMin] = end.split(":").map(Number)
 
+    const toMinutes = (time: string): number | null => {
+      if (!time) return null
+      const [h, m] = time.split(":").map(Number)
+      if (!Number.isFinite(h)) return null
+      return h * 60 + (Number.isFinite(m) ? m : 0)
+    }
+    const breakStartMin = toMinutes(workingHours.breakStart)
+    const breakEndMin = toMinutes(workingHours.breakEnd)
+    const hasBreak = breakStartMin !== null && breakEndMin !== null && breakStartMin < breakEndMin
+
     let currentHour = startHour
     let currentMin = startMin
 
     while (currentHour < endHour || (currentHour === endHour && currentMin < endMin)) {
+      const currentTotal = currentHour * 60 + currentMin
+      const nextTotal = currentTotal + duration
+
+      // Skip any slots that fall inside the break window
+      if (hasBreak && currentTotal < (breakEndMin as number) && nextTotal > (breakStartMin as number)) {
+        currentHour = Math.floor((breakEndMin as number) / 60)
+        currentMin = (breakEndMin as number) % 60
+        continue
+      }
+
       const slotStart = `${String(currentHour).padStart(2, "0")}:${String(currentMin).padStart(2, "0")}`
 
       currentMin += duration
@@ -181,7 +207,9 @@ export default function DoctorScheduleManager() {
         date: format(selectedDate, "yyyy-MM-dd"),
         workingHours: {
           start: workingHours.start,
-          end: workingHours.end
+          end: workingHours.end,
+          breakStart: workingHours.breakStart || "",
+          breakEnd: workingHours.breakEnd || "",
         },
         slotDuration,
         blockedSlots: blockedSlots.map(slot => ({
@@ -222,7 +250,7 @@ export default function DoctorScheduleManager() {
           <CardDescription>Manage your availability and time slots</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-5">
             <div className="space-y-2">
               <Label>Working Hours Start</Label>
               <Input
@@ -237,6 +265,22 @@ export default function DoctorScheduleManager() {
                 type="time"
                 value={workingHours.end}
                 onChange={(e) => setWorkingHours({ ...workingHours, end: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Break Start (optional)</Label>
+              <Input
+                type="time"
+                value={workingHours.breakStart}
+                onChange={(e) => setWorkingHours({ ...workingHours, breakStart: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Break End (optional)</Label>
+              <Input
+                type="time"
+                value={workingHours.breakEnd}
+                onChange={(e) => setWorkingHours({ ...workingHours, breakEnd: e.target.value })}
               />
             </div>
             <div className="space-y-2">
@@ -255,6 +299,15 @@ export default function DoctorScheduleManager() {
               </Select>
             </div>
           </div>
+
+          {workingHours.breakStart && workingHours.breakEnd &&
+            (workingHours.breakStart >= workingHours.breakEnd ||
+              workingHours.breakStart < workingHours.start ||
+              workingHours.breakEnd > workingHours.end) && (
+            <p className="text-sm text-red-500">
+              Break must be within working hours and start before it ends. Invalid breaks are ignored when generating slots.
+            </p>
+          )}
 
           <div className="space-y-2">
             <Label>Select Date</Label>

@@ -389,11 +389,32 @@ export const getDoctorAvailability = async (doctorId: string, date: Date) => {
   const endTime = new Date(date);
   endTime.setHours(endHour, endMin, 0, 0);
 
+  // Optional break period (e.g. lunch) — patients cannot book during the break
+  const parseTime = (value: any) => {
+    if (!value) return null;
+    const [h, m] = String(value).split(':').map(Number);
+    if (!Number.isFinite(h)) return null;
+    const t = new Date(date);
+    t.setHours(h, Number.isFinite(m) ? m : 0, 0, 0);
+    return t;
+  };
+  const breakStartTime = parseTime(daySchedule.breakStart);
+  const breakEndTime = parseTime(daySchedule.breakEnd);
+  const hasBreak = !!breakStartTime && !!breakEndTime && breakStartTime < breakEndTime;
+
   const slotDuration = 30; // 30 minutes per slot
   let currentTime = new Date(startTime);
 
   while (currentTime < endTime) {
     const slotEnd = new Date(currentTime.getTime() + slotDuration * 60000);
+
+    // Skip slots that overlap the configured break
+    if (hasBreak) {
+      if (currentTime < breakEndTime && slotEnd > breakStartTime) {
+        currentTime = new Date(breakEndTime);
+        continue;
+      }
+    }
 
     // Check if slot conflicts with existing appointments
     const hasConflict = appointments.some((apt) => {
@@ -563,6 +584,19 @@ export const getDoctorSlots = async (doctorId: string, daysParam: number = 10) =
     const [startHour, startMin] = (daySchedule?.start || `${defaultStart}:00`).split(':').map(Number);
     const [endHour, endMin] = (daySchedule?.end || `${defaultEnd}:00`).split(':').map(Number);
 
+    // Optional daily break — patients cannot book during this window
+    const parseBreakTime = (value: any) => {
+      if (!value) return null;
+      const [h, m] = String(value).split(':').map(Number);
+      if (!Number.isFinite(h)) return null;
+      const t = new Date(currentDay);
+      t.setHours(h, Number.isFinite(m) ? m : 0, 0, 0);
+      return t;
+    };
+    const breakStartTime = parseBreakTime(daySchedule?.breakStart);
+    const breakEndTime = parseBreakTime(daySchedule?.breakEnd);
+    const hasBreak = !!breakStartTime && !!breakEndTime && breakStartTime < breakEndTime;
+
     const daySlots: { time: string; available: boolean }[] = [];
     let hasAvailable = false;
 
@@ -582,6 +616,11 @@ export const getDoctorSlots = async (doctorId: string, daysParam: number = 10) =
 
       let current = new Date(slotStart);
       while (current < slotEnd) {
+        // Skip slots inside the configured break window
+        if (hasBreak && current < breakEndTime && (current.getTime() + configuredSlotDuration * 60000) > breakStartTime.getTime()) {
+          current = new Date(breakEndTime);
+          continue;
+        }
         if (current >= now) {
           const currentSlotStart = new Date(current);
           const currentSlotEnd = new Date(current.getTime() + configuredSlotDuration * 60000);

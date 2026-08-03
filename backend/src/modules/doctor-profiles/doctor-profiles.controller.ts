@@ -42,6 +42,8 @@ const updateDoctorProfileSchema = Joi.object({
     services: Joi.array().items(Joi.string()).optional(),
     workingHours: Joi.object().optional(),
     clinicId: Joi.string().optional(),
+    clinicLatitude: Joi.number().optional().allow(null),
+    clinicLongitude: Joi.number().optional().allow(null),
     bankAccountDetails: Joi.string().optional().allow('', null),
     upiId: Joi.string().optional().allow('', null),
 });

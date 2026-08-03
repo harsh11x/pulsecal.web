@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import dynamic from "next/dynamic"
 import { useAppSelector, useAppDispatch } from "@/app/hooks"
 import { setUser } from "@/app/features/authSlice"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,10 +13,20 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
 import { apiService } from "@/services/api"
-import { MapPin, Clock, DollarSign, Upload, CheckCircle, Building2, FileText, User, Search } from "lucide-react"
+import { MapPin, Clock, DollarSign, Upload, CheckCircle, Building2, FileText, User, Search, Coffee, X } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import { indianStates, citiesByState } from "@/lib/indianLocations"
-import { PLANS } from "@/lib/planConfig"
+import { PLANS, PLAN_YEARLY_AMOUNTS } from "@/lib/planConfig"
+
+// Dynamically import the Leaflet map with SSR disabled (Leaflet needs the browser)
+const LocationPickerMap = dynamic(() => import("./LocationPickerMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-80 w-full rounded-xl border border-border bg-muted/30 animate-pulse flex items-center justify-center text-sm text-muted-foreground">
+      Loading map…
+    </div>
+  ),
+})
 
 export default function DoctorOnboarding() {
   const router = useRouter()
@@ -59,13 +70,13 @@ export default function DoctorOnboarding() {
     consultationFee: "",
     services: [] as string[],
     workingHours: {
-      monday: { start: "09:00", end: "17:00", isOpen: true },
-      tuesday: { start: "09:00", end: "17:00", isOpen: true },
-      wednesday: { start: "09:00", end: "17:00", isOpen: true },
-      thursday: { start: "09:00", end: "17:00", isOpen: true },
-      friday: { start: "09:00", end: "17:00", isOpen: true },
-      saturday: { start: "09:00", end: "13:00", isOpen: false },
-      sunday: { start: "", end: "", isOpen: false },
+      monday: { start: "09:00", end: "17:00", isOpen: true, breakStart: "13:00", breakEnd: "14:00" },
+      tuesday: { start: "09:00", end: "17:00", isOpen: true, breakStart: "13:00", breakEnd: "14:00" },
+      wednesday: { start: "09:00", end: "17:00", isOpen: true, breakStart: "13:00", breakEnd: "14:00" },
+      thursday: { start: "09:00", end: "17:00", isOpen: true, breakStart: "13:00", breakEnd: "14:00" },
+      friday: { start: "09:00", end: "17:00", isOpen: true, breakStart: "13:00", breakEnd: "14:00" },
+      saturday: { start: "09:00", end: "13:00", isOpen: false, breakStart: "", breakEnd: "" },
+      sunday: { start: "", end: "", isOpen: false, breakStart: "", breakEnd: "" },
     },
 
     // Verification
@@ -74,6 +85,7 @@ export default function DoctorOnboarding() {
 
     // Subscription
     subscriptionPlan: "STARTER" as "STARTER" | "BASIC" | "PROFESSIONAL" | "ENTERPRISE",
+    billingCycle: "MONTHLY" as "MONTHLY" | "YEARLY",
   })
 
   // Helper validation function
@@ -85,6 +97,14 @@ export default function DoctorOnboarding() {
     const value = e.target.value.replace(/\D/g, '').slice(0, 10);
     setFormData({ ...formData, phone: value });
   };
+
+  // If the doctor changes the address after verifying, invalidate the pinned location
+  // so they re-verify instead of keeping a stale pin.
+  const clearVerifiedLocation = (next: typeof formData) => ({
+    ...next,
+    clinicLatitude: "",
+    clinicLongitude: "",
+  });
 
   useEffect(() => {
     const script = document.createElement("script")
@@ -282,7 +302,8 @@ export default function DoctorOnboarding() {
       // Create Razorpay subscription for monthly auto-debit.
       console.log("🛒 Creating monthly auto-payment subscription...");
       const orderResponse: any = await apiService.post("/payments/create-subscription", {
-        plan: formData.subscriptionPlan
+        plan: formData.subscriptionPlan,
+        billingCycle: formData.billingCycle
       });
 
       const orderData = orderResponse.data || orderResponse;
@@ -317,13 +338,16 @@ export default function DoctorOnboarding() {
       };
 
       // 2. Open Razorpay
+      const payablePlanName = formData.subscriptionPlan === "STARTER" ? "BASIC" : formData.subscriptionPlan
       const options: Record<string, unknown> = {
         key: orderData.key,
         currency: "INR",
         name: "PulseCal",
         description: isSubscriptionCheckout
-          ? `${formData.subscriptionPlan} monthly auto-payment subscription`
-          : `${formData.subscriptionPlan} plan (1 month)`,
+          ? `${payablePlanName} monthly auto-payment subscription`
+          : formData.billingCycle === "YEARLY"
+            ? `${payablePlanName} yearly plan (12 months, 20% off)`
+            : `${payablePlanName} plan (1 month)`,
         handler: async (response: any) => {
           try {
             console.log("💳 Payment successful, verifying...");
@@ -347,7 +371,11 @@ export default function DoctorOnboarding() {
 
             console.log("✅ Payment verified successfully");
             toast.dismiss();
-            toast.success("Payment successful! Setting up your account...");
+            toast.success(
+              formData.billingCycle === "YEARLY"
+                ? "Payment successful! Your clinic is set up for 12 months. Setting up your account..."
+                : "Payment successful! Setting up your account..."
+            );
 
             // Extract clinic ID
             const clinicId = verifyResponse?.data?.clinic?.id || verifyResponse?.clinic?.id;
@@ -452,7 +480,8 @@ export default function DoctorOnboarding() {
     } catch (error: any) {
       console.error("❌ Payment initialization error:", error);
       toast.dismiss();
-      toast.error(error?.message || "Failed to initialize payment. Please try again.");
+      const errorMsg = error?.response?.data?.message || error?.message || "Failed to initialize payment. Please try again.";
+      toast.error(errorMsg);
       setLoading(false);
     }
 
@@ -977,7 +1006,7 @@ export default function DoctorOnboarding() {
                   id="clinicAddress"
                   placeholder="123, MG Road"
                   value={formData.clinicAddress}
-                  onChange={(e) => setFormData({ ...formData, clinicAddress: e.target.value })}
+                  onChange={(e) => setFormData(clearVerifiedLocation({ ...formData, clinicAddress: e.target.value }))}
                   required
                 />
               </div>
@@ -987,7 +1016,7 @@ export default function DoctorOnboarding() {
                   <Label htmlFor="clinicState">State *</Label>
                   <Select
                     value={formData.clinicState}
-                    onValueChange={(value) => setFormData({ ...formData, clinicState: value, clinicCity: "" })}
+                    onValueChange={(value) => setFormData(clearVerifiedLocation({ ...formData, clinicState: value, clinicCity: "" }))}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select State" />
@@ -1005,7 +1034,7 @@ export default function DoctorOnboarding() {
                   <Label htmlFor="clinicCity">City *</Label>
                   <Select
                     value={formData.clinicCity}
-                    onValueChange={(value) => setFormData({ ...formData, clinicCity: value })}
+                    onValueChange={(value) => setFormData(clearVerifiedLocation({ ...formData, clinicCity: value }))}
                     disabled={!formData.clinicState}
                   >
                     <SelectTrigger>
@@ -1026,7 +1055,7 @@ export default function DoctorOnboarding() {
                     id="clinicZipCode"
                     placeholder="110001"
                     value={formData.clinicZipCode}
-                    onChange={(e) => setFormData({ ...formData, clinicZipCode: e.target.value })}
+                    onChange={(e) => setFormData(clearVerifiedLocation({ ...formData, clinicZipCode: e.target.value }))}
                     required
                   />
                 </div>
@@ -1039,7 +1068,7 @@ export default function DoctorOnboarding() {
                     id="clinicCountry"
                     placeholder="India"
                     value={formData.clinicCountry}
-                    onChange={(e) => setFormData({ ...formData, clinicCountry: e.target.value })}
+                    onChange={(e) => setFormData(clearVerifiedLocation({ ...formData, clinicCountry: e.target.value }))}
                     required
                   />
                 </div>
@@ -1071,7 +1100,11 @@ export default function DoctorOnboarding() {
                 <div className="flex gap-2">
                   <Input
                     placeholder="Click to verify location on map"
-                    value={formData.clinicLatitude && formData.clinicLongitude ? "Location verified ✓" : "Not verified"}
+                    value={
+                      formData.clinicLatitude && formData.clinicLongitude
+                        ? `Verified ✓ (${parseFloat(formData.clinicLatitude).toFixed(5)}, ${parseFloat(formData.clinicLongitude).toFixed(5)})`
+                        : "Not verified"
+                    }
                     readOnly
                     className="flex-1"
                   />
@@ -1094,6 +1127,27 @@ export default function DoctorOnboarding() {
                 <p className="text-xs text-muted-foreground">
                   Verifying your location enables patients to find you on the map
                 </p>
+
+                {formData.clinicLatitude && formData.clinicLongitude && (
+                  <div className="space-y-2 pt-2">
+                    <LocationPickerMap
+                      latitude={parseFloat(formData.clinicLatitude)}
+                      longitude={parseFloat(formData.clinicLongitude)}
+                      onLocationChange={(lat, lng) => {
+                        setFormData({
+                          ...formData,
+                          clinicLatitude: lat.toString(),
+                          clinicLongitude: lng.toString(),
+                        })
+                        toast.success("Clinic location updated")
+                      }}
+                    />
+                    <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      <Coffee className="h-3.5 w-3.5" />
+                      Drag the pin on the map to fine-tune the exact clinic location — patients will see this exact spot.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-2">
@@ -1221,36 +1275,106 @@ export default function DoctorOnboarding() {
                       <Label className="capitalize font-medium">{day}</Label>
                     </div>
                     {hours.isOpen && (
-                      <div className="flex items-center gap-2 flex-1">
-                        <Input
-                          type="time"
-                          value={hours.start}
-                          onChange={(e) => {
-                            setFormData({
-                              ...formData,
-                              workingHours: {
-                                ...formData.workingHours,
-                                [day]: { ...hours, start: e.target.value },
-                              },
-                            })
-                          }}
-                          className="w-32"
-                        />
-                        <span className="text-muted-foreground">to</span>
-                        <Input
-                          type="time"
-                          value={hours.end}
-                          onChange={(e) => {
-                            setFormData({
-                              ...formData,
-                              workingHours: {
-                                ...formData.workingHours,
-                                [day]: { ...hours, end: e.target.value },
-                              },
-                            })
-                          }}
-                          className="w-32"
-                        />
+                      <div className="flex flex-col gap-2 flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Input
+                            type="time"
+                            value={hours.start}
+                            onChange={(e) => {
+                              setFormData({
+                                ...formData,
+                                workingHours: {
+                                  ...formData.workingHours,
+                                  [day]: { ...hours, start: e.target.value },
+                                },
+                              })
+                            }}
+                            className="w-32"
+                          />
+                          <span className="text-muted-foreground">to</span>
+                          <Input
+                            type="time"
+                            value={hours.end}
+                            onChange={(e) => {
+                              setFormData({
+                                ...formData,
+                                workingHours: {
+                                  ...formData.workingHours,
+                                  [day]: { ...hours, end: e.target.value },
+                                },
+                              })
+                            }}
+                            className="w-32"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground w-14 shrink-0">
+                            <Coffee className="h-3.5 w-3.5" />
+                            Break
+                          </span>
+                          <Input
+                            type="time"
+                            value={hours.breakStart || ""}
+                            placeholder="13:00"
+                            onChange={(e) => {
+                              setFormData({
+                                ...formData,
+                                workingHours: {
+                                  ...formData.workingHours,
+                                  [day]: { ...hours, breakStart: e.target.value },
+                                },
+                              })
+                            }}
+                            className="w-32"
+                          />
+                          <span className="text-muted-foreground">to</span>
+                          <Input
+                            type="time"
+                            value={hours.breakEnd || ""}
+                            placeholder="14:00"
+                            onChange={(e) => {
+                              setFormData({
+                                ...formData,
+                                workingHours: {
+                                  ...formData.workingHours,
+                                  [day]: { ...hours, breakEnd: e.target.value },
+                                },
+                              })
+                            }}
+                            className="w-32"
+                          />
+                          {(hours.breakStart || hours.breakEnd) && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-muted-foreground"
+                              onClick={() =>
+                                setFormData({
+                                  ...formData,
+                                  workingHours: {
+                                    ...formData.workingHours,
+                                    [day]: { ...hours, breakStart: "", breakEnd: "" },
+                                  },
+                                })
+                              }
+                              title="Clear break"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                          Patients won&apos;t be able to book during your break.
+                        </p>
+                        {hours.breakStart && hours.breakEnd &&
+                          (hours.breakStart >= hours.breakEnd ||
+                            hours.breakStart < hours.start ||
+                            hours.breakEnd > hours.end) && (
+                          <p className="text-[11px] text-red-500">
+                            Break must be within working hours and start before it ends.
+                          </p>
+                        )}
                       </div>
                     )}
                     {!hours.isOpen && (
@@ -1297,13 +1421,38 @@ export default function DoctorOnboarding() {
                 Select Subscription Plan
               </div>
 
-              <div className="flex items-center justify-center gap-4 mb-4 bg-muted/20 p-4 rounded-lg text-sm text-muted-foreground">
-                Monthly auto-payment is enabled. Razorpay will charge the same calendar day each month after signup.
+              <div className="space-y-2">
+                <div className="flex items-center justify-center gap-2 bg-muted/30 p-1.5 rounded-full w-fit mx-auto border border-border">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, billingCycle: "MONTHLY" })}
+                    className={`relative px-5 py-2 rounded-full text-sm font-medium transition-all duration-200 ${formData.billingCycle === "MONTHLY" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    Monthly
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, billingCycle: "YEARLY" })}
+                    className={`relative px-5 py-2 rounded-full text-sm font-medium transition-all duration-200 ${formData.billingCycle === "YEARLY" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    Yearly
+                    <span className="absolute -top-2 -right-2 text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full border border-green-200 font-bold">
+                      -20%
+                    </span>
+                  </button>
+                </div>
+                <p className="text-center text-xs text-muted-foreground">
+                  {formData.billingCycle === "YEARLY"
+                    ? "Pay once for 12 months and save 20%."
+                    : "Pay month to month. Manage or cancel anytime."}
+                </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {PLANS.map((plan) => {
-                  const displayPrice = `₹${plan.amount}/mo`;
+                  const isYearly = formData.billingCycle === "YEARLY";
+                  const priceAmount = isYearly ? PLAN_YEARLY_AMOUNTS[plan.id] : plan.amount;
+                  const displayPrice = `₹${priceAmount.toLocaleString("en-IN")}/${isYearly ? "yr" : "mo"}`;
 
                   return (
                     <Card key={plan.id}
@@ -1313,10 +1462,17 @@ export default function DoctorOnboarding() {
                       <CardHeader>
                         <CardTitle>{plan.name}</CardTitle>
                         <CardDescription>{displayPrice}</CardDescription>
+                        {isYearly && (
+                          <span className="text-[11px] font-semibold text-green-600">
+                            Save 20% · ₹{(plan.amount * 12 - PLAN_YEARLY_AMOUNTS[plan.id]).toLocaleString("en-IN")}
+                          </span>
+                        )}
                       </CardHeader>
                       <CardContent>
                         <p className="font-semibold">{plan.limit}</p>
-                        <p className="text-xs text-green-600 mt-2 font-medium">Auto-debits monthly</p>
+                        <p className="text-xs text-green-600 mt-2 font-medium">
+                          {isYearly ? "One-time yearly payment" : "Auto-debits monthly"}
+                        </p>
                       </CardContent>
                     </Card>
                   )

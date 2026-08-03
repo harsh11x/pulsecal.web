@@ -44,19 +44,32 @@ export const updateScheduleController = async (
     const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     const dayName = days[dateObj.getDay()];
 
+    // Preserve any existing break window for this day when the payload doesn't send one.
+    // An explicit empty string means the doctor cleared the break -> normalize to null.
+    const currentDay = currentWorkingHours[dayName] || {};
+    const resolveBreak = (incoming: any, existing: any) =>
+      incoming !== undefined ? (incoming || null) : existing ?? null;
+
     const updatedData = {
       ...currentWorkingHours,
       [dayName]: {
         start: workingHours.start,
         end: workingHours.end,
-        isOpen: true
+        isOpen: true,
+        breakStart: resolveBreak(workingHours.breakStart, currentDay.breakStart),
+        breakEnd: resolveBreak(workingHours.breakEnd, currentDay.breakEnd),
       },
       exceptions: {
         ...(currentWorkingHours.exceptions || {}),
         [date]: blockedSlots || []
       },
       defaultSettings: {
-        workingHours,
+        workingHours: {
+          start: workingHours.start,
+          end: workingHours.end,
+          breakStart: resolveBreak(workingHours.breakStart, currentDay.breakStart),
+          breakEnd: resolveBreak(workingHours.breakEnd, currentDay.breakEnd),
+        },
         slotDuration: slotDuration || 30
       }
     };

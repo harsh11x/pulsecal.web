@@ -68,9 +68,9 @@ export const createOrder = async (req: AuthRequest, res: Response, _next: NextFu
             return sendError(res, 'Invalid subscription plan', 400);
         }
 
-        // Apply yearly multiplier (10 months instead of 12 = 2 months free)
+        // Apply yearly discount (12 months at 20% off)
         if (value.billingCycle === 'YEARLY') {
-            amount = amount * 10;
+            amount = Math.round((amount / 100) * 12 * 0.8) * 100;
         }
 
         const options = {
@@ -271,7 +271,7 @@ export const verifyPayment = async (req: AuthRequest, res: Response, _next: Next
         let amount = planAmounts[subscriptionPlan] || 1499;
 
         if (cycle === 'YEARLY') {
-            amount = amount * 10;
+            amount = Math.round(amount * 12 * 0.8);
         }
 
         await createPayment({

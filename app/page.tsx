@@ -478,10 +478,9 @@ export default function Home() {
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
             {PLANS.map((plan, index) => {
               const baseAmount = PLAN_AMOUNTS[plan.id]
-              let multiplier: number = billingInterval
-              if (billingInterval === 12) multiplier = 10 // pay for 10 get 12
+              let totalAmount = baseAmount * billingInterval
+              if (billingInterval === 12) totalAmount = Math.round(baseAmount * 12 * 0.8) // 20% off yearly
 
-              const totalAmount = baseAmount * multiplier
               const priceDisplay = `Rs. ${totalAmount.toLocaleString("en-IN")}`
 
               // Calculate savings
@@ -512,7 +511,7 @@ export default function Home() {
                   {billingInterval > 1 && (
                     <div className="absolute top-4 right-4">
                       <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700 border border-green-200">
-                        {billingInterval === 12 ? "12 Months Autopay" : `${billingInterval} Months`}
+                        {billingInterval === 12 ? "Yearly · Save 20%" : `${billingInterval} Months`}
                       </span>
                     </div>
                   )}

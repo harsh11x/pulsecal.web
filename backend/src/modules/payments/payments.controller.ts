@@ -424,6 +424,16 @@ const PLAN_AMOUNTS: Record<string, number> = {
   ENTERPRISE: 4999,
 };
 
+/**
+ * Amount charged (in rupees) for a plan for a given billing cycle.
+ * Yearly = 12 months at 20% off.
+ */
+const getBillingAmount = (plan: string, cycle: 'MONTHLY' | 'YEARLY'): number => {
+  const base = PLAN_AMOUNTS[plan] ?? PLAN_AMOUNTS.BASIC;
+  if (cycle === 'YEARLY') return Math.round(base * 12 * 0.8); // 20% off
+  return base;
+};
+
 const createSubscriptionOrderSchema = Joi.object({
   planId: Joi.string().valid('STARTER', 'BASIC', 'PROFESSIONAL', 'ENTERPRISE').required(),
   duration: Joi.number().valid(1, 3, 6, 12).optional(),
@@ -548,15 +558,8 @@ export const createSubscriptionOrderController = async (
     if (error) throw new AppError(error.details[0].message, 400);
 
     const duration = value.duration || 1; // Default to 1 month
-    const baseAmount = PLAN_AMOUNTS[value.planId] ?? 1;
-    let multiplier = duration;
-
-    // Apply yearly discount (pay for 10 months, get 12)
-    if (duration === 12) {
-      multiplier = 10;
-    }
-
-    const totalAmount = baseAmount * multiplier;
+    const cycle = duration === 12 ? 'YEARLY' : 'MONTHLY';
+    const totalAmount = getBillingAmount(value.planId, cycle);
 
     const options: any = {
       amount: totalAmount * 100, // paise
@@ -789,6 +792,7 @@ export const cancelSubscriptionStatusController = async (
 // Razorpay Subscription Integration (auto-debit monthly billing)
 const createRazorpaySubscriptionSchema = Joi.object({
   plan: Joi.string().valid('BASIC', 'PROFESSIONAL', 'ENTERPRISE').required(),
+  billingCycle: Joi.string().valid('MONTHLY', 'YEARLY').default('MONTHLY'),
 });
 
 const verifyRazorpaySubscriptionSchema = Joi.object({
@@ -1048,17 +1052,18 @@ const recordSubscriptionPayment = async (data: {
   });
 };
 
-const createMonthlySubscriptionOrder = async (userId: string, plan: string) => {
-  const baseAmount = PLAN_AMOUNTS[plan] ?? PLAN_AMOUNTS.BASIC;
+const createMonthlySubscriptionOrder = async (userId: string, plan: string, cycle: 'MONTHLY' | 'YEARLY' = 'MONTHLY') => {
+  const amount = getBillingAmount(plan, cycle);
   const order = await razorpay.orders.create({
-    amount: baseAmount * 100,
+    amount: amount * 100,
     currency: 'INR',
     receipt: `sub_${Date.now()}_${userId.substring(0, 8)}`,
     notes: {
       type: 'SUBSCRIPTION_UPGRADE',
       userId,
       planId: plan,
-      duration: '1',
+      duration: cycle === 'YEARLY' ? '12' : '1',
+      billingCycle: cycle,
     },
   });
 
@@ -1067,6 +1072,7 @@ const createMonthlySubscriptionOrder = async (userId: string, plan: string) => {
     key: process.env.RAZORPAY_KEY_ID,
     amount: order.amount,
     plan,
+    billingCycle: cycle,
   };
 };
 
@@ -1086,37 +1092,30 @@ export const createRazorpaySubscriptionController = async (
     if (!req.user) {
       throw new AppError('User not authenticated', 401);
     }
+
+    // Fail fast with a clear message when Razorpay isn't configured, instead of
+    // a confusing generic 500 from the Razorpay SDK.
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+      console.error('[create-subscription] Razorpay keys are missing from the backend environment');
+      throw new AppError(
+        'Razorpay is not configured on the server. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET and redeploy.',
+        500
+      );
+    }
+
     await ensureCanManageSubscription(req);
 
-    // Avoid double-charging: if the doctor already has a real Razorpay subscription
-    // that is still active/authenticated, cancel it before creating a new one.
-    try {
-      const existingProfile = await prisma.doctorProfile.findUnique({
-        where: { userId: req.user.id },
-        select: { razorpaySubscriptionId: true },
-      });
-      const existingSubId = existingProfile?.razorpaySubscriptionId?.startsWith('sub_')
-        ? existingProfile.razorpaySubscriptionId
-        : undefined;
-      if (existingSubId) {
-        try {
-          const existingSub = await (razorpay.subscriptions.fetch(existingSubId) as Promise<any>);
-          const activeStates = ['active', 'authenticated', 'created', 'paused', 'past_due'];
-          if (existingSub?.id && activeStates.includes(existingSub?.status)) {
-            // Cancel immediately so the old plan stops auto-debiting; the new
-            // subscription below is what the doctor is actively choosing now.
-            await razorpay.subscriptions.cancel(existingSubId, false);
-            logger.info(
-              { userId: req.user.id, existingSubId, status: existingSub.status },
-              'Cancelled existing Razorpay subscription before creating a new one'
-            );
-          }
-        } catch (fetchErr: any) {
-          logger.warn({ err: fetchErr, existingSubId }, 'Could not verify existing Razorpay subscription; proceeding');
-        }
-      }
-    } catch (profileErr) {
-      logger.warn({ err: profileErr, userId: req.user.id }, 'Could not check existing subscription before create');
+    // Yearly billing = a one-time upfront order (12 months at 20% off), which
+    // works with any standard Razorpay key and never depends on the Subscriptions API.
+    if (value.billingCycle === 'YEARLY') {
+      const orderCheckout = await createMonthlySubscriptionOrder(req.user.id, value.plan, 'YEARLY');
+      sendSuccess(
+        res,
+        { mode: 'order', ...orderCheckout },
+        'Yearly subscription payment order created successfully',
+        201
+      );
+      return;
     }
 
     // Prefer Razorpay Subscriptions (true monthly auto-debit) when the account supports it.
@@ -1133,6 +1132,52 @@ export const createRazorpaySubscriptionController = async (
           billingCycle: 'MONTHLY',
         },
       });
+
+      // Only now that the new subscription exists, retire any previous real
+      // subscription so the old plan stops auto-debiting. Creating first avoids
+      // leaving the doctor with no autopay if the new one fails.
+      let previousSubscriptionId: string | undefined;
+      try {
+        const existingProfile = await prisma.doctorProfile.findUnique({
+          where: { userId: req.user.id },
+          select: { razorpaySubscriptionId: true },
+        });
+        previousSubscriptionId = existingProfile?.razorpaySubscriptionId?.startsWith('sub_')
+          ? existingProfile.razorpaySubscriptionId
+          : undefined;
+      } catch (profileErr) {
+        logger.warn({ err: profileErr, userId: req.user.id }, 'Could not check previous subscription after create');
+      }
+
+      if (previousSubscriptionId && previousSubscriptionId !== subscription.id) {
+        // A fetch failure (network/Razorpay hiccup) is non-fatal — we just don't
+        // know the old sub's state and proceed with the new one.
+        let existingSub: any = null;
+        try {
+          existingSub = await (razorpay.subscriptions.fetch(previousSubscriptionId) as Promise<any>);
+        } catch (fetchErr: any) {
+          logger.warn({ err: fetchErr, existingSubId: previousSubscriptionId }, 'Could not fetch previous Razorpay subscription; proceeding');
+        }
+
+        const activeStates = ['active', 'authenticated', 'created', 'paused', 'past_due'];
+        if (existingSub?.id && activeStates.includes(existingSub?.status)) {
+          try {
+            await razorpay.subscriptions.cancel(previousSubscriptionId, false);
+            logger.info(
+              { userId: req.user.id, existingSubId: previousSubscriptionId, status: existingSub.status },
+              'Cancelled previous Razorpay subscription after creating a new one'
+            );
+          } catch (cancelErr: any) {
+            // The new subscription is live, but the old one failed to cancel and
+            // keeps auto-debiting. Log at error level so support can follow up —
+            // don't fail the checkout, the doctor still has a working autopay.
+            logger.error(
+              { err: cancelErr, existingSubId: previousSubscriptionId, userId: req.user.id },
+              'FAILED to cancel previous Razorpay subscription after creating a new one; doctor may be double-charged'
+            );
+          }
+        }
+      }
 
       sendSuccess(
         res,
@@ -1155,7 +1200,7 @@ export const createRazorpaySubscriptionController = async (
     }
 
     // Fallback: same one-time order flow used by signup (works with standard Razorpay keys).
-    const orderCheckout = await createMonthlySubscriptionOrder(req.user.id, value.plan);
+    const orderCheckout = await createMonthlySubscriptionOrder(req.user.id, value.plan, 'MONTHLY');
     sendSuccess(
       res,
       {

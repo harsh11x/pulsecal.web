@@ -27,7 +27,7 @@ interface Doctor {
   distance?: number
   isAvailable?: boolean
   nextAvailableSlot?: string
-  workingHours?: Record<string, { start: string; end: string; isOpen: boolean }>
+  workingHours?: Record<string, { start: string; end: string; isOpen: boolean; breakStart?: string; breakEnd?: string }>
   qualifications?: string
   yearsOfExperience?: number
 }
@@ -209,9 +209,16 @@ export function DoctorProfileModal({ doctor, isOpen, onClose, userLocation }: Do
                     <div key={day} className="flex items-center justify-between">
                       <span className="capitalize">{day}</span>
                       {hours.isOpen ? (
-                        <span className="text-sm">
-                          {hours.start} - {hours.end}
-                        </span>
+                        <div className="text-sm text-right">
+                          <span>
+                            {hours.start} - {hours.end}
+                          </span>
+                          {hours.breakStart && hours.breakEnd && (
+                            <p className="text-xs text-muted-foreground">
+                              Break: {hours.breakStart} - {hours.breakEnd}
+                            </p>
+                          )}
+                        </div>
                       ) : (
                         <span className="text-sm text-muted-foreground">Closed</span>
                       )}

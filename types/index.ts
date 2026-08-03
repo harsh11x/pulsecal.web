@@ -55,14 +55,23 @@ export interface DoctorProfile {
   subscriptionPlan?: string
 }
 
+export interface DayWorkingHours {
+  start: string
+  end: string
+  isOpen: boolean
+  /** Optional daily break period (e.g. lunch). Patients cannot book during the break. */
+  breakStart?: string
+  breakEnd?: string
+}
+
 export interface WorkingHours {
-  monday?: { start: string; end: string; isOpen: boolean }
-  tuesday?: { start: string; end: string; isOpen: boolean }
-  wednesday?: { start: string; end: string; isOpen: boolean }
-  thursday?: { start: string; end: string; isOpen: boolean }
-  friday?: { start: string; end: string; isOpen: boolean }
-  saturday?: { start: string; end: string; isOpen: boolean }
-  sunday?: { start: string; end: string; isOpen: boolean }
+  monday?: DayWorkingHours
+  tuesday?: DayWorkingHours
+  wednesday?: DayWorkingHours
+  thursday?: DayWorkingHours
+  friday?: DayWorkingHours
+  saturday?: DayWorkingHours
+  sunday?: DayWorkingHours
 }
 
 export interface Clinic {

@@ -8,6 +8,13 @@ export const PLAN_AMOUNTS: Record<string, number> = {
   ENTERPRISE: 4999,
 }
 
+/** Discount applied when paying for a full year upfront (20% off). */
+export const YEARLY_DISCOUNT = 0.2
+
+export const PLAN_YEARLY_AMOUNTS: Record<string, number> = Object.fromEntries(
+  Object.keys(PLAN_AMOUNTS).map((id) => [id, Math.round(PLAN_AMOUNTS[id] * 12 * (1 - YEARLY_DISCOUNT))])
+)
+
 export const PLAN_LIMITS: Record<string, number> = {
   BASIC: 3,
   PROFESSIONAL: 10,
@@ -39,5 +46,5 @@ export const SUBSCRIPTION_DURATIONS = [
   { value: 1, label: "Monthly", discount: 0 },
   { value: 3, label: "3 Months", discount: 0 },
   { value: 6, label: "6 Months", discount: 0 },
-  { value: 12, label: "Yearly", discount: 16 }, // ~16% off (2 months free)
+  { value: 12, label: "Yearly", discount: 20 }, // 20% off
 ] as const
