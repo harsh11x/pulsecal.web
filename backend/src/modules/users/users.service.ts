@@ -2,6 +2,7 @@ import prisma from '../../config/database';
 import admin from '../../config/firebase';
 import { AppError } from '../../middlewares/error.middleware';
 import { logger } from '../../utils/logger';
+import { createFirebaseUserViaRest } from '../../utils/firebaseAuthRest';
 
 const SAFE_USER_SELECT = {
   id: true,
@@ -45,21 +46,28 @@ export const createUser = async (data: {
     throw new AppError('User already exists', 400);
   }
 
-  // 2. Create user in Firebase
+  // 2. Create user in Firebase (Admin SDK, with REST fallback if credentials fail)
   let firebaseUid: string;
+  const displayName = `${data.firstName} ${data.lastName}`;
   try {
     const firebaseUser = await admin.auth().createUser({
       email: data.email,
       password: data.password,
       emailVerified: data.isEmailVerified || false,
-      displayName: `${data.firstName} ${data.lastName}`,
+      displayName,
       disabled: data.isActive === false,
     });
     firebaseUid = firebaseUser.uid;
 
     // Set custom claims for role
-    await admin.auth().setCustomUserClaims(firebaseUid, { role: data.role });
-
+    try {
+      await admin.auth().setCustomUserClaims(firebaseUid, { role: data.role });
+    } catch (claimsErr: any) {
+      logger.warn(
+        { email: data.email, error: claimsErr?.message },
+        'Failed to set Firebase custom claims (continuing)'
+      );
+    }
   } catch (error: any) {
     // If user already exists in Firebase but not in DB (edge case), retrieve UID
     if (error.code === 'auth/email-already-exists') {
@@ -69,12 +77,40 @@ export const createUser = async (data: {
         await admin.auth().updateUser(firebaseUid, {
           password: data.password,
           disabled: data.isActive === false,
-          displayName: `${data.firstName} ${data.lastName}`,
+          displayName,
         });
       }
-      await admin.auth().setCustomUserClaims(firebaseUid, { role: data.role });
+      try {
+        await admin.auth().setCustomUserClaims(firebaseUid, { role: data.role });
+      } catch (claimsErr: any) {
+        logger.warn(
+          { email: data.email, error: claimsErr?.message },
+          'Failed to set Firebase custom claims (continuing)'
+        );
+      }
     } else {
-      throw new AppError(`Failed to create Firebase user: ${error.message}`, 500);
+      // Admin SDK credential failures (revoked key, clock skew, etc.)
+      logger.warn(
+        { email: data.email, error: error?.message },
+        'Firebase Admin createUser failed; trying Identity Toolkit REST fallback'
+      );
+      try {
+        const restUser = await createFirebaseUserViaRest({
+          email: data.email,
+          password: data.password,
+          displayName,
+        });
+        firebaseUid = restUser.uid;
+      } catch (restErr: any) {
+        const msg = String(restErr?.message || '');
+        if (msg.includes('EMAIL_EXISTS')) {
+          throw new AppError('User already exists in Firebase', 400);
+        }
+        throw new AppError(
+          `Failed to create Firebase user: ${error.message}`,
+          500
+        );
+      }
     }
   }
 

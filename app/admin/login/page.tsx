@@ -32,11 +32,10 @@ export default function AdminLoginPage() {
             const idToken = await userCredential.user.getIdToken()
 
             // Sync user with backend to get role and details
-            const response: any = await apiService.post(
+            // apiService already unwraps { success, data } → user object
+            const user: any = await apiService.post(
                 "/auth/sync-profile",
                 {
-                    // We can pass empty body or specific fields if needed
-                    // mainly we need the backend to cr eating/fetching the user based on token
                     email: userCredential.user.email
                 },
                 {
@@ -46,9 +45,7 @@ export default function AdminLoginPage() {
                 }
             )
 
-            const user = response.data
-
-            if (user.role !== "ADMIN") {
+            if (user?.role !== "ADMIN") {
                 toast.error("Access Denied: You must be an administrator to log in here.")
                 // Optionally sign out from firebase if not admin
                 await auth.signOut()
@@ -56,7 +53,7 @@ export default function AdminLoginPage() {
             }
 
             dispatch(setCredentials({ user, token: idToken }))
-            toast.success(`Welcome back, Admin ${user.firstName}!`)
+            toast.success(`Welcome back, Admin ${user.firstName || ""}!`)
             router.push("/admin/dashboard")
         } catch (error: any) {
             console.error("Login failed:", error)
