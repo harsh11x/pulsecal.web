@@ -13,6 +13,7 @@ import { Loader2, Eye, EyeOff } from "lucide-react"
 import { useAppDispatch } from "@/app/hooks"
 import { setUser } from "@/app/features/authSlice"
 import { apiService } from "@/services/api"
+import { mapAuthProfileToUser } from "@/lib/mapAuthUser"
 
 interface AuthFormProps {
   mode: "signin" | "signup"
@@ -89,20 +90,14 @@ export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
           const profileResponse: any = await apiService.get("/auth/profile")
           const userProfile = profileResponse
           if (userProfile?.id) {
-            dispatch(setUser({
-              id: userProfile.id,
-              email: userProfile.email,
-              firstName: userProfile.firstName || formData.firstName,
-              lastName: userProfile.lastName || formData.lastName,
-              phone: userProfile.phone,
-              dateOfBirth: userProfile.dateOfBirth,
-              role: (userProfile.role || "PATIENT").toLowerCase() as "patient" | "doctor" | "receptionist" | "admin",
-              isActive: userProfile.isActive !== false,
-              isEmailVerified: userProfile.isEmailVerified || false,
-              profileImage: userProfile.profileImage,
-              onboardingCompleted: userProfile.onboardingCompleted || false,
-              clinicId: userProfile.clinicId,
-            }))
+            dispatch(
+              setUser(
+                mapAuthProfileToUser(userProfile, {
+                  firstName: userProfile.firstName || formData.firstName,
+                  lastName: userProfile.lastName || formData.lastName,
+                })
+              )
+            )
           }
         } catch (profileErr) {
           // Fallback: minimal user so onboarding can still show

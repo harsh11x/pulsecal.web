@@ -15,6 +15,7 @@ import { toast } from "sonner"
 import { useAppDispatch } from "@/app/hooks"
 import { setUser } from "@/app/features/authSlice"
 import { apiService } from "@/services/api"
+import { mapAuthProfileToUser } from "@/lib/mapAuthUser"
 
 interface AuthModalProps {
   isOpen: boolean
@@ -67,21 +68,7 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
 
           if (userProfile && userProfile.id) {
             console.log("✅ User profile found:", userProfile.id, userProfile.email)
-            const userData = {
-              id: userProfile.id,
-              email: userProfile.email,
-              firstName: userProfile.firstName,
-              lastName: userProfile.lastName,
-              phone: userProfile.phone,
-              dateOfBirth: userProfile.dateOfBirth,
-              role: (userProfile.role || "PATIENT").toLowerCase() as "patient" | "doctor" | "receptionist" | "admin",
-              isActive: userProfile.isActive !== false,
-              isEmailVerified: userProfile.isEmailVerified || false,
-              profileImage: userProfile.profileImage,
-              onboardingCompleted: userProfile.onboardingCompleted || false,
-              clinicId: userProfile.clinicId,
-            }
-            dispatch(setUser(userData))
+            dispatch(setUser(mapAuthProfileToUser(userProfile)))
 
             // Redirect based on onboarding status
             toast.success("Signed in successfully!")
@@ -139,21 +126,14 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
           const userProfile = profileResponse
 
           if (userProfile && userProfile.id) {
-            const userData = {
-              id: userProfile.id,
-              email: userProfile.email,
-              firstName: userProfile.firstName || firstName,
-              lastName: userProfile.lastName || lastName,
-              phone: userProfile.phone,
-              dateOfBirth: userProfile.dateOfBirth,
-              role: (userProfile.role || normalizedRole).toLowerCase() as "patient" | "doctor" | "receptionist" | "admin",
-              isActive: userProfile.isActive !== false,
-              isEmailVerified: userProfile.isEmailVerified || false,
-              profileImage: userProfile.profileImage,
-              onboardingCompleted: userProfile.onboardingCompleted || false,
-              clinicId: userProfile.clinicId,
-            }
-            dispatch(setUser(userData))
+            dispatch(
+              setUser(
+                mapAuthProfileToUser(userProfile, {
+                  firstName: userProfile.firstName || firstName,
+                  lastName: userProfile.lastName || lastName,
+                })
+              )
+            )
           }
         } catch (syncError: any) {
           console.warn("Profile sync warning:", syncError)
@@ -292,21 +272,7 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
               userHasProfile = true
               userOnboardingCompleted = userProfile.onboardingCompleted || false
 
-              // Map backend user data to frontend User type
-              const userData = {
-                id: userProfile.id,
-                email: userProfile.email,
-                firstName: userProfile.firstName,
-                lastName: userProfile.lastName,
-                phone: userProfile.phone,
-                dateOfBirth: userProfile.dateOfBirth,
-                role: (userProfile.role || "PATIENT").toLowerCase() as "patient" | "doctor" | "receptionist" | "admin",
-                isActive: userProfile.isActive !== false,
-                isEmailVerified: userProfile.isEmailVerified || false,
-                profileImage: userProfile.profileImage,
-                onboardingCompleted: userOnboardingCompleted,
-              }
-              dispatch(setUser(userData))
+              dispatch(setUser(mapAuthProfileToUser(userProfile)))
 
               // If user hasn't completed onboarding, treat as new signup
               if (!userOnboardingCompleted) {
@@ -390,21 +356,7 @@ export function AuthModal({ isOpen, onClose, mode, onSwitchMode, role = "patient
 
               if (userProfile && userProfile.id) {
                 userHasProfile = true
-                // Map backend user data to frontend User type
-                const userData = {
-                  id: userProfile.id,
-                  email: userProfile.email,
-                  firstName: userProfile.firstName,
-                  lastName: userProfile.lastName,
-                  phone: userProfile.phone,
-                  dateOfBirth: userProfile.dateOfBirth,
-                  role: (userProfile.role || "PATIENT").toLowerCase() as "patient" | "doctor" | "receptionist" | "admin",
-                  isActive: userProfile.isActive !== false,
-                  isEmailVerified: userProfile.isEmailVerified || false,
-                  profileImage: userProfile.profileImage,
-                  onboardingCompleted: userProfile.onboardingCompleted || false,
-                }
-                dispatch(setUser(userData))
+                dispatch(setUser(mapAuthProfileToUser(userProfile)))
 
                 // If user hasn't completed onboarding, treat as new signup
                 if (!userProfile.onboardingCompleted) {

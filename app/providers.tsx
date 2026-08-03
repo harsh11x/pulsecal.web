@@ -9,6 +9,7 @@ import { useState, useEffect } from "react"
 import { onIdTokenChanged, User } from "firebase/auth"
 import { apiService } from "@/services/api"
 import { setUser, logout, setLoading } from "./features/authSlice"
+import { mapAuthProfileToUser } from "@/lib/mapAuthUser"
 
 function AuthStateListener({ children }: { children: React.ReactNode }) {
   const dispatch = useDispatch()
@@ -73,23 +74,7 @@ function AuthStateListener({ children }: { children: React.ReactNode }) {
                     const userProfile = profileResponse
 
                     if (userProfile && userProfile.id) {
-                      const userData = {
-                        id: userProfile.id,
-                        email: userProfile.email,
-                        firstName: userProfile.firstName,
-                        lastName: userProfile.lastName,
-                        phone: userProfile.phone,
-                        dateOfBirth: userProfile.dateOfBirth,
-                        role: (userProfile.role || "PATIENT").toLowerCase() as "patient" | "doctor" | "receptionist" | "admin",
-                        isActive: userProfile.isActive !== false,
-                        isEmailVerified: userProfile.isEmailVerified || false,
-                        profileImage: userProfile.profileImage,
-                        onboardingCompleted: userProfile.onboardingCompleted || false,
-                        clinicId: userProfile.clinicId,
-                        ...(userProfile.doctorProfile && { doctorProfile: userProfile.doctorProfile }),
-                        canManageSubscription: userProfile.canManageSubscription ?? (userProfile.role === "ADMIN"),
-                      }
-                      dispatch(setUser(userData))
+                      dispatch(setUser(mapAuthProfileToUser(userProfile)))
                     }
                   } catch (profileError: any) {
                     console.warn("Failed to fetch user profile:", profileError?.message || profileError)

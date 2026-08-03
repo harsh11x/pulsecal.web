@@ -21,6 +21,7 @@ import { toast } from "sonner"
 
 import { useAppDispatch } from "@/app/hooks"
 import { setUser } from "@/app/features/authSlice"
+import { mapAuthProfileToUser } from "@/lib/mapAuthUser"
 
 interface DoctorDashboardPageProps {
   user: any
@@ -65,21 +66,18 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
   const [todayAppointments, setTodayAppointments] = useState<any[]>([])
 
   useEffect(() => {
-    // Check if clinicId is missing and refresh profile
-    if (user && !user.clinicId) {
+    // Refresh profile when clinicId or owner flag is missing so sidebar stays complete
+    if (user && (!user.clinicId || user.canManageSubscription === undefined)) {
       const refreshProfile = async () => {
         try {
           const profile: any = await apiService.get("/auth/profile")
-          if (profile && profile.clinicId) {
-            console.log("Refreshing user profile to get clinicId:", profile.clinicId)
-            dispatch(setUser({
-              ...user,
-              ...profile,
-              role: (profile.role || user.role || "doctor").toLowerCase() as any,
-              clinicId: profile.clinicId,
-              canManageSubscription: profile.canManageSubscription ?? user.canManageSubscription ?? true,
-              doctorProfile: profile.doctorProfile || user.doctorProfile,
-            }))
+          if (profile?.id) {
+            dispatch(
+              setUser({
+                ...user,
+                ...mapAuthProfileToUser(profile),
+              })
+            )
           }
         } catch (error) {
           console.error("Failed to refresh user profile:", error)
