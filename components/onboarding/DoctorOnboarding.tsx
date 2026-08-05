@@ -15,7 +15,7 @@ import { toast } from "sonner"
 import { apiService } from "@/services/api"
 import { MapPin, Clock, DollarSign, Upload, CheckCircle, Building2, FileText, User, Search, Coffee, X } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
-import { indianStates, citiesByState } from "@/lib/indianLocations"
+import { IndiaStateSelect, IndiaCitySelect } from "@/components/location/IndiaLocationFields"
 import { PLANS, PLAN_YEARLY_AMOUNTS } from "@/lib/planConfig"
 
 // Dynamically import the Leaflet map with SSR disabled (Leaflet needs the browser)
@@ -1026,43 +1026,25 @@ export default function DoctorOnboarding() {
               </div>
 
               <div className="grid gap-4 md:grid-cols-3">
-                <div className="space-y-2">
-                  <Label htmlFor="clinicState">State *</Label>
-                  <Select
-                    value={formData.clinicState}
-                    onValueChange={(value) => setFormData(clearVerifiedLocation({ ...formData, clinicState: value, clinicCity: "" }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select State" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[300px]">
-                      {indianStates.map((state) => (
-                        <SelectItem key={state} value={state}>
-                          {state}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="clinicCity">City *</Label>
-                  <Select
-                    value={formData.clinicCity}
-                    onValueChange={(value) => setFormData(clearVerifiedLocation({ ...formData, clinicCity: value }))}
-                    disabled={!formData.clinicState}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={formData.clinicState ? "Select City" : "Select State First"} />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[300px]">
-                      {(citiesByState[formData.clinicState] || []).map((city) => (
-                        <SelectItem key={city} value={city}>
-                          {city}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <IndiaStateSelect
+                  id="clinicState"
+                  label="State"
+                  required
+                  value={formData.clinicState}
+                  onChange={(value) =>
+                    setFormData(clearVerifiedLocation({ ...formData, clinicState: value, clinicCity: "" }))
+                  }
+                />
+                <IndiaCitySelect
+                  id="clinicCity"
+                  label="City"
+                  required
+                  state={formData.clinicState}
+                  value={formData.clinicCity}
+                  onChange={(value) =>
+                    setFormData(clearVerifiedLocation({ ...formData, clinicCity: value }))
+                  }
+                />
                 <div className="space-y-2">
                   <Label htmlFor="clinicZipCode">Pincode *</Label>
                   <Input

@@ -12,6 +12,7 @@ import { MapPin, Search, Navigation, Stethoscope, Star, Filter } from "lucide-re
 import { apiService } from "@/services/api"
 import { toast } from "sonner"
 import { DoctorProfileModal } from "./DoctorProfileModal"
+import { IndiaStateSelect, IndiaCitySelect } from "@/components/location/IndiaLocationFields"
 
 // Dynamically import LeafletMap with SSR disabled
 const LeafletMap = dynamic(() => import("./LeafletMap"), {
@@ -48,6 +49,7 @@ export function DoctorDiscoveryMap({ embedded = false }: { embedded?: boolean } 
   const [mapCenter, setMapCenter] = useState<[number, number]>([20.5937, 78.9629]) // Default to India center
   const [mapZoom, setMapZoom] = useState(5)
   const [searchQuery, setSearchQuery] = useState("")
+  const [filterState, setFilterState] = useState("")
   const [city, setCity] = useState("")
   const [specializationFilter, setSpecializationFilter] = useState("")
   const [availabilityFilter, setAvailabilityFilter] = useState<"all" | "available">("all")
@@ -281,13 +283,22 @@ export function DoctorDiscoveryMap({ embedded = false }: { embedded?: boolean } 
           </div>
 
           {(city || !userLocation) && (
-            <div className="space-y-2 pt-4 border-t">
-              <Label>City</Label>
-              <Input
-                placeholder="Enter city to search (e.g. Mumbai, Delhi)"
+            <div className="grid gap-4 md:grid-cols-2 pt-4 border-t">
+              <IndiaStateSelect
+                id="discovery-state"
+                label="State"
+                value={filterState}
+                onChange={(value) => {
+                  setFilterState(value)
+                  setCity("")
+                }}
+              />
+              <IndiaCitySelect
+                id="discovery-city"
+                label="City"
+                state={filterState}
                 value={city}
-                onChange={(e) => setCity(e.target.value)}
-                onBlur={() => city && fetchDoctors()}
+                onChange={(value) => setCity(value)}
               />
             </div>
           )}
@@ -402,6 +413,7 @@ export function DoctorDiscoveryMap({ embedded = false }: { embedded?: boolean } 
                     setSpecializationFilter("")
                     setAvailabilityFilter("all")
                     setPriceRange([0, 5000])
+                    setFilterState("")
                     setCity("")
                   }}
                   className="mt-2"

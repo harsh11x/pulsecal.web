@@ -1,82 +1,72 @@
-// Indian States and Cities Data
-export const indianStates = [
-    "Andhra Pradesh",
-    "Arunachal Pradesh",
-    "Assam",
-    "Bihar",
-    "Chhattisgarh",
-    "Goa",
-    "Gujarat",
-    "Haryana",
-    "Himachal Pradesh",
-    "Jharkhand",
-    "Karnataka",
-    "Kerala",
-    "Madhya Pradesh",
-    "Maharashtra",
-    "Manipur",
-    "Meghalaya",
-    "Mizoram",
-    "Nagaland",
-    "Odisha",
-    "Punjab",
-    "Rajasthan",
-    "Sikkim",
-    "Tamil Nadu",
-    "Telangana",
-    "Tripura",
-    "Uttar Pradesh",
-    "Uttarakhand",
-    "West Bengal",
-    "Andaman and Nicobar Islands",
-    "Chandigarh",
-    "Dadra and Nagar Haveli and Daman and Diu",
-    "Delhi",
-    "Jammu and Kashmir",
-    "Ladakh",
-    "Lakshadweep",
-    "Puducherry",
-];
+import { State, City } from "country-state-city"
 
-export const citiesByState: Record<string, string[]> = {
-    "Andhra Pradesh": ["Visakhapatnam", "Vijayawada", "Guntur", "Nellore", "Kurnool", "Tirupati", "Rajahmundry", "Kakinada", "Kadapa", "Anantapur", "Eluru", "Ongole", "Chittoor", "Machilipatnam"],
-    "Arunachal Pradesh": ["Itanagar", "Naharlagun", "Pasighat", "Tawang", "Ziro", "Bomdila", "Along", "Tezu", "Roing"],
-    "Assam": ["Guwahati", "Silchar", "Dibrugarh", "Jorhat", "Nagaon", "Tinsukia", "Tezpur", "Bongaigaon", "Karimganj", "Goalpara"],
-    "Bihar": ["Patna", "Gaya", "Bhagalpur", "Muzaffarpur", "Purnia", "Darbhanga", "Bihar Sharif", "Arrah", "Begusarai", "Katihar", "Munger", "Chhapra", "Samastipur"],
-    "Chhattisgarh": ["Raipur", "Bhilai", "Bilaspur", "Korba", "Durg", "Rajnandgaon", "Raigarh", "Jagdalpur", "Ambikapur"],
-    "Goa": ["Panaji", "Margao", "Vasco da Gama", "Mapusa", "Ponda", "Bicholim", "Curchorem"],
-    "Gujarat": ["Ahmedabad", "Surat", "Vadodara", "Rajkot", "Bhavnagar", "Jamnagar", "Junagadh", "Gandhinagar", "Anand", "Nadiad", "Morbi", "Mehsana", "Bharuch", "Vapi", "Navsari", "Veraval", "Porbandar", "Godhra", "Bhuj"],
-    "Haryana": ["Faridabad", "Gurgaon", "Panipat", "Ambala", "Yamunanagar", "Rohtak", "Hisar", "Karnal", "Sonipat", "Panchkula", "Bhiwani", "Sirsa", "Bahadurgarh", "Jind", "Thanesar", "Kaithal", "Rewari"],
-    "Himachal Pradesh": ["Shimla", "Mandi", "Dharamshala", "Solan", "Kullu", "Manali", "Palampur", "Bilaspur", "Hamirpur", "Una", "Chamba", "Dalhousie"],
-    "Jharkhand": ["Ranchi", "Jamshedpur", "Dhanbad", "Bokaro", "Deoghar", "Hazaribagh", "Giridih", "Ramgarh", "Medininagar"],
-    "Karnataka": ["Bengaluru", "Mysuru", "Mangaluru", "Hubballi", "Belagavi", "Kalaburagi", "Davanagere", "Ballari", "Vijayapura", "Shivamogga", "Tumakuru", "Raichur", "Bidar", "Hospet", "Hassan", "Udupi", "Chitradurga", "Mandya"],
-    "Kerala": ["Thiruvananthapuram", "Kochi", "Kozhikode", "Thrissur", "Kollam", "Kannur", "Alappuzha", "Kottayam", "Palakkad", "Malappuram", "Kasaragod", "Pathanamthitta", "Idukki", "Wayanad"],
-    "Madhya Pradesh": ["Bhopal", "Indore", "Jabalpur", "Gwalior", "Ujjain", "Sagar", "Dewas", "Satna", "Ratlam", "Rewa", "Murwara", "Singrauli", "Burhanpur", "Khandwa", "Bhind", "Chhindwara", "Guna", "Shivpuri", "Vidisha", "Damoh"],
-    "Maharashtra": ["Mumbai", "Pune", "Nagpur", "Thane", "Nashik", "Aurangabad", "Solapur", "Kolhapur", "Amravati", "Navi Mumbai", "Sangli", "Jalgaon", "Akola", "Latur", "Dhule", "Ahmednagar", "Chandrapur", "Parbhani", "Ichalkaranji", "Jalna", "Bhiwandi", "Panvel", "Satara", "Beed", "Yavatmal"],
-    "Manipur": ["Imphal", "Thoubal", "Bishnupur", "Chandel", "Churachandpur", "Senapati", "Ukhrul", "Tamenglong"],
-    "Meghalaya": ["Shillong", "Tura", "Jowai", "Nongstoin", "Williamnagar", "Baghmara", "Resubelpara"],
-    "Mizoram": ["Aizawl", "Lunglei", "Champhai", "Serchhip", "Kolasib", "Lawngtlai", "Saiha", "Mamit"],
-    "Nagaland": ["Kohima", "Dimapur", "Mokokchung", "Tuensang", "Wokha", "Zunheboto", "Mon", "Phek"],
-    "Odisha": ["Bhubaneswar", "Cuttack", "Rourkela", "Berhampur", "Sambalpur", "Puri", "Balasore", "Bhadrak", "Baripada", "Jharsuguda", "Jeypore", "Barbil"],
-    "Punjab": ["Ludhiana", "Amritsar", "Jalandhar", "Patiala", "Bathinda", "Mohali", "Pathankot", "Hoshiarpur", "Batala", "Moga", "Abohar", "Malerkotla", "Khanna", "Muktsar", "Barnala", "Rajpura", "Firozpur", "Kapurthala"],
-    "Rajasthan": ["Jaipur", "Jodhpur", "Kota", "Bikaner", "Ajmer", "Udaipur", "Bhilwara", "Alwar", "Bharatpur", "Sikar", "Pali", "Sri Ganganagar", "Tonk", "Kishangarh", "Beawar", "Hanumangarh", "Dhaulpur", "Gangapur City", "Sawai Madhopur", "Churu", "Jhunjhunu", "Chittorgarh", "Nagaur", "Banswara", "Dungarpur", "Bundi", "Baran", "Jhalawar", "Pratapgarh"],
-    "Sikkim": ["Gangtok", "Namchi", "Gyalshing", "Mangan", "Rangpo", "Singtam", "Jorethang"],
-    "Tamil Nadu": ["Chennai", "Coimbatore", "Madurai", "Tiruchirappalli", "Salem", "Tirunelveli", "Tiruppur", "Ranipet", "Vellore", "Thoothukudi", "Erode", "Dindigul", "Thanjavur", "Nagercoil", "Kanchipuram", "Karur", "Hosur", "Cuddalore", "Kumbakonam", "Tambaram", "Avadi"],
-    "Telangana": ["Hyderabad", "Warangal", "Nizamabad", "Karimnagar", "Khammam", "Mahbubnagar", "Ramagundam", "Suryapet", "Miryalaguda", "Nalgonda", "Adilabad", "Siddipet", "Mancherial", "Jagtial"],
-    "Tripura": ["Agartala", "Dharmanagar", "Udaipur", "Kailasahar", "Belonia", "Ambassa", "Sabroom", "Sonamura"],
-    "Uttar Pradesh": ["Lucknow", "Kanpur", "Ghaziabad", "Agra", "Varanasi", "Meerut", "Prayagraj", "Bareilly", "Aligarh", "Moradabad", "Saharanpur", "Gorakhpur", "Noida", "Firozabad", "Jhansi", "Muzaffarnagar", "Mathura", "Budaun", "Rampur", "Shahjahanpur", "Farrukhabad", "Mau", "Hapur", "Etawah", "Mirzapur", "Bulandshahr", "Sambhal", "Amroha", "Hardoi", "Fatehpur", "Raebareli", "Orai", "Sitapur", "Bahraich", "Modinagar", "Unnao", "Jaunpur", "Lakhimpur", "Hathras", "Banda", "Pilibhit", "Barabanki", "Khurja", "Gonda", "Mainpuri", "Lalitpur", "Etah", "Deoria", "Ghazipur"],
-    "Uttarakhand": ["Dehradun", "Haridwar", "Roorkee", "Haldwani", "Rudrapur", "Kashipur", "Rishikesh", "Nainital", "Mussoorie", "Almora", "Pithoragarh", "Kotdwar"],
-    "West Bengal": ["Kolkata", "Howrah", "Durgapur", "Asansol", "Siliguri", "Bardhaman", "Malda", "Baharampur", "Habra", "Kharagpur", "Shantiniketan", "Krishnanagar", "Balurghat", "Basirhat", "Raiganj", "Kalyani", "Haldia", "Contai", "Bangaon", "Jalpaiguri", "Cooch Behar", "Darjeeling"],
-    "Andaman and Nicobar Islands": ["Port Blair", "Diglipur", "Rangat", "Mayabunder", "Car Nicobar"],
-    "Chandigarh": ["Chandigarh"],
-    "Dadra and Nagar Haveli and Daman and Diu": ["Silvassa", "Daman", "Diu"],
-    "Delhi": ["New Delhi", "Delhi", "Dwarka", "Rohini", "Saket", "Janakpuri", "Karol Bagh", "Lajpat Nagar", "Greater Kailash", "Vasant Kunj", "Pitampura", "Shahdara", "Mayur Vihar", "Preet Vihar"],
-    "Jammu and Kashmir": ["Srinagar", "Jammu", "Anantnag", "Baramulla", "Sopore", "Pulwama", "Kathua", "Udhampur", "Kupwara", "Budgam", "Poonch", "Rajouri"],
-    "Ladakh": ["Leh", "Kargil"],
-    "Lakshadweep": ["Kavaratti", "Agatti", "Minicoy", "Amini", "Andrott", "Kalapeni", "Kalpeni", "Kadmat", "Chetlat"],
-    "Puducherry": ["Puducherry", "Karaikal", "Mahe", "Yanam"],
-};
+const INDIA_STATES = State.getStatesOfCountry("IN")
 
+const stateIsoByName: Record<string, string> = Object.fromEntries(
+  INDIA_STATES.map((s) => [s.name, s.isoCode])
+)
+
+/** All Indian states and union territories (sorted A–Z). */
+export const indianStates: string[] = INDIA_STATES.map((s) => s.name).sort((a, b) =>
+  a.localeCompare(b)
+)
+
+const cityCache = new Map<string, string[]>()
+
+/**
+ * All cities for an Indian state/UT (from country-state-city; ~4,200 nationwide).
+ * Deduped and sorted alphabetically.
+ */
 export const getIndianCities = (state: string): string[] => {
-    return citiesByState[state] || [];
-};
+  if (!state) return []
+  const cached = cityCache.get(state)
+  if (cached) return cached
+
+  const iso = stateIsoByName[state]
+  if (!iso) {
+    cityCache.set(state, [])
+    return []
+  }
+
+  const cities = [
+    ...new Set(City.getCitiesOfState("IN", iso).map((c) => c.name).filter(Boolean)),
+  ].sort((a, b) => a.localeCompare(b))
+
+  cityCache.set(state, cities)
+  return cities
+}
+
+/**
+ * Backward-compatible map access: citiesByState[stateName] → string[]
+ * Lazily resolves from country-state-city.
+ */
+export const citiesByState: Record<string, string[]> = new Proxy(
+  {} as Record<string, string[]>,
+  {
+    get(_target, prop: string | symbol) {
+      if (typeof prop !== "string") return undefined
+      return getIndianCities(prop)
+    },
+    has(_target, prop: string | symbol) {
+      return typeof prop === "string" && prop in stateIsoByName
+    },
+    ownKeys() {
+      return indianStates
+    },
+    getOwnPropertyDescriptor(_target, prop) {
+      if (typeof prop !== "string" || !(prop in stateIsoByName)) return undefined
+      return { enumerable: true, configurable: true, value: getIndianCities(prop) }
+    },
+  }
+)
+
+/** Flat unique list of every Indian city (for search filters). */
+export const getAllIndianCities = (): string[] => {
+  const all = new Set<string>()
+  for (const state of indianStates) {
+    for (const city of getIndianCities(state)) {
+      all.add(city)
+    }
+  }
+  return [...all].sort((a, b) => a.localeCompare(b))
+}

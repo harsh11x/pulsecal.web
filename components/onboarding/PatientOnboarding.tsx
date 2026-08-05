@@ -14,6 +14,7 @@ import { toast } from "sonner"
 import { apiService } from "@/services/api"
 import { MapPin, User, Heart, Shield } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
+import { IndiaStateSelect, IndiaCitySelect } from "@/components/location/IndiaLocationFields"
 
 export default function PatientOnboarding() {
   const router = useRouter()
@@ -324,24 +325,19 @@ export default function PatientOnboarding() {
               </div>
 
               <div className="grid gap-4 md:grid-cols-3">
-                <div className="space-y-2">
-                  <Label htmlFor="city">City</Label>
-                  <Input
-                    id="city"
-                    placeholder="Mumbai"
-                    value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="state">State</Label>
-                  <Input
-                    id="state"
-                    placeholder="Maharashtra"
-                    value={formData.state}
-                    onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                  />
-                </div>
+                <IndiaStateSelect
+                  id="state"
+                  label="State"
+                  value={formData.state}
+                  onChange={(value) => setFormData({ ...formData, state: value, city: "" })}
+                />
+                <IndiaCitySelect
+                  id="city"
+                  label="City"
+                  state={formData.state}
+                  value={formData.city}
+                  onChange={(value) => setFormData({ ...formData, city: value })}
+                />
                 <div className="space-y-2">
                   <Label htmlFor="zipCode">Pincode</Label>
                   <Input

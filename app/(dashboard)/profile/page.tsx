@@ -17,8 +17,7 @@ import { Label } from "@/components/ui/label"
 import { Camera, Save, Wallet, Building2, CreditCard, MapPin, Coffee, X, Crosshair, Clock } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
-
-import { State, City } from "country-state-city"
+import { IndiaStateNativeSelect, IndiaCityNativeSelect } from "@/components/location/IndiaLocationFields"
 
 const DEFAULT_WORKING_HOURS: Record<string, { start: string; end: string; isOpen: boolean; breakStart: string; breakEnd: string }> = {
   monday: { start: "09:00", end: "17:00", isOpen: true, breakStart: "", breakEnd: "" },
@@ -164,12 +163,7 @@ export default function ProfilePage() {
     }
   }
 
-  // Get Indian states
-  const states = State.getStatesOfCountry("IN")
-  // Get cities based on selected state
-  const cities = formData.state
-    ? City.getCitiesOfState("IN", states.find(s => s.name === formData.state)?.isoCode || "")
-    : []
+  // Indian states/cities come from shared indianLocations helpers
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -421,36 +415,22 @@ export default function ProfilePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="state">State</Label>
-                  <select
+                  <IndiaStateNativeSelect
                     id="state"
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     value={formData.state}
-                    onChange={(e) => updateAddress({ state: e.target.value, city: "" })}
-                  >
-                    <option value="">Select State</option>
-                    {states.map((state) => (
-                      <option key={state.isoCode} value={state.name}>
-                        {state.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(state) => updateAddress({ state, city: "" })}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="city">City</Label>
-                  <select
+                  <IndiaCityNativeSelect
                     id="city"
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    state={formData.state}
                     value={formData.city}
-                    onChange={(e) => updateAddress({ city: e.target.value })}
-                    disabled={!formData.state}
-                  >
-                    <option value="">Select City</option>
-                    {cities.map((city) => (
-                      <option key={city.name} value={city.name}>
-                        {city.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(city) => updateAddress({ city })}
+                  />
                 </div>
               </div>
 

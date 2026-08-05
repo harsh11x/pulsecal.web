@@ -12,6 +12,7 @@ import { apiService } from "@/services/api"
 import { useAppDispatch, useAppSelector } from "@/app/hooks"
 import { setUser } from "@/app/features/authSlice"
 import type { User } from "@/types"
+import { IndiaStateSelect, IndiaCitySelect } from "@/components/location/IndiaLocationFields"
 
 // Dynamically import the Leaflet map with SSR disabled (Leaflet needs the browser)
 const LocationPickerMap = dynamic(() => import("@/components/onboarding/LocationPickerMap"), {
@@ -365,22 +366,19 @@ export default function ClinicManager({ clinicId: clinicIdProp }: ClinicManagerP
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="city">City</Label>
-                            <Input
-                                id="city"
-                                value={formData.city}
-                                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="state">State</Label>
-                            <Input
-                                id="state"
-                                value={formData.state}
-                                onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                            />
-                        </div>
+                        <IndiaStateSelect
+                            id="state"
+                            label="State"
+                            value={formData.state}
+                            onChange={(value) => setFormData({ ...formData, state: value, city: "" })}
+                        />
+                        <IndiaCitySelect
+                            id="city"
+                            label="City"
+                            state={formData.state}
+                            value={formData.city}
+                            onChange={(value) => setFormData({ ...formData, city: value })}
+                        />
                         <div className="space-y-2">
                             <Label htmlFor="zipCode">Zip Code</Label>
                             <Input
