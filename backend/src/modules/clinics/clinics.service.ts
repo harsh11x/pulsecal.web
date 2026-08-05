@@ -434,9 +434,17 @@ export const updateClinic = async (
     isActive?: boolean;
   }
 ) => {
+  // Drop empty strings for optional-ish fields so we don't wipe required columns accidentally
+  const cleaned: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (value === undefined) continue;
+    if (typeof value === 'string' && value.trim() === '' && key !== 'address') continue;
+    cleaned[key] = typeof value === 'string' ? value.trim() : value;
+  }
+
   const clinic = await prisma.clinic.update({
     where: { id: clinicId },
-    data,
+    data: cleaned,
   });
 
   // Keep DoctorProfile denormalized address in sync (discovery, profile, maps)
@@ -458,15 +466,24 @@ export const updateClinic = async (
   }
 
   try {
-    await prisma.doctorProfile.updateMany({
+    // Prefer updating doctors linked to this clinic; also update owner profile
+    const linkedUsers = await prisma.user.findMany({
       where: {
         OR: [
-          { user: { clinicId } },
-          ...(clinic.ownerId ? [{ userId: clinic.ownerId }] : []),
+          { clinicId },
+          ...(clinic.ownerId ? [{ id: clinic.ownerId }] : []),
         ],
+        role: 'DOCTOR',
       },
-      data: doctorProfileData,
+      select: { id: true },
     });
+    const userIds = [...new Set(linkedUsers.map((u) => u.id))];
+    if (userIds.length > 0) {
+      await prisma.doctorProfile.updateMany({
+        where: { userId: { in: userIds } },
+        data: doctorProfileData,
+      });
+    }
   } catch (err: any) {
     logger.warn(
       { clinicId, error: err?.message },

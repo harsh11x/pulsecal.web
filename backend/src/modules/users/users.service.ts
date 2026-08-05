@@ -248,6 +248,8 @@ export const getProfile = async (userId: string) => {
             services: true,
             workingHours: true,
             bio: true,
+            bankAccountDetails: true,
+            upiId: true,
             subscriptionStatus: true,
             subscriptionPlan: true,
             subscriptionExpiresAt: true,
@@ -357,7 +359,7 @@ export const updateProfile = async (
     firstName?: string;
     lastName?: string;
     phone?: string;
-    dateOfBirth?: Date | null;
+    dateOfBirth?: Date | string | null;
     profileImage?: string;
     clinicAddress?: string;
     clinicStreet?: string;
@@ -380,7 +382,6 @@ export const updateProfile = async (
   try {
     logger.info({ userId, fields: Object.keys(data) }, 'Updating profile');
 
-    // Extract doctor profile specific fields
     const {
       clinicAddress,
       clinicStreet,
@@ -398,25 +399,40 @@ export const updateProfile = async (
       clinicLongitude,
       bankAccountDetails,
       upiId,
-      ...userData
+      firstName,
+      lastName,
+      phone,
+      dateOfBirth,
+      profileImage,
     } = data;
 
-    // Update user data
-    await prisma.user.update({
-      where: { id: userId },
-      data: userData,
-    });
+    // Only set defined user fields (avoid Prisma rejecting unknown/undefined noise)
+    const userUpdate: Record<string, unknown> = {};
+    if (firstName !== undefined) userUpdate.firstName = firstName;
+    if (lastName !== undefined) userUpdate.lastName = lastName;
+    if (phone !== undefined) userUpdate.phone = phone;
+    if (profileImage !== undefined) userUpdate.profileImage = profileImage;
+    if (dateOfBirth !== undefined) {
+      if (dateOfBirth === null || dateOfBirth === '') {
+        userUpdate.dateOfBirth = null;
+      } else {
+        const d = dateOfBirth instanceof Date ? dateOfBirth : new Date(dateOfBirth);
+        if (!Number.isNaN(d.getTime())) userUpdate.dateOfBirth = d;
+      }
+    }
+
+    if (Object.keys(userUpdate).length > 0) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: userUpdate,
+      });
+    }
 
     const currentUser = await prisma.user.findUnique({
       where: { id: userId },
-      select: {
-        id: true,
-        role: true,
-        clinicId: true,
-      },
+      select: { id: true, role: true, clinicId: true },
     });
 
-    // Resolve clinic even when user.clinicId is missing (same heal as getProfile)
     let resolvedClinicId = currentUser?.clinicId || null;
     if (currentUser?.role === 'DOCTOR' && !resolvedClinicId) {
       try {
@@ -433,85 +449,108 @@ export const updateProfile = async (
             WHERE id = ${userId}
           `;
           resolvedClinicId = ownedClinic.id;
-          logger.info(
-            { userId, clinicId: ownedClinic.id },
-            'Healed missing clinicId during profile update'
-          );
         }
       } catch (healErr: any) {
-        logger.warn(
-          { userId, error: healErr?.message },
-          'Could not heal clinicId during profile update'
-        );
+        logger.warn({ userId, error: healErr?.message }, 'Could not heal clinicId during profile update');
       }
     }
 
-    // If ANY doctor specific fields are provided and user is a doctor, update the doctor profile
-    if (
-      currentUser?.role === 'DOCTOR' &&
-      (clinicAddress !== undefined ||
-        clinicStreet !== undefined ||
-        clinicCity !== undefined ||
-        clinicState !== undefined ||
-        clinicZipCode !== undefined ||
-        specialization !== undefined ||
-        bio !== undefined ||
-        consultationFee !== undefined ||
-        services !== undefined ||
-        workingHours !== undefined ||
-        clinicName !== undefined ||
-        clinicLatitude !== undefined ||
-        clinicLongitude !== undefined ||
-        bankAccountDetails !== undefined ||
-        upiId !== undefined)
-    ) {
+    const hasDoctorFields =
+      clinicAddress !== undefined ||
+      clinicStreet !== undefined ||
+      clinicCity !== undefined ||
+      clinicState !== undefined ||
+      clinicZipCode !== undefined ||
+      clinicCountry !== undefined ||
+      specialization !== undefined ||
+      bio !== undefined ||
+      consultationFee !== undefined ||
+      services !== undefined ||
+      workingHours !== undefined ||
+      clinicName !== undefined ||
+      clinicLatitude !== undefined ||
+      clinicLongitude !== undefined ||
+      bankAccountDetails !== undefined ||
+      upiId !== undefined;
+
+    if (currentUser?.role === 'DOCTOR' && hasDoctorFields) {
+      const structuredParts = [clinicStreet, clinicCity, clinicState, clinicZipCode].filter(
+        (p) => typeof p === 'string' && p.trim() !== ''
+      );
       const joinedClinicAddress =
-        [clinicStreet, clinicCity, clinicState, clinicZipCode].filter(Boolean).length > 0
-          ? [clinicStreet, clinicCity, clinicState, clinicZipCode].filter(Boolean).join(', ')
+        structuredParts.length > 0
+          ? [clinicStreet, clinicCity, clinicState, clinicZipCode]
+              .filter((p) => typeof p === 'string' && String(p).trim() !== '')
+              .join(', ')
           : clinicAddress;
 
-      const doctorProfile = await prisma.doctorProfile.findUnique({
+      const doctorUpdate: Record<string, unknown> = {};
+      if (joinedClinicAddress !== undefined) doctorUpdate.clinicAddress = joinedClinicAddress;
+      if (specialization !== undefined) doctorUpdate.specialization = specialization;
+      if (bio !== undefined) doctorUpdate.bio = bio;
+      if (consultationFee !== undefined) doctorUpdate.consultationFee = consultationFee;
+      if (services !== undefined) doctorUpdate.services = services;
+      if (workingHours !== undefined) doctorUpdate.workingHours = workingHours;
+      if (clinicName !== undefined) doctorUpdate.clinicName = clinicName;
+      if (clinicLatitude !== undefined) {
+        doctorUpdate.clinicLatitude =
+          clinicLatitude === null || Number.isFinite(Number(clinicLatitude))
+            ? clinicLatitude
+            : null;
+      }
+      if (clinicLongitude !== undefined) {
+        doctorUpdate.clinicLongitude =
+          clinicLongitude === null || Number.isFinite(Number(clinicLongitude))
+            ? clinicLongitude
+            : null;
+      }
+      if (bankAccountDetails !== undefined) doctorUpdate.bankAccountDetails = bankAccountDetails;
+      if (upiId !== undefined) doctorUpdate.upiId = upiId;
+
+      const existingDoctorProfile = await prisma.doctorProfile.findUnique({
         where: { userId },
+        select: { id: true },
       });
 
-      if (doctorProfile) {
-        await prisma.doctorProfile.update({
-          where: { userId },
-          data: {
-            ...(joinedClinicAddress !== undefined ? { clinicAddress: joinedClinicAddress } : {}),
-            specialization,
-            bio,
-            consultationFee,
-            services,
-            workingHours,
-            clinicName,
-            clinicLatitude,
-            clinicLongitude,
-            bankAccountDetails,
-            upiId,
-          },
-        });
+      if (existingDoctorProfile) {
+        if (Object.keys(doctorUpdate).length > 0) {
+          await prisma.doctorProfile.update({
+            where: { userId },
+            data: doctorUpdate,
+          });
+        }
       } else {
-        // Create if it doesn't exist
         await prisma.doctorProfile.create({
           data: {
             userId,
             licenseNumber: `LIC-${userId.substring(0, 8)}`,
-            specialization: specialization || 'General',
+            specialization: specialization || 'General Physician',
             clinicName: clinicName || 'My Clinic',
-            clinicAddress: joinedClinicAddress,
-            clinicLatitude,
-            clinicLongitude,
-            bio,
-            consultationFee: consultationFee || 0,
+            clinicAddress: joinedClinicAddress || null,
+            clinicLatitude:
+              clinicLatitude === null || clinicLatitude === undefined
+                ? null
+                : Number.isFinite(Number(clinicLatitude))
+                  ? Number(clinicLatitude)
+                  : null,
+            clinicLongitude:
+              clinicLongitude === null || clinicLongitude === undefined
+                ? null
+                : Number.isFinite(Number(clinicLongitude))
+                  ? Number(clinicLongitude)
+                  : null,
+            bio: bio || null,
+            consultationFee: consultationFee ?? 0,
             services: services || [],
-            workingHours: workingHours,
+            workingHours: workingHours || undefined,
+            bankAccountDetails: bankAccountDetails || null,
+            upiId: upiId || null,
           },
         });
       }
 
-      // Sync structured address onto Clinic table (Clinic Information / appointments)
-      const shouldSyncClinic =
+      // Best-effort Clinic table sync — never fail the profile save
+      const wantsClinicSync =
         clinicStreet !== undefined ||
         clinicCity !== undefined ||
         clinicState !== undefined ||
@@ -521,47 +560,69 @@ export const updateProfile = async (
         clinicLatitude !== undefined ||
         clinicLongitude !== undefined;
 
-      if (shouldSyncClinic) {
-        const clinicUpdate: Record<string, unknown> = {};
-        if (clinicName !== undefined && clinicName) clinicUpdate.name = clinicName;
-        if (clinicStreet !== undefined && clinicStreet !== '') {
-          clinicUpdate.address = clinicStreet;
-        } else if (
-          clinicAddress !== undefined &&
-          clinicStreet === undefined &&
-          !clinicCity &&
-          !clinicState
-        ) {
-          clinicUpdate.address = clinicAddress;
-        }
-        if (clinicCity !== undefined) clinicUpdate.city = clinicCity;
-        if (clinicState !== undefined) clinicUpdate.state = clinicState;
-        if (clinicZipCode !== undefined) clinicUpdate.zipCode = clinicZipCode;
-        if (clinicCountry !== undefined) clinicUpdate.country = clinicCountry || 'India';
-        if (clinicLatitude !== undefined) clinicUpdate.latitude = clinicLatitude;
-        if (clinicLongitude !== undefined) clinicUpdate.longitude = clinicLongitude;
+      if (wantsClinicSync) {
+        try {
+          if (!resolvedClinicId) {
+            const owned = await prisma.clinic.findFirst({
+              where: { ownerId: userId, deletedAt: null },
+              orderBy: { createdAt: 'asc' },
+              select: { id: true },
+            });
+            resolvedClinicId = owned?.id || null;
+          }
 
-        if (Object.keys(clinicUpdate).length > 0) {
-          try {
-            // Prefer linked clinic; fall back to owned clinic
-            let targetClinicId = resolvedClinicId;
-            if (!targetClinicId) {
-              const owned = await prisma.clinic.findFirst({
-                where: { ownerId: userId, deletedAt: null },
-                orderBy: { createdAt: 'asc' },
-                select: { id: true },
-              });
-              targetClinicId = owned?.id || null;
+          if (resolvedClinicId) {
+            const clinicUpdate: Record<string, unknown> = {};
+            if (clinicName !== undefined && String(clinicName).trim()) {
+              clinicUpdate.name = String(clinicName).trim();
+            }
+            if (clinicStreet !== undefined && String(clinicStreet).trim() !== '') {
+              clinicUpdate.address = String(clinicStreet).trim();
+            } else if (
+              clinicAddress !== undefined &&
+              clinicStreet === undefined &&
+              clinicCity === undefined &&
+              clinicState === undefined
+            ) {
+              clinicUpdate.address = clinicAddress;
+            }
+            if (clinicCity !== undefined) clinicUpdate.city = String(clinicCity || '').trim();
+            if (clinicState !== undefined) clinicUpdate.state = String(clinicState || '').trim();
+            if (clinicZipCode !== undefined) clinicUpdate.zipCode = String(clinicZipCode || '').trim();
+            if (clinicCountry !== undefined) {
+              clinicUpdate.country = String(clinicCountry || 'India').trim() || 'India';
+            }
+            if (clinicLatitude !== undefined) {
+              clinicUpdate.latitude =
+                clinicLatitude === null
+                  ? null
+                  : Number.isFinite(Number(clinicLatitude))
+                    ? Number(clinicLatitude)
+                    : undefined;
+              if (clinicUpdate.latitude === undefined) delete clinicUpdate.latitude;
+            }
+            if (clinicLongitude !== undefined) {
+              clinicUpdate.longitude =
+                clinicLongitude === null
+                  ? null
+                  : Number.isFinite(Number(clinicLongitude))
+                    ? Number(clinicLongitude)
+                    : undefined;
+              if (clinicUpdate.longitude === undefined) delete clinicUpdate.longitude;
             }
 
-            if (targetClinicId) {
+            // Avoid wiping required clinic columns with empty strings if not provided meaningfully
+            if (clinicUpdate.city === '') delete clinicUpdate.city;
+            if (clinicUpdate.state === '') delete clinicUpdate.state;
+            // zipCode may be empty in some forms — keep previous if empty
+            if (clinicUpdate.zipCode === '') delete clinicUpdate.zipCode;
+
+            if (Object.keys(clinicUpdate).length > 0) {
               const updatedClinic = await prisma.clinic.update({
-                where: { id: targetClinicId },
+                where: { id: resolvedClinicId },
                 data: clinicUpdate,
               });
-              resolvedClinicId = targetClinicId;
 
-              // Keep denormalized DoctorProfile address in sync for all clinic doctors
               const syncedAddress = [
                 updatedClinic.address,
                 updatedClinic.city,
@@ -571,49 +632,42 @@ export const updateProfile = async (
                 .filter(Boolean)
                 .join(', ');
 
-              await prisma.doctorProfile.updateMany({
-                where: {
-                  OR: [
-                    { userId },
-                    { user: { clinicId: targetClinicId } },
-                    ...(updatedClinic.ownerId
-                      ? [{ userId: updatedClinic.ownerId }]
-                      : []),
-                  ],
-                },
+              await prisma.doctorProfile.update({
+                where: { userId },
                 data: {
                   clinicAddress: syncedAddress,
                   ...(updatedClinic.name ? { clinicName: updatedClinic.name } : {}),
                   ...(clinicLatitude !== undefined
-                    ? { clinicLatitude }
+                    ? {
+                        clinicLatitude:
+                          clinicLatitude === null || Number.isFinite(Number(clinicLatitude))
+                            ? clinicLatitude
+                            : null,
+                      }
                     : {}),
                   ...(clinicLongitude !== undefined
-                    ? { clinicLongitude }
+                    ? {
+                        clinicLongitude:
+                          clinicLongitude === null || Number.isFinite(Number(clinicLongitude))
+                            ? clinicLongitude
+                            : null,
+                      }
                     : {}),
                 },
               });
 
-              logger.info(
-                { userId, clinicId: targetClinicId },
-                'Synced clinic address from profile update'
-              );
-            } else {
-              logger.warn(
-                { userId },
-                'Profile address updated but no clinic found to sync'
-              );
+              logger.info({ userId, clinicId: resolvedClinicId }, 'Synced clinic address from profile update');
             }
-          } catch (clinicErr: any) {
-            logger.error(
-              { userId, clinicId: resolvedClinicId, error: clinicErr?.message },
-              'Doctor profile updated but clinic address sync failed'
-            );
           }
+        } catch (clinicErr: any) {
+          logger.error(
+            { userId, clinicId: resolvedClinicId, error: clinicErr?.message, stack: clinicErr?.stack },
+            'Clinic sync failed (profile user/doctor fields still saved)'
+          );
         }
       }
     }
 
-    // Return fresh profile including doctorProfile
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -642,7 +696,7 @@ export const updateProfile = async (
       {
         error: error.message,
         stack: error.stack,
-        userId
+        userId,
       },
       'Error in updateProfile service'
     );

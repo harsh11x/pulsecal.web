@@ -114,10 +114,11 @@ export default function ProfilePage() {
   const [clinicLongitude, setClinicLongitude] = useState(dp?.clinicLongitude != null ? String(dp.clinicLongitude) : "")
   const [verifyingLocation, setVerifyingLocation] = useState(false)
   const [resolvedClinicId, setResolvedClinicId] = useState<string | undefined>(user?.clinicId)
+  const [clinicAddressLoaded, setClinicAddressLoaded] = useState(false)
 
-  // Load clinic address from Clinic table (source of truth for Clinic Information)
+  // Load clinic address from Clinic table once (source of truth for Clinic Information)
   useEffect(() => {
-    if (!isDoctor || !canManage) return
+    if (!isDoctor || !canManage || clinicAddressLoaded) return
     let cancelled = false
 
     const loadClinicAddress = async () => {
@@ -142,7 +143,10 @@ export default function ProfilePage() {
           }
         }
 
-        if (cancelled || !clinic) return
+        if (cancelled) return
+        setClinicAddressLoaded(true)
+
+        if (!clinic) return
 
         if (id) setResolvedClinicId(id)
 
@@ -157,12 +161,12 @@ export default function ProfilePage() {
         if (clinic.latitude != null) setClinicLatitude(String(clinic.latitude))
         if (clinic.longitude != null) setClinicLongitude(String(clinic.longitude))
 
-        // Keep Redux clinicId in sync if it was missing
         if (id && user && user.clinicId !== id) {
           dispatch(setUser({ ...user, clinicId: id }))
         }
       } catch (error) {
         console.warn("Failed to load clinic address for profile:", error)
+        if (!cancelled) setClinicAddressLoaded(true)
       }
     }
 
@@ -170,7 +174,7 @@ export default function ProfilePage() {
     return () => {
       cancelled = true
     }
-  }, [isDoctor, canManage, user?.clinicId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isDoctor, canManage, clinicAddressLoaded, user?.clinicId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Initialize working hours from the saved profile once
   const [initializedHours, setInitializedHours] = useState(false)
@@ -229,66 +233,67 @@ export default function ProfilePage() {
     try {
       setLoading(true)
 
-      // Construct full address string
-      const parts = [formData.addressLine, formData.city, formData.state].filter(Boolean);
-      const suffix = formData.pincode ? ` - ${formData.pincode}` : '';
-      const fullClinicAddress = parts.length > 0 ? parts.join(", ") + suffix : "";
+      const street = (formData.addressLine || "").trim()
+      const city = (formData.city || "").trim()
+      const state = (formData.state || "").trim()
+      const zipCode = (formData.pincode || "").trim()
+      const fullClinicAddress = [street, city, state, zipCode].filter(Boolean).join(", ")
 
       const payload: any = {
         firstName: formData.firstName,
         lastName: formData.lastName,
         phone: formData.phone,
       }
+
       if (isDoctor) {
         if (canManage) {
-          // Keep DoctorProfile string + Clinic table columns in sync
           payload.clinicAddress = fullClinicAddress
-          payload.clinicStreet = formData.addressLine
-          payload.clinicCity = formData.city
-          payload.clinicState = formData.state
-          payload.clinicZipCode = formData.pincode
+          payload.clinicStreet = street
+          payload.clinicCity = city
+          payload.clinicState = state
+          payload.clinicZipCode = zipCode
           payload.clinicCountry = "India"
         }
-        // Merge with any schedule-manager settings (blocked-slot exceptions,
-        // slot duration) so saving the profile doesn't wipe them
+
         const existingWh = (user as any)?.doctorProfile?.workingHours || {}
         payload.workingHours = {
           ...(existingWh?.exceptions ? { exceptions: existingWh.exceptions } : {}),
           ...(existingWh?.defaultSettings ? { defaultSettings: existingWh.defaultSettings } : {}),
           ...workingHours,
         }
-        if (clinicLatitude && clinicLongitude) {
-          payload.clinicLatitude = parseFloat(clinicLatitude)
-          payload.clinicLongitude = parseFloat(clinicLongitude)
+
+        const lat = clinicLatitude ? parseFloat(clinicLatitude) : NaN
+        const lng = clinicLongitude ? parseFloat(clinicLongitude) : NaN
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+          payload.clinicLatitude = lat
+          payload.clinicLongitude = lng
         } else if (dp?.clinicLatitude != null || dp?.clinicLongitude != null) {
-          // Doctor cleared the pin — persist the clearing
           payload.clinicLatitude = null
           payload.clinicLongitude = null
         }
+
         payload.bankAccountDetails = formData.bankAccountDetails?.trim() || null
         payload.upiId = formData.upiId?.trim() || null
       }
 
-      // Only include dateOfBirth if it's provided and valid
-      // Backend expects Date object, but Joi will parse ISO string
       if (formData.dateOfBirth) {
-        // Convert date string to ISO format for backend
         const dateObj = new Date(formData.dateOfBirth)
         if (!isNaN(dateObj.getTime())) {
           payload.dateOfBirth = dateObj.toISOString()
         }
       }
 
-      // Update profile via API (also syncs Clinic table on backend for owners)
+      // 1) Save profile (backend also syncs Clinic when possible)
       const response: any = await userService.updateProfile(payload)
 
-      // Always sync Clinic row so Clinic Information / appointments stay correct
+      // 2) Explicit clinic sync so Clinic Information stays correct
       let clinicId =
         resolvedClinicId ||
         (user as any)?.clinicId ||
         (response as any)?.clinicId
 
-      if (isDoctor && canManage && formData.addressLine && formData.city) {
+      let clinicSynced = false
+      if (isDoctor && canManage && street && city) {
         try {
           if (!clinicId) {
             try {
@@ -300,85 +305,98 @@ export default function ProfilePage() {
           }
 
           if (clinicId) {
-            await apiService.put(`/clinics/${clinicId}`, {
-              address: formData.addressLine.trim(),
-              city: formData.city.trim(),
-              state: (formData.state || "").trim(),
-              zipCode: (formData.pincode || "").trim(),
+            const clinicPayload: Record<string, unknown> = {
+              address: street,
+              city,
               country: "India",
-              ...(payload.clinicLatitude !== undefined
-                ? { latitude: payload.clinicLatitude }
-                : {}),
-              ...(payload.clinicLongitude !== undefined
-                ? { longitude: payload.clinicLongitude }
-                : {}),
-            })
+            }
+            if (state) clinicPayload.state = state
+            if (zipCode) clinicPayload.zipCode = zipCode
+            if (payload.clinicLatitude !== undefined) clinicPayload.latitude = payload.clinicLatitude
+            if (payload.clinicLongitude !== undefined) clinicPayload.longitude = payload.clinicLongitude
+
+            await apiService.put(`/clinics/${clinicId}`, clinicPayload)
+            clinicSynced = true
             setResolvedClinicId(clinicId)
 
-            // Notify Clinic Information screens to refetch immediately
             if (typeof window !== "undefined") {
               window.dispatchEvent(
                 new CustomEvent("pulsecal:clinic-updated", { detail: { clinicId } })
               )
             }
-          } else {
-            console.warn("No clinic id available to sync address")
-            toast({
-              title: "Partial update",
-              description: "Profile saved, but clinic record was not found to sync address.",
-              variant: "destructive",
-            })
           }
         } catch (clinicSyncError: any) {
           console.error("Clinic table sync after profile save failed:", clinicSyncError)
-          toast({
-            title: "Partial update",
-            description:
-              clinicSyncError?.response?.data?.message ||
-              "Profile saved, but clinic information sync failed. Try saving from Clinic Information.",
-            variant: "destructive",
-          })
         }
       }
 
-      // apiService now unwraps the response, so response should be the user object directly
-      const updatedUser = response
-
-      // Optimistic update
-      const optimisticUser = {
-        ...user,
-        ...updatedUser,
-        id: user?.id || updatedUser.id,
-        role: user?.role || updatedUser.role,
-        clinicId: clinicId || user?.clinicId || (updatedUser as any)?.clinicId,
-        ...(isDoctor ? {
-          doctorProfile: {
-            ...(user as any)?.doctorProfile,
-            ...(updatedUser as any)?.doctorProfile,
-            clinicAddress: [
-              formData.addressLine,
-              formData.city,
-              formData.state,
-              formData.pincode,
-            ]
-              .filter(Boolean)
-              .join(", "),
-            workingHours: payload.workingHours,
-            clinicLatitude: payload.clinicLatitude !== undefined ? payload.clinicLatitude : (user as any)?.doctorProfile?.clinicLatitude,
-            clinicLongitude: payload.clinicLongitude !== undefined ? payload.clinicLongitude : (user as any)?.doctorProfile?.clinicLongitude,
-            bankAccountDetails: payload.bankAccountDetails ?? formData.bankAccountDetails,
-            upiId: payload.upiId ?? formData.upiId,
-          }
-        } : {})
+      // 3) Refresh from server so Redux matches DB
+      let refreshed: any = response
+      try {
+        refreshed = await apiService.get("/auth/profile")
+      } catch {
+        refreshed = response
       }
 
-      dispatch(setUser(optimisticUser))
+      const optimisticUser = {
+        ...user,
+        ...refreshed,
+        id: user?.id || refreshed?.id,
+        role: (refreshed?.role || user?.role || "doctor").toString().toLowerCase(),
+        clinicId: clinicId || refreshed?.clinicId || user?.clinicId,
+        canManageSubscription:
+          refreshed?.canManageSubscription ?? (user as any)?.canManageSubscription,
+        ...(isDoctor
+          ? {
+              doctorProfile: {
+                ...(user as any)?.doctorProfile,
+                ...(refreshed as any)?.doctorProfile,
+                clinicAddress:
+                  fullClinicAddress ||
+                  (refreshed as any)?.doctorProfile?.clinicAddress ||
+                  (user as any)?.doctorProfile?.clinicAddress,
+                workingHours:
+                  payload.workingHours ||
+                  (refreshed as any)?.doctorProfile?.workingHours,
+                clinicLatitude:
+                  payload.clinicLatitude !== undefined
+                    ? payload.clinicLatitude
+                    : (refreshed as any)?.doctorProfile?.clinicLatitude,
+                clinicLongitude:
+                  payload.clinicLongitude !== undefined
+                    ? payload.clinicLongitude
+                    : (refreshed as any)?.doctorProfile?.clinicLongitude,
+                bankAccountDetails:
+                  payload.bankAccountDetails ??
+                  formData.bankAccountDetails ??
+                  (refreshed as any)?.doctorProfile?.bankAccountDetails,
+                upiId:
+                  payload.upiId ??
+                  formData.upiId ??
+                  (refreshed as any)?.doctorProfile?.upiId,
+              },
+            }
+          : {}),
+      }
 
-      toast({
-        title: "Success",
-        description: "Profile updated successfully",
-      })
+      dispatch(setUser(optimisticUser as any))
 
+      if (isDoctor && canManage && street && city && !clinicSynced && !clinicId) {
+        toast({
+          title: "Profile saved",
+          description: "Personal details saved. Clinic record was not found to sync address.",
+        })
+      } else if (isDoctor && canManage && street && city && !clinicSynced) {
+        toast({
+          title: "Profile saved",
+          description: "Profile updated. If Clinic Information looks old, open it and refresh.",
+        })
+      } else {
+        toast({
+          title: "Success",
+          description: "Profile updated successfully",
+        })
+      }
     } catch (error: any) {
       console.error("Profile update error - Full error:", error)
       console.error("Error response:", error.response)

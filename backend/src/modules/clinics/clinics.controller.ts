@@ -96,21 +96,21 @@ export const getClinicByIdController = async (
 };
 
 export const updateClinicController = async (
-  req: Request,
+  req: AuthRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
     // Create a new schema where all keys are optional for update
     const updateSchema = Joi.object({
-      name: Joi.string().optional(),
-      address: Joi.string().optional(),
-      city: Joi.string().optional(),
-      state: Joi.string().optional(),
-      zipCode: Joi.string().optional(),
-      country: Joi.string().optional(),
-      phone: Joi.string().optional(),
-      email: Joi.string().email().optional(),
+      name: Joi.string().optional().allow(''),
+      address: Joi.string().optional().allow(''),
+      city: Joi.string().optional().allow(''),
+      state: Joi.string().optional().allow(''),
+      zipCode: Joi.string().optional().allow(''),
+      country: Joi.string().optional().allow(''),
+      phone: Joi.string().optional().allow(''),
+      email: Joi.string().email().optional().allow('', null),
       website: Joi.string().uri().optional().allow(''),
       description: Joi.string().optional().allow(''),
       latitude: Joi.number().optional().allow(null),
@@ -118,34 +118,39 @@ export const updateClinicController = async (
       isActive: Joi.boolean().optional(),
     }).min(1);
 
-    const { error, value } = updateSchema.validate(req.body);
+    const { error, value } = updateSchema.validate(req.body, { abortEarly: false, stripUnknown: true });
     if (error) {
       throw new AppError(error.details[0].message, 400);
     }
 
+    if (!req.user?.id) {
+      throw new AppError('User not authenticated', 401);
+    }
+
     // Access Control: Admin, clinic owner, or linked doctor (claims ownership if unset)
-    if (req.user?.role !== 'ADMIN') {
+    if (req.user.role !== 'ADMIN') {
       const clinicToUpdate = await prisma.clinic.findUnique({
         where: { id: req.params.id },
-        select: { ownerId: true }
+        select: { ownerId: true },
       });
 
       if (!clinicToUpdate) {
         throw new AppError('Clinic not found', 404);
       }
 
-      if (clinicToUpdate.ownerId === req.user?.id) {
-        // owner — allowed
-      } else if (
-        req.user?.role === 'DOCTOR' &&
-        req.user?.clinicId === req.params.id &&
-        !clinicToUpdate.ownerId &&
-        req.user?.id
-      ) {
+      const isOwner = clinicToUpdate.ownerId === req.user.id;
+      const isLinkedDoctor =
+        req.user.role === 'DOCTOR' && req.user.clinicId === req.params.id;
+
+      if (isOwner) {
+        // allowed
+      } else if (isLinkedDoctor && !clinicToUpdate.ownerId) {
         await prisma.clinic.update({
           where: { id: req.params.id },
           data: { ownerId: req.user.id },
         });
+      } else if (isLinkedDoctor && clinicToUpdate.ownerId === req.user.id) {
+        // allowed
       } else {
         throw new AppError('Only the clinic owner can update clinic details', 403);
       }
