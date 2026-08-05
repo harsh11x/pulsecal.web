@@ -153,7 +153,26 @@ export default function ClinicManager({ clinicId: clinicIdProp }: ClinicManagerP
             }
         }
         load()
-        return () => { cancelled = true }
+
+        const onClinicUpdated = () => {
+            if (!cancelled) load()
+        }
+        const onVisible = () => {
+            if (document.visibilityState === "visible" && !cancelled) load()
+        }
+
+        if (typeof window !== "undefined") {
+            window.addEventListener("pulsecal:clinic-updated", onClinicUpdated)
+            document.addEventListener("visibilitychange", onVisible)
+        }
+
+        return () => {
+            cancelled = true
+            if (typeof window !== "undefined") {
+                window.removeEventListener("pulsecal:clinic-updated", onClinicUpdated)
+                document.removeEventListener("visibilitychange", onVisible)
+            }
+        }
     }, [clinicIdProp, user?.clinicId]) // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleVerifyLocation = async () => {
@@ -246,6 +265,12 @@ export default function ClinicManager({ clinicId: clinicIdProp }: ClinicManagerP
                 })
             } catch (syncError) {
                 console.warn("Failed to sync doctor profile location:", syncError)
+            }
+
+            if (typeof window !== "undefined" && clinicId) {
+                window.dispatchEvent(
+                    new CustomEvent("pulsecal:clinic-updated", { detail: { clinicId } })
+                )
             }
 
             setResolvedClinicId(clinicId)

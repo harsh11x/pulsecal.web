@@ -4,10 +4,11 @@ export const dynamic = 'force-dynamic'
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import nextDynamic from "next/dynamic"
 import { useAppSelector, useAppDispatch } from "@/app/hooks"
 import { userService } from "@/services/user.service"
+import { apiService } from "@/services/api"
 import { setUser } from "@/app/features/authSlice"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -112,6 +113,64 @@ export default function ProfilePage() {
   const [clinicLatitude, setClinicLatitude] = useState(dp?.clinicLatitude != null ? String(dp.clinicLatitude) : "")
   const [clinicLongitude, setClinicLongitude] = useState(dp?.clinicLongitude != null ? String(dp.clinicLongitude) : "")
   const [verifyingLocation, setVerifyingLocation] = useState(false)
+  const [resolvedClinicId, setResolvedClinicId] = useState<string | undefined>(user?.clinicId)
+
+  // Load clinic address from Clinic table (source of truth for Clinic Information)
+  useEffect(() => {
+    if (!isDoctor || !canManage) return
+    let cancelled = false
+
+    const loadClinicAddress = async () => {
+      try {
+        let clinic: any = null
+        let id = user?.clinicId
+
+        if (id) {
+          try {
+            clinic = await apiService.get(`/clinics/${id}`)
+          } catch {
+            clinic = null
+          }
+        }
+
+        if (!clinic) {
+          try {
+            clinic = await apiService.get("/clinics/mine")
+            id = clinic?.id
+          } catch {
+            clinic = null
+          }
+        }
+
+        if (cancelled || !clinic) return
+
+        if (id) setResolvedClinicId(id)
+
+        setFormData((prev) => ({
+          ...prev,
+          addressLine: clinic.address || prev.addressLine,
+          city: clinic.city || prev.city,
+          state: clinic.state || prev.state,
+          pincode: clinic.zipCode || prev.pincode,
+        }))
+
+        if (clinic.latitude != null) setClinicLatitude(String(clinic.latitude))
+        if (clinic.longitude != null) setClinicLongitude(String(clinic.longitude))
+
+        // Keep Redux clinicId in sync if it was missing
+        if (id && user && user.clinicId !== id) {
+          dispatch(setUser({ ...user, clinicId: id }))
+        }
+      } catch (error) {
+        console.warn("Failed to load clinic address for profile:", error)
+      }
+    }
+
+    loadClinicAddress()
+    return () => {
+      cancelled = true
+    }
+  }, [isDoctor, canManage, user?.clinicId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Initialize working hours from the saved profile once
   const [initializedHours, setInitializedHours] = useState(false)
@@ -223,23 +282,62 @@ export default function ProfilePage() {
       // Update profile via API (also syncs Clinic table on backend for owners)
       const response: any = await userService.updateProfile(payload)
 
-      // Also update Clinic row directly so Clinic Information refreshes even if
-      // profile payload filtering drops structured fields.
-      const clinicId = (user as any)?.clinicId || (response as any)?.clinicId
-      if (isDoctor && canManage && clinicId && formData.addressLine && formData.city) {
+      // Always sync Clinic row so Clinic Information / appointments stay correct
+      let clinicId =
+        resolvedClinicId ||
+        (user as any)?.clinicId ||
+        (response as any)?.clinicId
+
+      if (isDoctor && canManage && formData.addressLine && formData.city) {
         try {
-          const { apiService } = await import("@/services/api")
-          await apiService.put(`/clinics/${clinicId}`, {
-            address: formData.addressLine,
-            city: formData.city,
-            state: formData.state,
-            zipCode: formData.pincode,
-            country: "India",
-            latitude: payload.clinicLatitude !== undefined ? payload.clinicLatitude : undefined,
-            longitude: payload.clinicLongitude !== undefined ? payload.clinicLongitude : undefined,
+          if (!clinicId) {
+            try {
+              const mine: any = await apiService.get("/clinics/mine")
+              clinicId = mine?.id
+            } catch {
+              clinicId = undefined
+            }
+          }
+
+          if (clinicId) {
+            await apiService.put(`/clinics/${clinicId}`, {
+              address: formData.addressLine.trim(),
+              city: formData.city.trim(),
+              state: (formData.state || "").trim(),
+              zipCode: (formData.pincode || "").trim(),
+              country: "India",
+              ...(payload.clinicLatitude !== undefined
+                ? { latitude: payload.clinicLatitude }
+                : {}),
+              ...(payload.clinicLongitude !== undefined
+                ? { longitude: payload.clinicLongitude }
+                : {}),
+            })
+            setResolvedClinicId(clinicId)
+
+            // Notify Clinic Information screens to refetch immediately
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(
+                new CustomEvent("pulsecal:clinic-updated", { detail: { clinicId } })
+              )
+            }
+          } else {
+            console.warn("No clinic id available to sync address")
+            toast({
+              title: "Partial update",
+              description: "Profile saved, but clinic record was not found to sync address.",
+              variant: "destructive",
+            })
+          }
+        } catch (clinicSyncError: any) {
+          console.error("Clinic table sync after profile save failed:", clinicSyncError)
+          toast({
+            title: "Partial update",
+            description:
+              clinicSyncError?.response?.data?.message ||
+              "Profile saved, but clinic information sync failed. Try saving from Clinic Information.",
+            variant: "destructive",
           })
-        } catch (clinicSyncError) {
-          console.warn("Clinic table sync after profile save failed:", clinicSyncError)
         }
       }
 
@@ -252,11 +350,19 @@ export default function ProfilePage() {
         ...updatedUser,
         id: user?.id || updatedUser.id,
         role: user?.role || updatedUser.role,
+        clinicId: clinicId || user?.clinicId || (updatedUser as any)?.clinicId,
         ...(isDoctor ? {
           doctorProfile: {
             ...(user as any)?.doctorProfile,
             ...(updatedUser as any)?.doctorProfile,
-            clinicAddress: fullClinicAddress,
+            clinicAddress: [
+              formData.addressLine,
+              formData.city,
+              formData.state,
+              formData.pincode,
+            ]
+              .filter(Boolean)
+              .join(", "),
             workingHours: payload.workingHours,
             clinicLatitude: payload.clinicLatitude !== undefined ? payload.clinicLatitude : (user as any)?.doctorProfile?.clinicLatitude,
             clinicLongitude: payload.clinicLongitude !== undefined ? payload.clinicLongitude : (user as any)?.doctorProfile?.clinicLongitude,

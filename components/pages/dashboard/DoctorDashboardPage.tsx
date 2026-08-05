@@ -506,7 +506,7 @@ export default function DoctorDashboardPage({ user }: DoctorDashboardPageProps) 
         </TabsContent>
 
         {canManage && (
-          <TabsContent value="clinic">
+          <TabsContent value="clinic" forceMount className="data-[state=inactive]:hidden">
             <ClinicManager clinicId={user?.clinicId} />
           </TabsContent>
         )}

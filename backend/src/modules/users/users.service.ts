@@ -416,6 +416,36 @@ export const updateProfile = async (
       },
     });
 
+    // Resolve clinic even when user.clinicId is missing (same heal as getProfile)
+    let resolvedClinicId = currentUser?.clinicId || null;
+    if (currentUser?.role === 'DOCTOR' && !resolvedClinicId) {
+      try {
+        const ownedClinic = await prisma.clinic.findFirst({
+          where: { ownerId: userId, deletedAt: null },
+          orderBy: { createdAt: 'asc' },
+          select: { id: true },
+        });
+        if (ownedClinic?.id) {
+          await prisma.$executeRaw`
+            UPDATE users
+            SET "clinicId" = ${ownedClinic.id},
+                "updatedAt" = NOW()
+            WHERE id = ${userId}
+          `;
+          resolvedClinicId = ownedClinic.id;
+          logger.info(
+            { userId, clinicId: ownedClinic.id },
+            'Healed missing clinicId during profile update'
+          );
+        }
+      } catch (healErr: any) {
+        logger.warn(
+          { userId, error: healErr?.message },
+          'Could not heal clinicId during profile update'
+        );
+      }
+    }
+
     // If ANY doctor specific fields are provided and user is a doctor, update the doctor profile
     if (
       currentUser?.role === 'DOCTOR' &&
@@ -436,11 +466,9 @@ export const updateProfile = async (
         upiId !== undefined)
     ) {
       const joinedClinicAddress =
-        clinicAddress !== undefined
-          ? clinicAddress
-          : [clinicStreet, clinicCity, clinicState, clinicZipCode]
-              .filter(Boolean)
-              .join(', ') || undefined;
+        [clinicStreet, clinicCity, clinicState, clinicZipCode].filter(Boolean).length > 0
+          ? [clinicStreet, clinicCity, clinicState, clinicZipCode].filter(Boolean).join(', ')
+          : clinicAddress;
 
       const doctorProfile = await prisma.doctorProfile.findUnique({
         where: { userId },
@@ -483,40 +511,101 @@ export const updateProfile = async (
       }
 
       // Sync structured address onto Clinic table (Clinic Information / appointments)
-      if (
-        currentUser.clinicId &&
-        (clinicStreet !== undefined ||
-          clinicCity !== undefined ||
-          clinicState !== undefined ||
-          clinicZipCode !== undefined ||
-          clinicAddress !== undefined ||
-          clinicName !== undefined ||
-          clinicLatitude !== undefined ||
-          clinicLongitude !== undefined)
-      ) {
+      const shouldSyncClinic =
+        clinicStreet !== undefined ||
+        clinicCity !== undefined ||
+        clinicState !== undefined ||
+        clinicZipCode !== undefined ||
+        clinicAddress !== undefined ||
+        clinicName !== undefined ||
+        clinicLatitude !== undefined ||
+        clinicLongitude !== undefined;
+
+      if (shouldSyncClinic) {
         const clinicUpdate: Record<string, unknown> = {};
         if (clinicName !== undefined && clinicName) clinicUpdate.name = clinicName;
-        if (clinicStreet !== undefined) clinicUpdate.address = clinicStreet;
-        else if (clinicAddress !== undefined && !clinicCity && !clinicState) {
-          // Fallback: store full string in address when structured street not provided
+        if (clinicStreet !== undefined && clinicStreet !== '') {
+          clinicUpdate.address = clinicStreet;
+        } else if (
+          clinicAddress !== undefined &&
+          clinicStreet === undefined &&
+          !clinicCity &&
+          !clinicState
+        ) {
           clinicUpdate.address = clinicAddress;
         }
         if (clinicCity !== undefined) clinicUpdate.city = clinicCity;
         if (clinicState !== undefined) clinicUpdate.state = clinicState;
         if (clinicZipCode !== undefined) clinicUpdate.zipCode = clinicZipCode;
-        if (clinicCountry !== undefined) clinicUpdate.country = clinicCountry;
+        if (clinicCountry !== undefined) clinicUpdate.country = clinicCountry || 'India';
         if (clinicLatitude !== undefined) clinicUpdate.latitude = clinicLatitude;
         if (clinicLongitude !== undefined) clinicUpdate.longitude = clinicLongitude;
 
         if (Object.keys(clinicUpdate).length > 0) {
           try {
-            await prisma.clinic.update({
-              where: { id: currentUser.clinicId },
-              data: clinicUpdate,
-            });
+            // Prefer linked clinic; fall back to owned clinic
+            let targetClinicId = resolvedClinicId;
+            if (!targetClinicId) {
+              const owned = await prisma.clinic.findFirst({
+                where: { ownerId: userId, deletedAt: null },
+                orderBy: { createdAt: 'asc' },
+                select: { id: true },
+              });
+              targetClinicId = owned?.id || null;
+            }
+
+            if (targetClinicId) {
+              const updatedClinic = await prisma.clinic.update({
+                where: { id: targetClinicId },
+                data: clinicUpdate,
+              });
+              resolvedClinicId = targetClinicId;
+
+              // Keep denormalized DoctorProfile address in sync for all clinic doctors
+              const syncedAddress = [
+                updatedClinic.address,
+                updatedClinic.city,
+                updatedClinic.state,
+                updatedClinic.zipCode,
+              ]
+                .filter(Boolean)
+                .join(', ');
+
+              await prisma.doctorProfile.updateMany({
+                where: {
+                  OR: [
+                    { userId },
+                    { user: { clinicId: targetClinicId } },
+                    ...(updatedClinic.ownerId
+                      ? [{ userId: updatedClinic.ownerId }]
+                      : []),
+                  ],
+                },
+                data: {
+                  clinicAddress: syncedAddress,
+                  ...(updatedClinic.name ? { clinicName: updatedClinic.name } : {}),
+                  ...(clinicLatitude !== undefined
+                    ? { clinicLatitude }
+                    : {}),
+                  ...(clinicLongitude !== undefined
+                    ? { clinicLongitude }
+                    : {}),
+                },
+              });
+
+              logger.info(
+                { userId, clinicId: targetClinicId },
+                'Synced clinic address from profile update'
+              );
+            } else {
+              logger.warn(
+                { userId },
+                'Profile address updated but no clinic found to sync'
+              );
+            }
           } catch (clinicErr: any) {
-            logger.warn(
-              { userId, clinicId: currentUser.clinicId, error: clinicErr?.message },
+            logger.error(
+              { userId, clinicId: resolvedClinicId, error: clinicErr?.message },
               'Doctor profile updated but clinic address sync failed'
             );
           }
@@ -541,6 +630,10 @@ export const updateProfile = async (
         doctorProfile: true,
       },
     });
+
+    if (user && resolvedClinicId && !user.clinicId) {
+      (user as any).clinicId = resolvedClinicId;
+    }
 
     logger.info({ userId }, 'Profile updated successfully');
     return user;

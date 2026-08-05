@@ -57,7 +57,7 @@ export default function SettingsPage() {
                 </TabsContent>
 
                 {canEditClinic && (
-                    <TabsContent value="clinic">
+                    <TabsContent value="clinic" forceMount className="data-[state=inactive]:hidden">
                         <div className="space-y-6">
                             <div>
                                 <h2 className="text-xl font-semibold">Clinic Information</h2>

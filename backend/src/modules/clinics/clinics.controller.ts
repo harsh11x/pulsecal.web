@@ -123,7 +123,7 @@ export const updateClinicController = async (
       throw new AppError(error.details[0].message, 400);
     }
 
-    // Access Control: Only Admin or the Clinic Owner can update
+    // Access Control: Admin, clinic owner, or linked doctor (claims ownership if unset)
     if (req.user?.role !== 'ADMIN') {
       const clinicToUpdate = await prisma.clinic.findUnique({
         where: { id: req.params.id },
@@ -134,7 +134,19 @@ export const updateClinicController = async (
         throw new AppError('Clinic not found', 404);
       }
 
-      if (clinicToUpdate.ownerId !== req.user?.id) {
+      if (clinicToUpdate.ownerId === req.user?.id) {
+        // owner — allowed
+      } else if (
+        req.user?.role === 'DOCTOR' &&
+        req.user?.clinicId === req.params.id &&
+        !clinicToUpdate.ownerId &&
+        req.user?.id
+      ) {
+        await prisma.clinic.update({
+          where: { id: req.params.id },
+          data: { ownerId: req.user.id },
+        });
+      } else {
         throw new AppError('Only the clinic owner can update clinic details', 403);
       }
     }
