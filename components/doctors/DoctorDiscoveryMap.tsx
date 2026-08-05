@@ -13,6 +13,7 @@ import { apiService } from "@/services/api"
 import { toast } from "sonner"
 import { DoctorProfileModal } from "./DoctorProfileModal"
 import { IndiaStateSelect, IndiaCitySelect } from "@/components/location/IndiaLocationFields"
+import { medicalSpecializationFilterOptions } from "@/lib/medicalData"
 
 // Dynamically import LeafletMap with SSR disabled
 const LeafletMap = dynamic(() => import("./LeafletMap"), {
@@ -57,30 +58,7 @@ export function DoctorDiscoveryMap({ embedded = false }: { embedded?: boolean } 
   const [showFilters, setShowFilters] = useState(false)
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null)
 
-  const specializations = [
-    "All Specializations",
-    "General Physician",
-    "Cardiologist",
-    "Dermatologist",
-    "Dentist",
-    "ENT Specialist",
-    "Gastroenterologist",
-    "General Surgeon",
-    "Gynecologist",
-    "Neurologist",
-    "Oncologist",
-    "Ophthalmologist",
-    "Orthopedic",
-    "Pediatrician",
-    "Psychiatrist",
-    "Pulmonologist",
-    "Urologist",
-    "Nephrologist",
-    "Endocrinologist",
-    "Ayurveda",
-    "Homeopathy",
-    "Physiotherapist",
-  ]
+  const specializations = medicalSpecializationFilterOptions
 
   useEffect(() => {
     // Get user's current location and reverse geocode to city
@@ -311,7 +289,7 @@ export function DoctorDiscoveryMap({ embedded = false }: { embedded?: boolean } 
                   <SelectTrigger>
                     <SelectValue placeholder="All specializations" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-[320px]">
                     {specializations.map((spec) => (
                       <SelectItem key={spec} value={spec}>
                         {spec}

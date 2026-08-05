@@ -16,6 +16,7 @@ import { apiService } from "@/services/api"
 import { MapPin, Clock, DollarSign, Upload, CheckCircle, Building2, FileText, User, Search, Coffee, X } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import { IndiaStateSelect, IndiaCitySelect } from "@/components/location/IndiaLocationFields"
+import { medicalSpecializations, medicalServices } from "@/lib/medicalData"
 import { PLANS, PLAN_YEARLY_AMOUNTS } from "@/lib/planConfig"
 
 // Dynamically import the Leaflet map with SSR disabled (Leaflet needs the browser)
@@ -157,39 +158,9 @@ export default function DoctorOnboarding() {
     }
   }
 
-  const specializations = [
-    "General Practice",
-    "Cardiology",
-    "Dermatology",
-    "Endocrinology",
-    "Gastroenterology",
-    "Neurology",
-    "Oncology",
-    "Orthopedics",
-    "Pediatrics",
-    "Psychiatry",
-    "Pulmonology",
-    "Urology",
-    "Gynecology",
-    "Ophthalmology",
-    "ENT",
-    "Radiology",
-  ]
+  const specializations = medicalSpecializations
 
-  const commonServices = [
-    "General Consultation",
-    "Follow-up Consultation",
-    "Health Checkup",
-    "Vaccination",
-    "Lab Tests",
-    "X-Ray",
-    "ECG",
-    "Ultrasound",
-    "Blood Tests",
-    "Physical Examination",
-    "Prescription",
-    "Telemedicine Consultation",
-  ]
+  const commonServices = medicalServices
 
   const handleLocationSearch = async () => {
     if (!formData.clinicAddress || !formData.clinicCity) {
@@ -850,7 +821,7 @@ export default function DoctorOnboarding() {
                   <SelectTrigger>
                     <SelectValue placeholder="Select your specialization" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-[320px]">
                     {specializations.map((spec) => (
                       <SelectItem key={spec} value={spec}>
                         {spec}
