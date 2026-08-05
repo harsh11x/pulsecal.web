@@ -182,7 +182,13 @@ export default function ProfilePage() {
       }
       if (isDoctor) {
         if (canManage) {
+          // Keep DoctorProfile string + Clinic table columns in sync
           payload.clinicAddress = fullClinicAddress
+          payload.clinicStreet = formData.addressLine
+          payload.clinicCity = formData.city
+          payload.clinicState = formData.state
+          payload.clinicZipCode = formData.pincode
+          payload.clinicCountry = "India"
         }
         // Merge with any schedule-manager settings (blocked-slot exceptions,
         // slot duration) so saving the profile doesn't wipe them
@@ -214,8 +220,28 @@ export default function ProfilePage() {
         }
       }
 
-      // Update profile via API
+      // Update profile via API (also syncs Clinic table on backend for owners)
       const response: any = await userService.updateProfile(payload)
+
+      // Also update Clinic row directly so Clinic Information refreshes even if
+      // profile payload filtering drops structured fields.
+      const clinicId = (user as any)?.clinicId || (response as any)?.clinicId
+      if (isDoctor && canManage && clinicId && formData.addressLine && formData.city) {
+        try {
+          const { apiService } = await import("@/services/api")
+          await apiService.put(`/clinics/${clinicId}`, {
+            address: formData.addressLine,
+            city: formData.city,
+            state: formData.state,
+            zipCode: formData.pincode,
+            country: "India",
+            latitude: payload.clinicLatitude !== undefined ? payload.clinicLatitude : undefined,
+            longitude: payload.clinicLongitude !== undefined ? payload.clinicLongitude : undefined,
+          })
+        } catch (clinicSyncError) {
+          console.warn("Clinic table sync after profile save failed:", clinicSyncError)
+        }
+      }
 
       // apiService now unwraps the response, so response should be the user object directly
       const updatedUser = response

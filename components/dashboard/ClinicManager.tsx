@@ -234,17 +234,18 @@ export default function ClinicManager({ clinicId: clinicIdProp }: ClinicManagerP
                 toast.success("Clinic details updated successfully")
             }
 
-            if (payload.latitude != null && payload.longitude != null) {
-                try {
-                    await apiService.put("/doctor-profiles/me", {
-                        clinicName: payload.name,
-                        clinicAddress: [payload.address, payload.city, payload.state, payload.zipCode].filter(Boolean).join(", "),
-                        clinicLatitude: payload.latitude,
-                        clinicLongitude: payload.longitude,
-                    })
-                } catch (syncError) {
-                    console.warn("Failed to sync doctor profile location:", syncError)
-                }
+            // Always sync denormalized address onto doctor profile (discovery / profile)
+            try {
+                await apiService.put("/doctor-profiles/me", {
+                    clinicName: payload.name,
+                    clinicAddress: [payload.address, payload.city, payload.state, payload.zipCode]
+                        .filter(Boolean)
+                        .join(", "),
+                    clinicLatitude: payload.latitude ?? null,
+                    clinicLongitude: payload.longitude ?? null,
+                })
+            } catch (syncError) {
+                console.warn("Failed to sync doctor profile location:", syncError)
             }
 
             setResolvedClinicId(clinicId)

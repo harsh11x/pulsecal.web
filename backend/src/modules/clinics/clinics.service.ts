@@ -1,6 +1,7 @@
 import prisma from '../../config/database';
 import { getPaginationParams, getSortParams } from '../../utils/helpers';
 import { AppError } from '../../middlewares/error.middleware';
+import { logger } from '../../utils/logger';
 
 export const createClinic = async (data: {
   name: string;
@@ -437,6 +438,41 @@ export const updateClinic = async (
     where: { id: clinicId },
     data,
   });
+
+  // Keep DoctorProfile denormalized address in sync (discovery, profile, maps)
+  const joinedAddress = [clinic.address, clinic.city, clinic.state, clinic.zipCode]
+    .filter(Boolean)
+    .join(', ');
+
+  const doctorProfileData: Record<string, unknown> = {
+    clinicName: clinic.name,
+    clinicAddress: joinedAddress,
+  };
+  if (data.latitude !== undefined) {
+    doctorProfileData.clinicLatitude =
+      data.latitude == null ? null : Number(data.latitude);
+  }
+  if (data.longitude !== undefined) {
+    doctorProfileData.clinicLongitude =
+      data.longitude == null ? null : Number(data.longitude);
+  }
+
+  try {
+    await prisma.doctorProfile.updateMany({
+      where: {
+        OR: [
+          { user: { clinicId } },
+          ...(clinic.ownerId ? [{ userId: clinic.ownerId }] : []),
+        ],
+      },
+      data: doctorProfileData,
+    });
+  } catch (err: any) {
+    logger.warn(
+      { clinicId, error: err?.message },
+      'Clinic updated but failed to sync doctor profile address'
+    );
+  }
 
   return clinic;
 };
