@@ -19,6 +19,7 @@ import { Camera, Save, Wallet, Building2, CreditCard, MapPin, Coffee, X, Crossha
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { IndiaStateNativeSelect, IndiaCityNativeSelect } from "@/components/location/IndiaLocationFields"
+import { geocodeClinicLocation, getCurrentDeviceLocation } from "@/lib/geocodeClinic"
 
 const DEFAULT_WORKING_HOURS: Record<string, { start: string; end: string; isOpen: boolean; breakStart: string; breakEnd: string }> = {
   monday: { start: "09:00", end: "17:00", isOpen: true, breakStart: "", breakEnd: "" },
@@ -235,28 +236,59 @@ export default function ProfilePage() {
   }
 
   const handleVerifyLocation = async () => {
-    if (!formData.addressLine || !formData.city) {
-      toast({ title: "Error", description: "Please enter the clinic address and city first", variant: "destructive" })
+    if (!formData.addressLine?.trim() && !formData.city?.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter the clinic address and city first",
+        variant: "destructive",
+      })
       return
     }
     setVerifyingLocation(true)
     try {
-      const fullAddress = `${formData.addressLine}, ${formData.city}, ${formData.state} ${formData.pincode}`
-      const response = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(fullAddress)}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
-      )
-      const data = await response.json()
-      if (data.results && data.results.length > 0) {
-        const location = data.results[0].geometry.location
-        setClinicLatitude(location.lat.toString())
-        setClinicLongitude(location.lng.toString())
-        toast({ title: "Success", description: "Location found! Drag the pin to fine-tune, then save." })
-      } else {
-        toast({ title: "Error", description: "Could not find the address. Please check it and try again.", variant: "destructive" })
-      }
+      const location = await geocodeClinicLocation({
+        address: formData.addressLine,
+        city: formData.city,
+        state: formData.state,
+        zipCode: formData.pincode,
+        country: "India",
+      })
+      setClinicLatitude(location.lat.toString())
+      setClinicLongitude(location.lng.toString())
+      toast({
+        title: "Success",
+        description: location.approximate
+          ? "Approximate location set — drag the pin to your exact clinic, then save."
+          : "Location found! Drag the pin to fine-tune, then save.",
+      })
     } catch (error) {
       console.error("Geocoding error:", error)
-      toast({ title: "Error", description: "Failed to verify location. Try again later.", variant: "destructive" })
+      toast({
+        title: "Error",
+        description: "Failed to verify location. Try again or use your current location.",
+        variant: "destructive",
+      })
+    } finally {
+      setVerifyingLocation(false)
+    }
+  }
+
+  const handleUseCurrentLocation = async () => {
+    setVerifyingLocation(true)
+    try {
+      const location = await getCurrentDeviceLocation()
+      setClinicLatitude(location.lat.toString())
+      setClinicLongitude(location.lng.toString())
+      toast({
+        title: "Success",
+        description: "Using your current location — drag the pin to the exact clinic spot, then save.",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error?.message || "Could not access your current location. Allow location permission and try again.",
+        variant: "destructive",
+      })
     } finally {
       setVerifyingLocation(false)
     }
@@ -733,7 +765,7 @@ export default function ProfilePage() {
               <p className="text-sm text-muted-foreground">
                 Pin your clinic on the map so patients can find you and get directions.
               </p>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Input
                   readOnly
                   placeholder="Click to pin your clinic on the map"
@@ -744,21 +776,33 @@ export default function ProfilePage() {
                   }
                   className="flex-1"
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleVerifyLocation}
-                  disabled={verifyingLocation}
-                >
-                  {verifyingLocation ? (
-                    "Locating..."
-                  ) : (
-                    <>
-                      <Crosshair className="h-4 w-4 mr-2" />
-                      Set Location on Map
-                    </>
-                  )}
-                </Button>
+                <div className="flex gap-2 flex-shrink-0">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleVerifyLocation}
+                    disabled={verifyingLocation}
+                  >
+                    {verifyingLocation ? (
+                      "Locating..."
+                    ) : (
+                      <>
+                        <Crosshair className="h-4 w-4 mr-2" />
+                        Set Location on Map
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={handleUseCurrentLocation}
+                    disabled={verifyingLocation}
+                    title="Use your device GPS"
+                  >
+                    <MapPin className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Use my location</span>
+                  </Button>
+                </div>
               </div>
               {clinicLatitude && clinicLongitude && (
                 <div className="space-y-2">

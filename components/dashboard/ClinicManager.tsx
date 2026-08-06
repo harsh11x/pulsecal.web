@@ -13,6 +13,7 @@ import { useAppDispatch, useAppSelector } from "@/app/hooks"
 import { setUser } from "@/app/features/authSlice"
 import type { User } from "@/types"
 import { IndiaStateSelect, IndiaCitySelect } from "@/components/location/IndiaLocationFields"
+import { geocodeClinicLocation, getCurrentDeviceLocation } from "@/lib/geocodeClinic"
 
 // Dynamically import the Leaflet map with SSR disabled (Leaflet needs the browser)
 const LocationPickerMap = dynamic(() => import("@/components/onboarding/LocationPickerMap"), {
@@ -176,32 +177,51 @@ export default function ClinicManager({ clinicId: clinicIdProp }: ClinicManagerP
     }, [clinicIdProp, user?.clinicId]) // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleVerifyLocation = async () => {
-        if (!formData.address || !formData.city) {
+        if (!formData.address?.trim() && !formData.city?.trim()) {
             toast.error("Please enter the clinic address and city first")
             return
         }
         setVerifyingLocation(true)
         try {
-            const fullAddress = `${formData.address}, ${formData.city}, ${formData.state} ${formData.zipCode}, ${formData.country}`
-            const response = await fetch(
-                `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(fullAddress)}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
+            const location = await geocodeClinicLocation({
+                address: formData.address,
+                city: formData.city,
+                state: formData.state,
+                zipCode: formData.zipCode,
+                country: formData.country || "India",
+            })
+            setFormData({
+                ...formData,
+                latitude: location.lat.toString(),
+                longitude: location.lng.toString(),
+            })
+            setShowMap(true)
+            toast.success(
+                location.approximate
+                    ? "Approximate location set — drag the pin to your exact clinic, then save."
+                    : "Location found! Drag the pin to fine-tune, then save."
             )
-            const data = await response.json()
-            if (data.results && data.results.length > 0) {
-                const location = data.results[0].geometry.location
-                setFormData({
-                    ...formData,
-                    latitude: location.lat.toString(),
-                    longitude: location.lng.toString(),
-                })
-                setShowMap(true)
-                toast.success("Location found! Drag the pin to fine-tune, then save.")
-            } else {
-                toast.error("Could not find the address. Please check it and try again.")
-            }
         } catch (error) {
             console.error("Geocoding error:", error)
-            toast.error("Failed to verify location. Try again later.")
+            toast.error("Failed to verify location. Try again or use your current location.")
+        } finally {
+            setVerifyingLocation(false)
+        }
+    }
+
+    const handleUseCurrentLocation = async () => {
+        setVerifyingLocation(true)
+        try {
+            const location = await getCurrentDeviceLocation()
+            setFormData({
+                ...formData,
+                latitude: location.lat.toString(),
+                longitude: location.lng.toString(),
+            })
+            setShowMap(true)
+            toast.success("Using your current location — drag the pin to the exact clinic spot, then save.")
+        } catch (error: any) {
+            toast.error(error?.message || "Could not access your current location")
         } finally {
             setVerifyingLocation(false)
         }
@@ -425,7 +445,7 @@ export default function ClinicManager({ clinicId: clinicIdProp }: ClinicManagerP
 
                     <div className="space-y-2">
                         <Label>Clinic Location on Map</Label>
-                        <div className="flex gap-2">
+                        <div className="flex flex-col sm:flex-row gap-2">
                             <Input
                                 readOnly
                                 placeholder="Click to pin your clinic on the map"
@@ -436,21 +456,32 @@ export default function ClinicManager({ clinicId: clinicIdProp }: ClinicManagerP
                                 }
                                 className="flex-1"
                             />
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={handleVerifyLocation}
-                                disabled={verifyingLocation || !formData.address || !formData.city}
-                            >
-                                {verifyingLocation ? (
-                                    "Locating..."
-                                ) : (
-                                    <>
-                                        <Crosshair className="h-4 w-4 mr-2" />
-                                        Set Location on Map
-                                    </>
-                                )}
-                            </Button>
+                            <div className="flex gap-2 flex-shrink-0">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={handleVerifyLocation}
+                                    disabled={verifyingLocation || !formData.address || !formData.city}
+                                >
+                                    {verifyingLocation ? (
+                                        "Locating..."
+                                    ) : (
+                                        <>
+                                            <Crosshair className="h-4 w-4 mr-2" />
+                                            Set Location on Map
+                                        </>
+                                    )}
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={handleUseCurrentLocation}
+                                    disabled={verifyingLocation}
+                                >
+                                    <MapPin className="h-4 w-4 sm:mr-2" />
+                                    <span className="hidden sm:inline">Use my location</span>
+                                </Button>
+                            </div>
                         </div>
                         <p className="text-xs text-muted-foreground">
                             Pin your clinic on the map so patients can find you and get directions

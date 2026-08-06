@@ -18,6 +18,7 @@ import { Progress } from "@/components/ui/progress"
 import { IndiaStateSelect, IndiaCitySelect } from "@/components/location/IndiaLocationFields"
 import { medicalSpecializations, medicalServices } from "@/lib/medicalData"
 import { PLANS, PLAN_YEARLY_AMOUNTS } from "@/lib/planConfig"
+import { geocodeClinicLocation } from "@/lib/geocodeClinic"
 
 // Dynamically import the Leaflet map with SSR disabled (Leaflet needs the browser)
 const LocationPickerMap = dynamic(() => import("./LocationPickerMap"), {
@@ -163,36 +164,33 @@ export default function DoctorOnboarding() {
   const commonServices = medicalServices
 
   const handleLocationSearch = async () => {
-    if (!formData.clinicAddress || !formData.clinicCity) {
+    if (!formData.clinicAddress && !formData.clinicCity) {
       toast.error("Please enter clinic address and city")
       return
     }
 
     setVerifyingLocation(true)
     try {
-      const fullAddress = `${formData.clinicAddress}, ${formData.clinicCity}, ${formData.clinicState} ${formData.clinicZipCode}, ${formData.clinicCountry}`
-
-      const response = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
-          fullAddress
-        )}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
+      const location = await geocodeClinicLocation({
+        address: formData.clinicAddress,
+        city: formData.clinicCity,
+        state: formData.clinicState,
+        zipCode: formData.clinicZipCode,
+        country: formData.clinicCountry || "India",
+      })
+      setFormData({
+        ...formData,
+        clinicLatitude: location.lat.toString(),
+        clinicLongitude: location.lng.toString(),
+      })
+      toast.success(
+        location.approximate
+          ? "Approximate location set — drag the pin to your exact clinic."
+          : "Location verified! Drag the pin to fine-tune if needed."
       )
-      const data = await response.json()
-
-      if (data.results && data.results.length > 0) {
-        const location = data.results[0].geometry.location
-        setFormData({
-          ...formData,
-          clinicLatitude: location.lat.toString(),
-          clinicLongitude: location.lng.toString(),
-        })
-        toast.success("Location verified! Your clinic will be discoverable on the map.")
-      } else {
-        toast.error("Could not find location. Please check the address.")
-      }
     } catch (error) {
       console.error("Geocoding error:", error)
-      toast.error("Failed to verify location. You can continue without coordinates.")
+      toast.error("Failed to verify location. You can continue and adjust later in Profile.")
     } finally {
       setVerifyingLocation(false)
     }
