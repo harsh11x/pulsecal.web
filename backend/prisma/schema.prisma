@@ -621,3 +621,25 @@ model Notification {
   @@map("notifications")
 }
 
+// Paid product demos requested from the public homepage (Rs 5 fee).
+model DemoRequest {
+  id                String   @id @default(uuid())
+  name              String
+  email             String
+  phone             String
+  organization      String?
+  preferredSlot     String?
+  message           String?
+  amount            Decimal  @default(5)
+  status            String   @default("PENDING") // PENDING | PAID | FAILED
+  razorpayOrderId   String?  @unique
+  razorpayPaymentId String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([email])
+  @@index([status])
+  @@index([createdAt])
+  @@map("demo_requests")
+}
+

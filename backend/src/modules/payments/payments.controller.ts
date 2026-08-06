@@ -1403,3 +1403,184 @@ export const razorpayWebhookController = async (
     res.status(500).json({ success: false });
   }
 };
+
+// ========== Public homepage: Schedule a demo (₹5) ==========
+export const DEMO_FEE_INR = 5;
+
+const createDemoOrderSchema = Joi.object({
+  name: Joi.string().trim().min(2).max(100).required(),
+  email: Joi.string().trim().email().required(),
+  phone: Joi.string().trim().pattern(/^\d{10}$/).required().messages({
+    'string.pattern.base': 'Phone must be exactly 10 digits',
+  }),
+  organization: Joi.string().trim().max(150).optional().allow('', null),
+  preferredSlot: Joi.string().trim().max(100).optional().allow('', null),
+  message: Joi.string().trim().max(500).optional().allow('', null),
+});
+
+const verifyDemoPaymentSchema = Joi.object({
+  razorpay_order_id: Joi.string().required(),
+  razorpay_payment_id: Joi.string().required(),
+  razorpay_signature: Joi.string().required(),
+});
+
+export const createDemoOrderController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { error, value } = createDemoOrderSchema.validate(req.body);
+    if (error) throw new AppError(error.details[0].message, 400);
+
+    const demo = await prisma.demoRequest.create({
+      data: {
+        name: value.name,
+        email: value.email.toLowerCase(),
+        phone: value.phone,
+        organization: value.organization || null,
+        preferredSlot: value.preferredSlot || null,
+        message: value.message || null,
+        amount: DEMO_FEE_INR,
+        status: 'PENDING',
+      },
+    });
+
+    const order = await razorpay.orders.create({
+      amount: DEMO_FEE_INR * 100,
+      currency: 'INR',
+      receipt: `demo_${demo.id.replace(/-/g, '').slice(0, 20)}`,
+      notes: {
+        type: 'DEMO_REQUEST',
+        demoRequestId: demo.id,
+        email: value.email.toLowerCase(),
+        phone: value.phone,
+        name: value.name.slice(0, 40),
+      },
+    });
+
+    await prisma.demoRequest.update({
+      where: { id: demo.id },
+      data: { razorpayOrderId: order.id },
+    });
+
+    sendSuccess(
+      res,
+      {
+        orderId: order.id,
+        amount: order.amount,
+        currency: order.currency,
+        key: process.env.RAZORPAY_KEY_ID,
+        demoRequestId: demo.id,
+        fee: DEMO_FEE_INR,
+      },
+      'Demo order created. Complete ₹5 payment to schedule your demo.',
+      201
+    );
+  } catch (err: any) {
+    if (err instanceof AppError) {
+      next(err);
+      return;
+    }
+    next(new AppError(err.message || 'Failed to create demo order', 500));
+  }
+};
+
+export const verifyDemoPaymentController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { error, value } = verifyDemoPaymentSchema.validate(req.body);
+    if (error) throw new AppError(error.details[0].message, 400);
+
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = value;
+
+    const generatedSignature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || 'test_secret')
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest('hex');
+
+    if (generatedSignature !== razorpay_signature) {
+      throw new AppError('Invalid payment signature', 400);
+    }
+
+    const order = await razorpay.orders.fetch(razorpay_order_id);
+    const notes = order.notes || {};
+    if (notes.type !== 'DEMO_REQUEST') {
+      throw new AppError('Invalid demo order', 400);
+    }
+
+    const demoRequestId = notes.demoRequestId as string | undefined;
+    let demo = demoRequestId
+      ? await prisma.demoRequest.findUnique({ where: { id: demoRequestId } })
+      : await prisma.demoRequest.findFirst({ where: { razorpayOrderId: razorpay_order_id } });
+
+    if (!demo) {
+      throw new AppError('Demo request not found', 404);
+    }
+
+    if (demo.status === 'PAID' && demo.razorpayPaymentId === razorpay_payment_id) {
+      sendSuccess(res, { demoRequestId: demo.id, status: 'PAID' }, 'Demo already confirmed');
+      return;
+    }
+
+    if (Number(order.amount) !== DEMO_FEE_INR * 100) {
+      throw new AppError('Unexpected demo payment amount', 400);
+    }
+
+    demo = await prisma.demoRequest.update({
+      where: { id: demo.id },
+      data: {
+        status: 'PAID',
+        razorpayOrderId: razorpay_order_id,
+        razorpayPaymentId: razorpay_payment_id,
+      },
+    });
+
+    // Notify admins so the team can follow up
+    try {
+      const admins = await prisma.user.findMany({
+        where: { role: 'ADMIN', isActive: true, deletedAt: null },
+        select: { id: true },
+        take: 20,
+      });
+      const slot = demo.preferredSlot ? ` Preferred: ${demo.preferredSlot}.` : '';
+      const org = demo.organization ? ` (${demo.organization})` : '';
+      const message = `${demo.name}${org} booked a product demo. Phone: ${demo.phone}, Email: ${demo.email}.${slot}`;
+      await Promise.all(
+        admins.map((admin) =>
+          prisma.notification.create({
+            data: {
+              userId: admin.id,
+              type: 'PAYMENT_RECEIVED',
+              title: 'New demo request (₹5 paid)',
+              message,
+              metadata: {
+                demoRequestId: demo!.id,
+                email: demo!.email,
+                phone: demo!.phone,
+                paymentId: razorpay_payment_id,
+              },
+            },
+          })
+        )
+      );
+    } catch (notifyErr) {
+      logger.error(notifyErr, 'Failed to notify admins about demo request');
+    }
+
+    sendSuccess(
+      res,
+      { demoRequestId: demo.id, status: 'PAID', fee: DEMO_FEE_INR },
+      'Payment successful. We will contact you shortly to schedule your demo.'
+    );
+  } catch (err: any) {
+    if (err instanceof AppError) {
+      next(err);
+      return;
+    }
+    next(new AppError(err.message || 'Demo payment verification failed', 500));
+  }
+};

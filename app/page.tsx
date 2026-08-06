@@ -6,6 +6,7 @@ import { store } from "@/app/store"
 import { Header } from "@/components/landing/Header"
 import { Footer } from "@/components/landing/Footer"
 import { GetStartedAction } from "@/components/landing/GetStartedAction"
+import { ScheduleDemoButton } from "@/components/landing/ScheduleDemoButton"
 import { AuthModal } from "@/components/auth/AuthModal"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
@@ -630,9 +631,7 @@ export default function Home() {
           </p>
           <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
             <GetStartedAction className="text-base shadow-lg hover:shadow-xl transition-shadow" />
-            <Button size="lg" variant="outline" className="text-base bg-transparent border-2">
-              Schedule a demo
-            </Button>
+            <ScheduleDemoButton className="text-base bg-transparent border-2" />
           </div>
           <p className="mt-6 text-sm text-muted-foreground">HIPAA compliant • 24/7 support</p>
         </div>
