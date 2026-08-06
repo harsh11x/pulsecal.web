@@ -1,11 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { Trash2, Loader2 } from "lucide-react"
+import { Trash2, Loader2, Save, Check } from "lucide-react"
 import { useAppDispatch, useAppSelector } from "@/app/hooks"
 import { toast } from "sonner"
 import {
@@ -20,15 +20,116 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { userService } from "@/services/user.service"
+import { apiService } from "@/services/api"
 import { useRouter } from "next/navigation"
-import { logout } from "@/app/features/authSlice"
+import { logout, setUser } from "@/app/features/authSlice"
 import { logOut } from "@/lib/firebaseAuth"
+import { mapAuthProfileToUser } from "@/lib/mapAuthUser"
+
+function toDateInputValue(value?: string | Date | null) {
+    if (!value) return ""
+    const d = value instanceof Date ? value : new Date(value)
+    if (Number.isNaN(d.getTime())) {
+        // already YYYY-MM-DD
+        return String(value).slice(0, 10)
+    }
+    return d.toISOString().slice(0, 10)
+}
 
 export default function AccountSettings() {
     const user = useAppSelector((state) => state.auth.user)
     const dispatch = useAppDispatch()
     const [loading, setLoading] = useState(false)
+    const [saved, setSaved] = useState(false)
+    const [deleting, setDeleting] = useState(false)
     const router = useRouter()
+
+    const [formData, setFormData] = useState({
+        firstName: "",
+        lastName: "",
+        phone: "",
+        dateOfBirth: "",
+    })
+
+    // Hydrate when Redux user arrives (auth is async)
+    useEffect(() => {
+        if (!user) return
+        setFormData({
+            firstName: user.firstName || "",
+            lastName: user.lastName || "",
+            phone: user.phone || "",
+            dateOfBirth: toDateInputValue(user.dateOfBirth as any),
+        })
+        setSaved(false)
+    }, [user?.id, user?.firstName, user?.lastName, user?.phone, user?.dateOfBirth])
+
+    const handleSave = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (!user?.id) {
+            toast.error("You must be signed in to update your profile")
+            return
+        }
+        if (!formData.firstName.trim() || !formData.lastName.trim()) {
+            toast.error("First name and last name are required")
+            return
+        }
+
+        setLoading(true)
+        setSaved(false)
+        try {
+            const payload: Record<string, unknown> = {
+                firstName: formData.firstName.trim(),
+                lastName: formData.lastName.trim(),
+                phone: formData.phone.trim() || null,
+            }
+            if (formData.dateOfBirth) {
+                const d = new Date(formData.dateOfBirth)
+                if (!Number.isNaN(d.getTime())) {
+                    payload.dateOfBirth = d.toISOString()
+                }
+            }
+
+            await userService.updateProfile(payload as any)
+
+            // Refresh canonical profile so all dashboards see the same data
+            let refreshed: any = null
+            try {
+                refreshed = await apiService.get("/auth/profile")
+            } catch {
+                refreshed = null
+            }
+
+            if (refreshed?.id) {
+                dispatch(setUser(mapAuthProfileToUser(refreshed, {
+                    firstName: formData.firstName.trim(),
+                    lastName: formData.lastName.trim(),
+                    phone: formData.phone.trim() || undefined,
+                })))
+            } else {
+                dispatch(setUser({
+                    ...user,
+                    firstName: formData.firstName.trim(),
+                    lastName: formData.lastName.trim(),
+                    phone: formData.phone.trim() || undefined,
+                    dateOfBirth: formData.dateOfBirth || user.dateOfBirth,
+                }))
+            }
+
+            setSaved(true)
+            toast.success("Saved")
+            window.setTimeout(() => setSaved(false), 3000)
+        } catch (error: any) {
+            console.error("Account profile save error:", error)
+            const message =
+                error.response?.data?.message ||
+                error.response?.data?.error ||
+                error.message ||
+                "Failed to save profile"
+            toast.error(message)
+        } finally {
+            setLoading(false)
+        }
+    }
 
     const handleDeleteAccount = async () => {
         if (!user?.id) {
@@ -36,7 +137,7 @@ export default function AccountSettings() {
             return
         }
 
-        setLoading(true)
+        setDeleting(true)
         try {
             await userService.deleteUser(user.id)
             toast.success("Account deleted successfully")
@@ -55,7 +156,7 @@ export default function AccountSettings() {
                 error.message ||
                 "Failed to delete account"
             toast.error(message)
-            setLoading(false)
+            setDeleting(false)
         }
     }
 
@@ -63,28 +164,92 @@ export default function AccountSettings() {
         <div className="space-y-6">
             <Card>
                 <CardHeader>
-                    <CardTitle>Account Information</CardTitle>
-                    <CardDescription>View your basic account details</CardDescription>
+                    <CardTitle>Profile Information</CardTitle>
+                    <CardDescription>Update your name, phone, and date of birth</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="grid gap-4 md:grid-cols-2">
-                        <div className="space-y-2">
-                            <Label>User ID</Label>
-                            <Input value={user?.id || ""} disabled />
+                <CardContent>
+                    <form onSubmit={handleSave} className="space-y-4">
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-2">
+                                <Label htmlFor="firstName">First Name</Label>
+                                <Input
+                                    id="firstName"
+                                    value={formData.firstName}
+                                    onChange={(e) => {
+                                        setSaved(false)
+                                        setFormData({ ...formData, firstName: e.target.value })
+                                    }}
+                                    required
+                                    autoComplete="given-name"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="lastName">Last Name</Label>
+                                <Input
+                                    id="lastName"
+                                    value={formData.lastName}
+                                    onChange={(e) => {
+                                        setSaved(false)
+                                        setFormData({ ...formData, lastName: e.target.value })
+                                    }}
+                                    required
+                                    autoComplete="family-name"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="email">Email</Label>
+                                <Input id="email" value={user?.email || ""} disabled />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="phone">Phone</Label>
+                                <Input
+                                    id="phone"
+                                    value={formData.phone}
+                                    onChange={(e) => {
+                                        setSaved(false)
+                                        setFormData({ ...formData, phone: e.target.value })
+                                    }}
+                                    placeholder="+91 98765 43210"
+                                    autoComplete="tel"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                                <Input
+                                    id="dateOfBirth"
+                                    type="date"
+                                    value={formData.dateOfBirth}
+                                    onChange={(e) => {
+                                        setSaved(false)
+                                        setFormData({ ...formData, dateOfBirth: e.target.value })
+                                    }}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Role</Label>
+                                <Input value={user?.role || ""} className="capitalize" disabled />
+                            </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label>Role</Label>
-                            <Input value={user?.role || ""} className="capitalize" disabled />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Email</Label>
-                            <Input value={user?.email || ""} disabled />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Member Since</Label>
-                            <Input value={user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : ""} disabled />
-                        </div>
-                    </div>
+
+                        <Button type="submit" disabled={loading}>
+                            {loading ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Saving...
+                                </>
+                            ) : saved ? (
+                                <>
+                                    <Check className="mr-2 h-4 w-4" />
+                                    Saved
+                                </>
+                            ) : (
+                                <>
+                                    <Save className="mr-2 h-4 w-4" />
+                                    Save Changes
+                                </>
+                            )}
+                        </Button>
+                    </form>
                 </CardContent>
             </Card>
 
@@ -94,7 +259,7 @@ export default function AccountSettings() {
                     <CardDescription>Irreversible account actions</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-4 flex-wrap">
                         <div className="space-y-1">
                             <h4 className="font-semibold text-destructive flex items-center gap-2">
                                 <Trash2 className="h-4 w-4" />
@@ -121,9 +286,9 @@ export default function AccountSettings() {
                                     <AlertDialogAction
                                         onClick={handleDeleteAccount}
                                         className="bg-destructive hover:bg-destructive/90"
-                                        disabled={loading}
+                                        disabled={deleting}
                                     >
-                                        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete Account"}
+                                        {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete Account"}
                                     </AlertDialogAction>
                                 </AlertDialogFooter>
                             </AlertDialogContent>

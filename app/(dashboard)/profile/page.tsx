@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ImageCropper } from "@/components/ui/image-cropper"
 import { Label } from "@/components/ui/label"
-import { Camera, Save, Wallet, Building2, CreditCard, MapPin, Coffee, X, Crosshair, Clock } from "lucide-react"
+import { Camera, Save, Wallet, Building2, CreditCard, MapPin, Coffee, X, Crosshair, Clock, Check, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { IndiaStateNativeSelect, IndiaCityNativeSelect } from "@/components/location/IndiaLocationFields"
@@ -45,22 +45,33 @@ export default function ProfilePage() {
   const dispatch = useAppDispatch()
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
+  const [saved, setSaved] = useState(false)
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [formHydrated, setFormHydrated] = useState(false)
 
   // Parse existing address or use default
   const parseAddress = (fullAddress: string) => {
     if (!fullAddress) return { line: "", city: "", state: "", pincode: "" }
-    // Try to parse format: "Line, City, State - Pincode"
+    // Try to parse format: "Line, City, State - Pincode" or "Line, City, State, Pincode"
     const parts = fullAddress.split(",").map(p => p.trim())
     if (parts.length >= 3) {
-      const lastPart = parts[parts.length - 1] // "State - Pincode" or just State?
+      const lastPart = parts[parts.length - 1]
       let state = lastPart
       let pincode = ""
 
       if (lastPart.includes("-")) {
         const statePin = lastPart.split("-").map(p => p.trim())
         state = statePin[0]
-        pincode = statePin[1]
+        pincode = statePin[1] || ""
+      } else if (/^\d{5,6}$/.test(lastPart)) {
+        pincode = lastPart
+        state = parts[parts.length - 2] || ""
+        return {
+          line: parts.slice(0, parts.length - 2).join(", "),
+          city: parts[parts.length - 3] || "",
+          state,
+          pincode,
+        }
       }
 
       return {
@@ -75,50 +86,83 @@ export default function ProfilePage() {
 
   const isDoctor = user?.role === "doctor"
   const canManage = (user as any)?.canManageSubscription === true
-  const existingAddress = isDoctor ? ((user as any)?.doctorProfile?.clinicAddress || "") : ""
-  const parsed = parseAddress(existingAddress)
   const dp = (user as any)?.doctorProfile
 
+  const toDateInputValue = (value?: string | Date | null) => {
+    if (!value) return ""
+    const d = value instanceof Date ? value : new Date(value)
+    if (Number.isNaN(d.getTime())) return String(value).slice(0, 10)
+    return d.toISOString().slice(0, 10)
+  }
+
   const [formData, setFormData] = useState({
-    firstName: user?.firstName || "",
-    lastName: user?.lastName || "",
-    email: user?.email || "",
-    phone: user?.phone || "",
-    dateOfBirth: user?.dateOfBirth || "",
-    addressLine: parsed.line,
-    city: parsed.city,
-    state: parsed.state,
-    pincode: parsed.pincode,
-    bankAccountDetails: dp?.bankAccountDetails || "",
-    upiId: dp?.upiId || "",
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    dateOfBirth: "",
+    addressLine: "",
+    city: "",
+    state: "",
+    pincode: "",
+    bankAccountDetails: "",
+    upiId: "",
   })
+
+  // Hydrate personal fields once user is available (auth loads async)
+  useEffect(() => {
+    if (!user?.id || formHydrated) return
+    const addr = parseAddress(((user as any)?.doctorProfile?.clinicAddress as string) || "")
+    const profile = (user as any)?.doctorProfile
+    setFormData({
+      firstName: user.firstName || "",
+      lastName: user.lastName || "",
+      email: user.email || "",
+      phone: user.phone || "",
+      dateOfBirth: toDateInputValue(user.dateOfBirth as any),
+      addressLine: addr.line,
+      city: addr.city,
+      state: addr.state,
+      pincode: addr.pincode,
+      bankAccountDetails: profile?.bankAccountDetails || "",
+      upiId: profile?.upiId || "",
+    })
+    if (profile?.clinicLatitude != null) setClinicLatitude(String(profile.clinicLatitude))
+    if (profile?.clinicLongitude != null) setClinicLongitude(String(profile.clinicLongitude))
+    if (profile?.workingHours) {
+      setWorkingHours(loadWorkingHours(profile.workingHours))
+      setInitializedHours(true)
+    }
+    setFormHydrated(true)
+  }, [user?.id, formHydrated]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- Doctor working hours (with daily break) ---
   const loadWorkingHours = (wh: any) => {
     const loaded: Record<string, { start: string; end: string; isOpen: boolean; breakStart: string; breakEnd: string }> = {}
     for (const [day, defaults] of Object.entries(DEFAULT_WORKING_HOURS)) {
-      const saved = wh?.[day]
+      const savedDay = wh?.[day]
       loaded[day] = {
-        start: saved?.start ?? defaults.start,
-        end: saved?.end ?? defaults.end,
-        isOpen: saved?.isOpen !== false,
-        breakStart: saved?.breakStart || "",
-        breakEnd: saved?.breakEnd || "",
+        start: savedDay?.start ?? defaults.start,
+        end: savedDay?.end ?? defaults.end,
+        isOpen: savedDay?.isOpen !== false,
+        breakStart: savedDay?.breakStart || "",
+        breakEnd: savedDay?.breakEnd || "",
       }
     }
     return loaded
   }
 
   const [workingHours, setWorkingHours] = useState(DEFAULT_WORKING_HOURS)
-  const [clinicLatitude, setClinicLatitude] = useState(dp?.clinicLatitude != null ? String(dp.clinicLatitude) : "")
-  const [clinicLongitude, setClinicLongitude] = useState(dp?.clinicLongitude != null ? String(dp.clinicLongitude) : "")
+  const [clinicLatitude, setClinicLatitude] = useState("")
+  const [clinicLongitude, setClinicLongitude] = useState("")
   const [verifyingLocation, setVerifyingLocation] = useState(false)
   const [resolvedClinicId, setResolvedClinicId] = useState<string | undefined>(user?.clinicId)
   const [clinicAddressLoaded, setClinicAddressLoaded] = useState(false)
+  const [initializedHours, setInitializedHours] = useState(false)
 
   // Load clinic address from Clinic table once (source of truth for Clinic Information)
   useEffect(() => {
-    if (!isDoctor || !canManage || clinicAddressLoaded) return
+    if (!isDoctor || !canManage || !formHydrated || clinicAddressLoaded) return
     let cancelled = false
 
     const loadClinicAddress = async () => {
@@ -145,7 +189,6 @@ export default function ProfilePage() {
 
         if (cancelled) return
         setClinicAddressLoaded(true)
-
         if (!clinic) return
 
         if (id) setResolvedClinicId(id)
@@ -174,14 +217,7 @@ export default function ProfilePage() {
     return () => {
       cancelled = true
     }
-  }, [isDoctor, canManage, clinicAddressLoaded, user?.clinicId]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Initialize working hours from the saved profile once
-  const [initializedHours, setInitializedHours] = useState(false)
-  if (!initializedHours && dp?.workingHours) {
-    setWorkingHours(loadWorkingHours(dp.workingHours))
-    setInitializedHours(true)
-  }
+  }, [isDoctor, canManage, formHydrated, clinicAddressLoaded, user?.clinicId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateWorkingHours = (day: string, patch: Partial<{ start: string; end: string; isOpen: boolean; breakStart: string; breakEnd: string }>) => {
     setWorkingHours((prev) => ({
@@ -232,6 +268,13 @@ export default function ProfilePage() {
     e.preventDefault()
     try {
       setLoading(true)
+      setSaved(false)
+
+      if (!formData.firstName.trim() || !formData.lastName.trim()) {
+        toast({ title: "Error", description: "First name and last name are required", variant: "destructive" })
+        setLoading(false)
+        return
+      }
 
       const street = (formData.addressLine || "").trim()
       const city = (formData.city || "").trim()
@@ -240,9 +283,9 @@ export default function ProfilePage() {
       const fullClinicAddress = [street, city, state, zipCode].filter(Boolean).join(", ")
 
       const payload: any = {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        phone: formData.phone,
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        phone: formData.phone.trim() || null,
       }
 
       if (isDoctor) {
@@ -380,23 +423,12 @@ export default function ProfilePage() {
       }
 
       dispatch(setUser(optimisticUser as any))
-
-      if (isDoctor && canManage && street && city && !clinicSynced && !clinicId) {
-        toast({
-          title: "Profile saved",
-          description: "Personal details saved. Clinic record was not found to sync address.",
-        })
-      } else if (isDoctor && canManage && street && city && !clinicSynced) {
-        toast({
-          title: "Profile saved",
-          description: "Profile updated. If Clinic Information looks old, open it and refresh.",
-        })
-      } else {
-        toast({
-          title: "Success",
-          description: "Profile updated successfully",
-        })
-      }
+      setSaved(true)
+      toast({
+        title: "Saved",
+        description: "Profile information updated successfully",
+      })
+      window.setTimeout(() => setSaved(false), 3000)
     } catch (error: any) {
       console.error("Profile update error - Full error:", error)
       console.error("Error response:", error.response)
@@ -793,8 +825,22 @@ export default function ProfilePage() {
 
           <div className="pt-4">
             <Button type="submit" disabled={loading}>
-              <Save className="mr-2 h-4 w-4" />
-              {loading ? "Saving..." : "Save Changes"}
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : saved ? (
+                <>
+                  <Check className="mr-2 h-4 w-4" />
+                  Saved
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Save Changes
+                </>
+              )}
             </Button>
           </div>
         </form>

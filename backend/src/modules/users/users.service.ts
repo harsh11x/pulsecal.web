@@ -358,7 +358,7 @@ export const updateProfile = async (
   data: {
     firstName?: string;
     lastName?: string;
-    phone?: string;
+    phone?: string | null;
     dateOfBirth?: Date | string | null;
     profileImage?: string;
     clinicAddress?: string;
@@ -410,7 +410,7 @@ export const updateProfile = async (
     const userUpdate: Record<string, unknown> = {};
     if (firstName !== undefined) userUpdate.firstName = firstName;
     if (lastName !== undefined) userUpdate.lastName = lastName;
-    if (phone !== undefined) userUpdate.phone = phone;
+    if (phone !== undefined) userUpdate.phone = phone === null || phone === '' ? null : phone;
     if (profileImage !== undefined) userUpdate.profileImage = profileImage;
     if (dateOfBirth !== undefined) {
       if (dateOfBirth === null || dateOfBirth === '') {
