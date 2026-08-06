@@ -13,6 +13,7 @@ import { toast } from "sonner"
 import { socketService } from "@/services/socket"
 import { format } from "date-fns"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { formatDoctorLocation } from "@/lib/doctorLocation"
 
 interface PatientDashboardPageProps {
   user: any
@@ -348,20 +349,29 @@ export default function PatientDashboardPage({ user }: PatientDashboardPageProps
                       <div className="space-y-2">
                         {nearbyDoctors.map((d: any) => {
                           const docId = d.user?.id ?? d.id
+                          const location = formatDoctorLocation(d)
                           return (
                             <Card key={docId} className="hover:shadow-md transition-shadow">
                               <CardContent className="p-4">
-                                <div className="flex justify-between items-center">
-                                  <div>
+                                <div className="flex justify-between items-start gap-3">
+                                  <div className="min-w-0">
                                     <p className="font-semibold">
                                       Dr. {d.user?.firstName ?? d.firstName} {d.user?.lastName ?? d.lastName}
                                     </p>
                                     <p className="text-sm text-muted-foreground">{d.specialization} · {d.clinicName || "Clinic"}</p>
+                                    {location.display ? (
+                                      <p className="text-sm flex items-start gap-1 mt-1 text-foreground/90">
+                                        <MapPin className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-primary" />
+                                        <span className="break-words">{location.display}</span>
+                                      </p>
+                                    ) : (
+                                      <p className="text-xs text-muted-foreground mt-1">Address not listed</p>
+                                    )}
                                     {d.distance != null && (
                                       <p className="text-xs text-muted-foreground">{d.distance} km away</p>
                                     )}
                                   </div>
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2 flex-shrink-0">
                                     <span className="text-sm font-medium flex items-center gap-0.5">
                                       <IndianRupee className="h-3 w-3" />
                                       {Number(d.consultationFee || 0)}

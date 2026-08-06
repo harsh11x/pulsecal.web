@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, Stethoscope, Loader2, Calendar, Building2, IndianRupee } from "lucide-react"
+import { Search, Stethoscope, Loader2, Calendar, Building2, IndianRupee, MapPin } from "lucide-react"
 import { apiService } from "@/services/api"
 import { toast } from "sonner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { formatDoctorLocation } from "@/lib/doctorLocation"
 
 interface Doctor {
   id?: string
@@ -18,6 +19,8 @@ interface Doctor {
   lastName?: string
   specialization: string
   clinicName?: string
+  clinicAddress?: string | null
+  clinicCity?: string | null
   consultationFee: number
   services?: string[]
   user?: { id: string; firstName: string; lastName: string }
@@ -137,6 +140,8 @@ export function PatientBookFlow() {
       specialization: s.doctorProfile?.specialization ?? s.specialization ?? "General",
       consultationFee: Number(s.doctorProfile?.consultationFee ?? s.consultationFee ?? 0),
       clinicName: clinic.name,
+      clinicAddress: s.doctorProfile?.clinicAddress || clinic.address || null,
+      clinicCity: clinic.city || null,
       services: s.doctorProfile?.services ?? s.services ?? [],
     }))
 
@@ -243,6 +248,7 @@ export function PatientBookFlow() {
                     const isSelected = selectedDoctor && doctorId(selectedDoctor) === doctorId(doc)
                     const fullName = `Dr. ${doc.user?.firstName ?? doc.firstName ?? ""} ${doc.user?.lastName ?? doc.lastName ?? ""}`.trim()
                     const clinic = doc.clinicName || "Clinic"
+                    const location = formatDoctorLocation(doc)
                     const fee = Number(doc.consultationFee || 0)
                     const services = Array.isArray(doc.services) ? doc.services : []
                     return (
@@ -260,13 +266,21 @@ export function PatientBookFlow() {
                                   {((doc.user?.firstName ?? doc.firstName ?? "D")[0] || "D").toUpperCase()}
                                 </AvatarFallback>
                               </Avatar>
-                              <div>
+                              <div className="min-w-0">
                                 <p className="font-semibold text-base break-words">{fullName || "Dr. Unknown"}</p>
                                 <p className="text-sm text-muted-foreground mt-0.5">{doc.specialization}</p>
                                 <p className="text-sm flex items-start gap-1.5 mt-2 text-foreground">
                                   <Building2 className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
                                   <span className="break-words">{clinic}</span>
                                 </p>
+                                {location.display ? (
+                                  <p className="text-sm flex items-start gap-1.5 mt-1.5 text-foreground/90">
+                                    <MapPin className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-primary" />
+                                    <span className="break-words">{location.display}</span>
+                                  </p>
+                                ) : (
+                                  <p className="text-xs text-muted-foreground mt-1.5">Address not listed</p>
+                                )}
                                 {services.length > 0 && (
                                   <div className="flex flex-wrap gap-1.5 mt-2">
                                     {services.slice(0, 5).map((s, i) => (
@@ -308,6 +322,12 @@ export function PatientBookFlow() {
                   <Building2 className="h-3 w-3" />
                   {selectedDoctor.clinicName || "Clinic"}
                 </p>
+                {formatDoctorLocation(selectedDoctor).display && (
+                  <p className="text-sm flex items-start gap-1 mt-1">
+                    <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                    <span>{formatDoctorLocation(selectedDoctor).display}</span>
+                  </p>
+                )}
                 <p className="flex items-center gap-1 mt-2 font-semibold text-base">
                   <IndianRupee className="h-4 w-4" />
                   {Number(selectedDoctor.consultationFee || 0) > 0
@@ -359,6 +379,7 @@ export function PatientBookFlow() {
                           const isSelected = selectedDoctor && doctorId(selectedDoctor) === doctorId(doc)
                           const fullName = `Dr. ${doc.user?.firstName ?? doc.firstName ?? ""} ${doc.user?.lastName ?? doc.lastName ?? ""}`.trim()
                           const fee = Number(doc.consultationFee || 0)
+                          const location = formatDoctorLocation(doc)
                           return (
                             <Card
                               key={doctorId(doc)}
@@ -370,6 +391,12 @@ export function PatientBookFlow() {
                                   <div className="flex-1 min-w-0">
                                     <p className="font-semibold text-base break-words">{fullName || "Dr. Unknown"}</p>
                                     <p className="text-sm text-muted-foreground mt-0.5">{doc.specialization}</p>
+                                    {location.display && (
+                                      <p className="text-sm flex items-start gap-1.5 mt-2 text-foreground/90">
+                                        <MapPin className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-primary" />
+                                        <span className="break-words">{location.display}</span>
+                                      </p>
+                                    )}
                                     <p className="text-sm flex items-center gap-1.5 mt-2 font-medium">
                                       <IndianRupee className="h-3.5 w-3.5" />
                                       {fee > 0 ? `₹${fee}` : "Free"}

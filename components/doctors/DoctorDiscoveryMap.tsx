@@ -8,12 +8,13 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { MapPin, Search, Navigation, Stethoscope, Star, Filter } from "lucide-react"
+import { MapPin, Search, Navigation, Stethoscope, Star, Filter, Building2 } from "lucide-react"
 import { apiService } from "@/services/api"
 import { toast } from "sonner"
 import { DoctorProfileModal } from "./DoctorProfileModal"
 import { IndiaStateSelect, IndiaCitySelect } from "@/components/location/IndiaLocationFields"
 import { medicalSpecializationFilterOptions } from "@/lib/medicalData"
+import { formatDoctorLocation } from "@/lib/doctorLocation"
 
 // Dynamically import LeafletMap with SSR disabled
 const LeafletMap = dynamic(() => import("./LeafletMap"), {
@@ -427,10 +428,16 @@ export function DoctorDiscoveryMap({ embedded = false }: { embedded?: boolean } 
                           <p className="text-sm text-muted-foreground truncate">{doctor.specialization}</p>
                           {doctor.clinicName && (
                             <p className="text-xs flex items-center gap-1 mt-1 text-muted-foreground">
-                              <MapPin className="h-3 w-3" />
+                              <Building2 className="h-3 w-3 flex-shrink-0" />
                               <span className="truncate">{doctor.clinicName}</span>
                             </p>
                           )}
+                          {formatDoctorLocation(doctor).display ? (
+                            <p className="text-xs flex items-start gap-1 mt-1 text-foreground/90">
+                              <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0 text-primary" />
+                              <span className="line-clamp-2">{formatDoctorLocation(doctor).display}</span>
+                            </p>
+                          ) : null}
                           <div className="flex items-center gap-2 mt-2 flex-wrap">
                             <Badge variant="outline" className="flex items-center gap-1 text-xs">
                               ₹{doctor.consultationFee}

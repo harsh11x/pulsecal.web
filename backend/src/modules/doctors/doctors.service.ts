@@ -1,6 +1,47 @@
 import prisma from '../../config/database';
 import { AppError } from '../../middlewares/error.middleware';
 
+type DoctorSearchRow = {
+  userId: string;
+  specialization: string | null;
+  clinicName: string | null;
+  clinicAddress: string | null;
+  clinicCity: string | null;
+  consultationFee: unknown;
+  bio: string | null;
+  services: string[] | null;
+  clinicLatitude: number | null;
+  clinicLongitude: number | null;
+  firstName: string | null;
+  lastName: string | null;
+  profileImage: string | null;
+};
+
+const parseFee = (v: unknown): number => {
+  if (v == null) return 0;
+  if (typeof v === 'number' && !Number.isNaN(v)) return v;
+  const n = typeof v === 'string' ? parseFloat(v) : Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+
+/** Map DB row → patient-facing doctor card payload (always includes location fields). */
+const mapDoctorSearchRow = (d: DoctorSearchRow) => ({
+  id: d.userId,
+  userId: d.userId,
+  firstName: d.firstName ?? '',
+  lastName: d.lastName ?? '',
+  specialization: d.specialization ?? 'General',
+  clinicName: d.clinicName ?? null,
+  clinicAddress: d.clinicAddress ?? null,
+  clinicCity: d.clinicCity ?? null,
+  clinicLatitude: d.clinicLatitude != null ? Number(d.clinicLatitude) : null,
+  clinicLongitude: d.clinicLongitude != null ? Number(d.clinicLongitude) : null,
+  consultationFee: parseFee(d.consultationFee),
+  bio: d.bio ?? null,
+  services: Array.isArray(d.services) ? d.services : [],
+  profileImage: d.profileImage ?? null,
+});
+
 /**
  * Reverse geocode lat/lng to city using Nominatim
  */
@@ -80,58 +121,31 @@ export const searchDoctors = async (params: {
         try {
           const limitNum = Math.min(limit, 200);
           const pattern = `%${term.replace(/%/g, '\\%')}%`;
-          const raw = await prisma.$queryRaw<
-            Array<{
-              userId: string;
-              specialization: string | null;
-              clinicName: string | null;
-              clinicAddress: string | null;
-              consultationFee: unknown;
-              bio: string | null;
-              services: string[] | null;
-              clinicLatitude: number | null;
-              clinicLongitude: number | null;
-              firstName: string | null;
-              lastName: string | null;
-              profileImage: string | null;
-            }>
-          >`
-          SELECT dp."userId", dp.specialization, dp."clinicName", dp."clinicAddress", dp."consultationFee",
+          const raw = await prisma.$queryRaw<DoctorSearchRow[]>`
+          SELECT dp."userId", dp.specialization,
+                 COALESCE(NULLIF(TRIM(dp."clinicName"), ''), c.name) AS "clinicName",
+                 COALESCE(NULLIF(TRIM(dp."clinicAddress"), ''), c.address) AS "clinicAddress",
+                 NULLIF(TRIM(c.city), '') AS "clinicCity",
+                 dp."consultationFee",
                  dp.bio, dp.services, dp."clinicLatitude", dp."clinicLongitude",
                  u."firstName", u."lastName", u."profileImage"
           FROM doctor_profiles dp
           INNER JOIN users u ON u.id = dp."userId" AND u.role = 'DOCTOR'
+          LEFT JOIN clinics c ON c.id = u."clinicId"
           WHERE (
             u."firstName" ILIKE ${pattern}
             OR u."lastName" ILIKE ${pattern}
             OR dp.specialization ILIKE ${pattern}
             OR dp."clinicName" ILIKE ${pattern}
+            OR dp."clinicAddress" ILIKE ${pattern}
+            OR c.city ILIKE ${pattern}
+            OR c.address ILIKE ${pattern}
+            OR c.name ILIKE ${pattern}
           )
           ORDER BY u."firstName" ASC, u."lastName" ASC
           LIMIT ${limitNum}
         `;
-          const parseFee = (v: unknown): number => {
-            if (v == null) return 0;
-            if (typeof v === 'number' && !Number.isNaN(v)) return v;
-            const n = typeof v === 'string' ? parseFloat(v) : Number(v);
-            return Number.isFinite(n) ? n : 0;
-          };
-          const mappedDoctors = raw.map((d) => ({
-            id: d.userId,
-            userId: d.userId,
-            firstName: d.firstName ?? '',
-            lastName: d.lastName ?? '',
-            specialization: d.specialization ?? 'General',
-            clinicName: d.clinicName ?? null,
-            clinicAddress: d.clinicAddress ?? null,
-            clinicCity: null,
-            clinicLatitude: d.clinicLatitude != null ? Number(d.clinicLatitude) : null,
-            clinicLongitude: d.clinicLongitude != null ? Number(d.clinicLongitude) : null,
-            consultationFee: parseFee(d.consultationFee),
-            bio: d.bio ?? null,
-            services: Array.isArray(d.services) ? d.services : [],
-            profileImage: d.profileImage ?? null,
-          }));
+          const mappedDoctors = raw.map(mapDoctorSearchRow);
           return {
             doctors: mappedDoctors,
             pagination: { page, limit, total: mappedDoctors.length, totalPages: 1 },
@@ -153,52 +167,21 @@ export const searchDoctors = async (params: {
         INNER JOIN users u ON u.id = dp."userId" AND u.role = 'DOCTOR'
       `;
         const total = Number(countRow?.count ?? 0);
-        const raw = await prisma.$queryRaw<
-          Array<{
-            userId: string;
-            specialization: string | null;
-            clinicName: string | null;
-            clinicAddress: string | null;
-            consultationFee: unknown;
-            bio: string | null;
-            services: string[] | null;
-            clinicLatitude: number | null;
-            clinicLongitude: number | null;
-            firstName: string | null;
-            lastName: string | null;
-            profileImage: string | null;
-          }>
-        >`
-        SELECT dp."userId", dp.specialization, dp."clinicName", dp."clinicAddress", dp."consultationFee",
+        const raw = await prisma.$queryRaw<DoctorSearchRow[]>`
+        SELECT dp."userId", dp.specialization,
+               COALESCE(NULLIF(TRIM(dp."clinicName"), ''), c.name) AS "clinicName",
+               COALESCE(NULLIF(TRIM(dp."clinicAddress"), ''), c.address) AS "clinicAddress",
+               NULLIF(TRIM(c.city), '') AS "clinicCity",
+               dp."consultationFee",
                dp.bio, dp.services, dp."clinicLatitude", dp."clinicLongitude",
                u."firstName", u."lastName", u."profileImage"
         FROM doctor_profiles dp
         INNER JOIN users u ON u.id = dp."userId" AND u.role = 'DOCTOR'
+        LEFT JOIN clinics c ON c.id = u."clinicId"
         ORDER BY u."firstName" ASC, u."lastName" ASC
         LIMIT ${limitNum} OFFSET ${skipNum}
       `;
-        const parseFee = (v: unknown): number => {
-          if (v == null) return 0;
-          if (typeof v === 'number' && !Number.isNaN(v)) return v;
-          const n = typeof v === 'string' ? parseFloat(v) : Number(v);
-          return Number.isFinite(n) ? n : 0;
-        };
-        const mappedDoctors = raw.map((d) => ({
-          id: d.userId,
-          userId: d.userId,
-          firstName: d.firstName ?? '',
-          lastName: d.lastName ?? '',
-          specialization: d.specialization ?? 'General',
-          clinicName: d.clinicName ?? null,
-          clinicAddress: d.clinicAddress ?? null,
-          clinicCity: null,
-          clinicLatitude: d.clinicLatitude != null ? Number(d.clinicLatitude) : null,
-          clinicLongitude: d.clinicLongitude != null ? Number(d.clinicLongitude) : null,
-          consultationFee: parseFee(d.consultationFee),
-          bio: d.bio ?? null,
-          services: Array.isArray(d.services) ? d.services : [],
-          profileImage: d.profileImage ?? null,
-        }));
+        const mappedDoctors = raw.map(mapDoctorSearchRow);
         return {
           doctors: mappedDoctors,
           pagination: { page, limit, total, totalPages: total > 0 ? Math.ceil(total / limit) : 0 },
@@ -248,7 +231,13 @@ export const searchDoctors = async (params: {
       where,
       include: {
         user: {
-          select: { id: true, firstName: true, lastName: true, profileImage: true },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            profileImage: true,
+            clinic: { select: { name: true, address: true, city: true } },
+          },
         },
       },
       orderBy: {
@@ -280,22 +269,27 @@ export const searchDoctors = async (params: {
 
     const total = filteredDoctors.length;
     const slice = filteredDoctors.slice(0, limit);
-    const mappedDoctors = slice.map((d) => ({
-      id: d.userId,
-      userId: d.userId,
-      firstName: d.user?.firstName ?? '',
-      lastName: d.user?.lastName ?? '',
-      specialization: d.specialization ?? 'General',
-      clinicName: d.clinicName ?? null,
-      clinicAddress: d.clinicAddress ?? null,
-      clinicCity: null,
-      clinicLatitude: d.clinicLatitude != null ? Number(d.clinicLatitude) : null,
-      clinicLongitude: d.clinicLongitude != null ? Number(d.clinicLongitude) : null,
-      consultationFee: d.consultationFee != null ? Number(d.consultationFee) : 0,
-      bio: d.bio ?? null,
-      services: Array.isArray(d.services) ? d.services : [],
-      profileImage: d.user?.profileImage ?? null,
-    }));
+    const mappedDoctors = slice.map((d) => {
+      const clinic = (d.user as any)?.clinic as { name?: string; address?: string; city?: string } | null | undefined;
+      const clinicName = (d.clinicName && d.clinicName.trim()) || clinic?.name || null;
+      const clinicAddress = (d.clinicAddress && d.clinicAddress.trim()) || clinic?.address || null;
+      const clinicCity = clinic?.city?.trim() || null;
+      return mapDoctorSearchRow({
+        userId: d.userId,
+        specialization: d.specialization,
+        clinicName,
+        clinicAddress,
+        clinicCity,
+        consultationFee: d.consultationFee,
+        bio: d.bio,
+        services: d.services,
+        clinicLatitude: d.clinicLatitude,
+        clinicLongitude: d.clinicLongitude,
+        firstName: d.user?.firstName ?? null,
+        lastName: d.user?.lastName ?? null,
+        profileImage: d.user?.profileImage ?? null,
+      });
+    });
 
     return {
       doctors: mappedDoctors,
