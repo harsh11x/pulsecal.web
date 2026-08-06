@@ -121,6 +121,8 @@ export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
         // Route based on role - always go to onboarding for new signups
         if (userRole === "DOCTOR") {
           router.push("/onboarding?role=doctor")
+        } else if (userRole === "RECEPTIONIST") {
+          router.push("/onboarding?role=receptionist")
         } else {
           router.push("/onboarding?role=patient")
         }
@@ -271,6 +273,8 @@ export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
     console.log(`🚀 New user signup: redirecting to onboarding for role: ${userRole}`)
     if (userRole === 'DOCTOR') {
       router.push("/onboarding?role=doctor")
+    } else if (userRole === 'RECEPTIONIST') {
+      router.push("/onboarding?role=receptionist")
     } else {
       router.push("/onboarding?role=patient")
     }
@@ -420,6 +424,17 @@ export function AuthForm({ mode, selectedRole, onSuccess }: AuthFormProps) {
               mode === "signin" ? "Sign In" : "Sign Up"
             )}
           </Button>
+
+          {mode === "signin" && (
+            <div className="text-center text-sm">
+              <a
+                href="/auth/forgot-password"
+                className="text-primary hover:underline"
+              >
+                Forgot password?
+              </a>
+            </div>
+          )}
         </form>
       </div>
 

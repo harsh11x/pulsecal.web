@@ -474,6 +474,8 @@ export default function DoctorOnboarding() {
       try {
         const profilePromise = apiService.put("/users/profile", {
           phone: formData.phone,
+          dateOfBirth: formData.dateOfBirth || null,
+          gender: formData.gender || null,
         })
         const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("Request timeout")), 10000)

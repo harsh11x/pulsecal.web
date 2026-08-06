@@ -213,6 +213,8 @@ export const getProfile = async (userId: string) => {
         lastName: true,
         phone: true,
         dateOfBirth: true,
+        gender: true,
+        address: true,
         role: true,
         isActive: true,
         isEmailVerified: true,
@@ -360,7 +362,16 @@ export const updateProfile = async (
     lastName?: string;
     phone?: string | null;
     dateOfBirth?: Date | string | null;
+    gender?: string | null;
+    address?: string | null;
+    city?: string | null;
+    state?: string | null;
+    zipCode?: string | null;
+    country?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
     profileImage?: string;
+    onboardingCompleted?: boolean;
     clinicAddress?: string;
     clinicStreet?: string;
     clinicCity?: string;
@@ -403,7 +414,16 @@ export const updateProfile = async (
       lastName,
       phone,
       dateOfBirth,
+      gender,
+      address,
+      city,
+      state,
+      zipCode,
+      country,
+      latitude,
+      longitude,
       profileImage,
+      onboardingCompleted,
     } = data;
 
     // Only set defined user fields (avoid Prisma rejecting unknown/undefined noise)
@@ -412,6 +432,17 @@ export const updateProfile = async (
     if (lastName !== undefined) userUpdate.lastName = lastName;
     if (phone !== undefined) userUpdate.phone = phone === null || phone === '' ? null : phone;
     if (profileImage !== undefined) userUpdate.profileImage = profileImage;
+    if (typeof onboardingCompleted === 'boolean') {
+      userUpdate.onboardingCompleted = onboardingCompleted;
+    }
+    if (gender !== undefined) {
+      userUpdate.gender =
+        gender === null || gender === '' ? null : String(gender).trim();
+    }
+    if (address !== undefined) {
+      userUpdate.address =
+        address === null || address === '' ? null : String(address).trim();
+    }
     if (dateOfBirth !== undefined) {
       if (dateOfBirth === null || dateOfBirth === '') {
         userUpdate.dateOfBirth = null;
@@ -419,6 +450,52 @@ export const updateProfile = async (
         const d = dateOfBirth instanceof Date ? dateOfBirth : new Date(dateOfBirth);
         if (!Number.isNaN(d.getTime())) userUpdate.dateOfBirth = d;
       }
+    }
+
+    // Persist patient location extras into settings.location (User has no lat/lng columns)
+    const hasLocationExtras =
+      city !== undefined ||
+      state !== undefined ||
+      zipCode !== undefined ||
+      country !== undefined ||
+      latitude !== undefined ||
+      longitude !== undefined;
+
+    if (hasLocationExtras) {
+      const existing = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { settings: true },
+      });
+      const settings =
+        existing?.settings && typeof existing.settings === 'object'
+          ? { ...(existing.settings as Record<string, unknown>) }
+          : {};
+      const prevLocation =
+        settings.location && typeof settings.location === 'object'
+          ? { ...(settings.location as Record<string, unknown>) }
+          : {};
+      if (city !== undefined) prevLocation.city = city;
+      if (state !== undefined) prevLocation.state = state;
+      if (zipCode !== undefined) prevLocation.zipCode = zipCode;
+      if (country !== undefined) prevLocation.country = country;
+      if (latitude !== undefined) {
+        prevLocation.latitude =
+          latitude === null || Number.isFinite(Number(latitude))
+            ? latitude === null
+              ? null
+              : Number(latitude)
+            : prevLocation.latitude;
+      }
+      if (longitude !== undefined) {
+        prevLocation.longitude =
+          longitude === null || Number.isFinite(Number(longitude))
+            ? longitude === null
+              ? null
+              : Number(longitude)
+            : prevLocation.longitude;
+      }
+      settings.location = prevLocation;
+      userUpdate.settings = settings;
     }
 
     if (Object.keys(userUpdate).length > 0) {
