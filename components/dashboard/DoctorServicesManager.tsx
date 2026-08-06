@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge"
 import { X, Plus, Save, Loader2, IndianRupee } from "lucide-react"
 import { toast } from "sonner"
 import { apiService } from "@/services/api"
-import { DoctorProfile } from "@/types"
 
 interface DoctorServicesManagerProps {
     userId: string
@@ -28,14 +27,19 @@ export default function DoctorServicesManager({ userId }: DoctorServicesManagerP
 
     const fetchDoctorProfile = async () => {
         try {
-            // Assuming we can fetch the doctor profile by user ID or a specific endpoint
-            // Adjust endpoint if necessary, e.g., /api/v1/doctor-profiles/me
             const response: any = await apiService.get(`/doctor-profiles/me`)
-            const profile = response
+            // unwrapResponse already returns data; tolerate nested shapes just in case
+            const profile = (response?.data && typeof response.data === "object" && !Array.isArray(response.data))
+                ? response.data
+                : response
 
             if (profile) {
-                setServices(profile.services || [])
-                setConsultationFee(profile.consultationFee || 0)
+                const loaded = Array.isArray(profile.services)
+                    ? profile.services.filter((s: unknown): s is string => typeof s === "string" && s.trim().length > 0)
+                    : []
+                setServices(loaded)
+                const fee = Number(profile.consultationFee)
+                setConsultationFee(Number.isFinite(fee) ? fee : 0)
             }
         } catch (error) {
             console.warn("Failed to fetch doctor services:", error)
@@ -46,12 +50,13 @@ export default function DoctorServicesManager({ userId }: DoctorServicesManagerP
     }
 
     const handleAddService = () => {
-        if (!newService.trim()) return
-        if (services.includes(newService.trim())) {
+        const trimmed = newService.trim()
+        if (!trimmed) return
+        if (services.some((s) => s.toLowerCase() === trimmed.toLowerCase())) {
             toast.error("Service already exists")
             return
         }
-        setServices([...services, newService.trim()])
+        setServices((prev) => [...prev, trimmed])
         setNewService("")
     }
 
@@ -114,23 +119,34 @@ export default function DoctorServicesManager({ userId }: DoctorServicesManagerP
                             placeholder="Add a service (e.g., General Checkup, Vaccination)"
                             value={newService}
                             onChange={(e) => setNewService(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleAddService()}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault()
+                                    handleAddService()
+                                }
+                            }}
                         />
                         <Button onClick={handleAddService} type="button" size="icon">
                             <Plus className="h-4 w-4" />
                         </Button>
                     </div>
 
-                    <div className="flex flex-wrap gap-2 mt-4 min-h-[100px] border rounded-md p-4 bg-muted/20">
+                    <div className="flex flex-wrap gap-2 mt-4 min-h-[100px] border rounded-md p-4 bg-muted/30">
                         {services.length === 0 && (
                             <p className="text-sm text-muted-foreground w-full text-center py-8">No services added yet.</p>
                         )}
-                        {services.map((service, index) => (
-                            <Badge key={index} variant="secondary" className="px-3 py-1 text-sm bg-background border shadow-sm">
-                                {service}
+                        {services.map((service) => (
+                            <Badge
+                                key={service}
+                                variant="outline"
+                                className="gap-1.5 px-3 py-1.5 text-sm font-medium text-foreground bg-card border-border shadow-sm overflow-visible"
+                            >
+                                <span>{service}</span>
                                 <button
+                                    type="button"
                                     onClick={() => handleRemoveService(service)}
-                                    className="ml-2 hover:bg-destructive hover:text-destructive-foreground rounded-full p-0.5 transition-colors"
+                                    aria-label={`Remove ${service}`}
+                                    className="inline-flex items-center justify-center rounded-sm text-muted-foreground hover:bg-destructive hover:text-destructive-foreground p-0.5 transition-colors"
                                 >
                                     <X className="h-3 w-3" />
                                 </button>
